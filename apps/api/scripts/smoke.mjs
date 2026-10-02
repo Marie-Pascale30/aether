@@ -205,6 +205,26 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         assert.equal((await admin("GET", `/levels/${foret.levels[0].id}`)).status, 200);
     });
 
+    await check("statistiques de conception : fausses pistes et parties admin exclues", async () => {
+        const stats = (await admin("GET", `/admin/levels/${origines.levels[0].id}/stats`)).body;
+        assert.ok(stats.sessions >= 2);
+        assert.ok(stats.completions >= 2);
+        assert.ok(stats.attempts >= 3);
+        // Le joueur a tenté [0, 1] plus haut ; la combinaison est triée (paires : ordre indifférent).
+        const lead = stats.falseLeads.find((l) => l.cells.join() === "0,1");
+        assert.ok(lead, "fausse piste [0, 1] absente");
+        assert.deepEqual(lead.symbols, ["○", "✦"]);
+        assert.deepEqual(stats.stars.map((s) => s.stars), [3, 2, 1]);
+        assert.equal(stats.hints.length, 2);
+        assert.equal((await player("GET", `/admin/levels/${origines.levels[0].id}/stats`)).status, 403);
+
+        const before = stats.sessions;
+        const s = (await admin("POST", `/levels/${origines.levels[0].id}/sessions`, { restart: true })).body;
+        await attempt(admin, s.sessionId, [0, 3]);
+        const after = (await admin("GET", `/admin/levels/${origines.levels[0].id}/stats`)).body;
+        assert.equal(after.sessions, before, "une partie admin a été comptée");
+    });
+
     await check("trio : 3 cases dans n'importe quel ordre", async () => {
         // Seed : Forêt 1 = cases 0, 2, 4.
         const detail = (await admin("GET", `/levels/${foret.levels[0].id}`)).body;

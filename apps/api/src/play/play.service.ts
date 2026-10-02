@@ -64,6 +64,9 @@ export class PlayService {
         if (cells.some((cell) => linked.includes(cell))) throw new BadRequestException("Cette case est déjà reliée.");
 
         const groupIndex = findGroupIndex(groups, session.foundGroups, cells, isOrdered(session.level.kind));
+        await this.prisma.attempt.create({
+            data: { sessionId: session.id, levelId: session.levelId, cells, correct: groupIndex !== -1 },
+        });
 
         if (groupIndex === -1) {
             const updated = await this.prisma.playSession.update({

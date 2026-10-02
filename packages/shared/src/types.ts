@@ -230,6 +230,38 @@ export interface AdminLevel {
     updatedAt: string;
 }
 
+/** Mauvaise réponse souvent proposée : révèle une ambiguïté possible de l'énigme. */
+export interface FalseLead {
+    /** Cases choisies (triées, sauf pour une suite où l'ordre compte). */
+    cells: number[];
+    symbols: string[];
+    /** Nombre de fois où cette combinaison a été tentée. */
+    count: number;
+    /** Nombre de parties distinctes où elle l'a été. */
+    sessions: number;
+}
+
+/** Statistiques de conception d'une énigme (parties des administrateurs exclues). */
+export interface LevelDesignStats {
+    /** Premier coup enregistré, ou `null` si personne n'a encore joué. */
+    since: string | null;
+    players: number;
+    sessions: number;
+    completions: number;
+    /** Part des parties menées à leur terme (0–1). */
+    completionRate: number | null;
+    medianDurationMs: number | null;
+    /** Moyenne sur les parties terminées. */
+    averageMistakes: number | null;
+    averageHints: number | null;
+    /** Répartition des étoiles des parties terminées. */
+    stars: { stars: number; count: number }[];
+    /** Pour chaque indice (1, 2…), nombre de parties qui l'ont révélé. */
+    hints: { hint: number; sessions: number }[];
+    attempts: number;
+    falseLeads: FalseLead[];
+}
+
 // ─── Erreurs ────────────────────────────────────────────────────────────────
 
 export interface ApiErrorBody {

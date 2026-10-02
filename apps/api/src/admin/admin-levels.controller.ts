@@ -3,17 +3,22 @@ import {
     levelInputSchema,
     reorderLevelsSchema,
     type AdminLevel,
+    type LevelDesignStats,
     type LevelInput,
     type ReorderLevelsInput,
 } from "@aether/shared";
 import { Roles } from "../common/auth.decorators";
 import { ZodPipe } from "../common/zod.pipe";
+import { AdminLevelStatsService } from "./admin-level-stats.service";
 import { AdminLevelsService } from "./admin-levels.service";
 
 @Roles("ADMIN")
 @Controller("admin/levels")
 export class AdminLevelsController {
-    constructor(private readonly levels: AdminLevelsService) {}
+    constructor(
+        private readonly levels: AdminLevelsService,
+        private readonly stats: AdminLevelStatsService,
+    ) {}
 
     @Get()
     list(): Promise<AdminLevel[]> {
@@ -23,6 +28,11 @@ export class AdminLevelsController {
     @Get(":id")
     get(@Param("id") id: string): Promise<AdminLevel> {
         return this.levels.get(id);
+    }
+
+    @Get(":id/stats")
+    levelStats(@Param("id") id: string): Promise<LevelDesignStats> {
+        return this.stats.forLevel(id);
     }
 
     @Post()

@@ -16,6 +16,7 @@ export const keys = {
     adminLevels: ["admin", "levels"] as const,
     adminLevel: (id: string) => ["admin", "levels", id] as const,
     adminWorlds: ["admin", "worlds"] as const,
+    adminLevelStats: (id: string) => ["admin", "levels", id, "stats"] as const,
 };
 
 // ─── Session ────────────────────────────────────────────────────────────────
@@ -117,6 +118,10 @@ export function useAdminLevels() {
 
 export function useAdminLevel(id: string) {
     return useQuery({ queryKey: keys.adminLevel(id), queryFn: () => api.admin.level(id), retry: noRetryOn4xx });
+}
+
+export function useAdminLevelStats(id: string) {
+    return useQuery({ queryKey: keys.adminLevelStats(id), queryFn: () => api.admin.levelStats(id), staleTime: 60_000 });
 }
 
 function useAdminMutation<TArgs, TResult>(mutationFn: (args: TArgs) => Promise<TResult>) {

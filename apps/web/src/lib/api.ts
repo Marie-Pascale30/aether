@@ -6,6 +6,7 @@ import type {
     HintResult,
     Leaderboard,
     LevelDetail,
+    LevelDesignStats,
     LevelInput,
     LoginInput,
     Me,
@@ -87,6 +88,7 @@ export const api = {
     admin: {
         levels: () => request<AdminLevel[]>("GET", "/admin/levels"),
         level: (id: string) => request<AdminLevel>("GET", `/admin/levels/${id}`),
+        levelStats: (id: string) => request<LevelDesignStats>("GET", `/admin/levels/${id}/stats`),
         create: (input: LevelInput) => request<AdminLevel>("POST", "/admin/levels", input),
         update: (id: string, input: LevelInput) => request<AdminLevel>("PUT", `/admin/levels/${id}`, input),
         remove: (id: string) => request<void>("DELETE", `/admin/levels/${id}`),

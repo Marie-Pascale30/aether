@@ -173,6 +173,16 @@ try {
         await admin.screenshot({ path: OUT + "11-admin-list.png", fullPage: true });
     });
 
+    await step("admin : statistiques et fausses pistes d'une énigme", async () => {
+        await admin.getByRole("link", { name: "Le premier lien" }).click();
+        await admin.getByRole("heading", { name: "Comment les joueurs la vivent" }).waitFor();
+        // Le joueur de ce parcours a tenté Écho 1 + Écho 2.
+        await admin.getByText("cases 1, 2").first().waitFor();
+        await admin.getByRole("heading", { name: "Comment les joueurs la vivent" }).scrollIntoViewIfNeeded();
+        await admin.screenshot({ path: OUT + "11b-admin-stats.png", fullPage: true });
+        await admin.goto(BASE + "/admin/niveaux");
+    });
+
     await step("suite jouée dans l'ordre (aperçu admin)", async () => {
         // Seed : Rivage 1 = cases 6 → 2 → 4 (glace, eau, nuage), numérotées à partir de 1.
         await admin.getByRole("row", { name: /La glace et la vapeur/ }).getByRole("link", { name: "Tester" }).click();
