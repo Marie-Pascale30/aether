@@ -1,0 +1,19 @@
+.panel {
+    max-width: 460px;
+    margin: 40px auto 0;
+}
+
+.note {
+    font-size: 14px;
+    color: var(--gold);
+}
+
+.formError {
+    margin: 0;
+    color: var(--danger);
+}
+
+.switch {
+    margin: 20px 0 0;
+    font-size: 14px;
+}

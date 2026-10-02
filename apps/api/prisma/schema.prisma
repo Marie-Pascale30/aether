@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLAYER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  /// `null` tant que le joueur est invité.
+  email        String?  @unique
+  passwordHash String?
+  displayName  String
+  role         Role     @default(PLAYER)
+  isGuest      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  progress LevelProgress[]
+  sessions PlaySession[]
+}
+
+model Level {
+  id          String   @id @default(cuid())
+  /// Position dans le parcours (tri croissant). Les trous sont permis.
+  order       Int
+  title       String
+  description String
+  /// Révélés un par un, à la demande du joueur.
+  hints       String[]
+  symbols     String[]
+  columns     Int      @default(4)
+  /// Réponses : tableau de paires d'indices `[[a, b], …]`. Jamais envoyé au joueur.
+  pairs       Json
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  progress LevelProgress[]
+  sessions PlaySession[]
+
+  @@index([published, order])
+}
+
+/// Meilleur résultat d'un joueur sur une énigme.
+model LevelProgress {
+  userId           String
+  levelId          String
+  bestStars        Int
+  bestTimeMs       Int
+  completions      Int      @default(1)
+  firstCompletedAt DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@id([userId, levelId])
+  @@index([levelId])
+}
+
+/// Une tentative de résolution d'une énigme, validée coup par coup par le serveur.
+model PlaySession {
+  id          String    @id @default(cuid())
+  userId      String
+  levelId     String
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  /// Indices (dans `Level.pairs`) des paires déjà trouvées.
+  foundPairs  Int[]
+  mistakes    Int       @default(0)
+  hintsUsed   Int       @default(0)
+  stars       Int?
+  durationMs  Int?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@index([userId, levelId, completedAt])
+}

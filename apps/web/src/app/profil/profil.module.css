@@ -1,0 +1,79 @@
+.email {
+    margin-top: -6px;
+}
+
+.nameForm {
+    display: flex;
+    align-items: start;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 12px 0 18px;
+}
+
+.nameForm > div {
+    flex: 1 1 260px;
+}
+
+.nameForm > button {
+    margin-top: 26px;
+}
+
+.totals {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 20px 0 28px;
+}
+
+.totals div {
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.totals dt {
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.totals dd {
+    margin: 4px 0 0;
+    font-size: 24px;
+    font-family: var(--font-serif);
+    font-variant-numeric: tabular-nums;
+}
+
+.scroll {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+}
+
+.table th,
+.table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+}
+
+.table th {
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.position {
+    color: var(--gold);
+    font-family: var(--font-serif);
+}

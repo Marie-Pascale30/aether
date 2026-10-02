@@ -1,0 +1,13 @@
+.panel {
+    background: linear-gradient(145deg, #122b32ee, #091a21ee);
+    border: 1px solid #dcebdc24;
+    border-radius: var(--radius-lg);
+    padding: 34px;
+    box-shadow: 0 20px 80px #00000038
+}
+
+@media (max-width: 760px) {
+    .panel {
+        padding: 22px
+    }
+}

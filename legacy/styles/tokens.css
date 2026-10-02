@@ -1,0 +1,18 @@
+:root {
+    --bg: #07131b;
+    --panel: #10252c;
+    --text: #edf1df;
+    --muted: #9db4ad;
+    --gold: #d9bd72;
+    --cyan: #8ce5dc;
+    --green: #75b78a;
+    --danger: #d8a58e;
+
+    --font-sans: system-ui, sans-serif;
+    --font-serif: Georgia, serif;
+
+    --radius-sm: 8px;
+    --radius-md: 18px;
+    --radius-lg: 24px;
+    --radius-pill: 30px;
+}

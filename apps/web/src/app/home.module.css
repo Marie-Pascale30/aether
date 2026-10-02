@@ -1,0 +1,39 @@
+.hero {
+    min-height: 620px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.symbol {
+    width: 150px;
+    height: 150px;
+    border: 1px solid #d9bd7266;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    margin-bottom: 30px;
+    box-shadow: 0 0 70px #8ce5dc12;
+    animation: halo 6s ease-in-out infinite;
+}
+
+.symbol::before {
+    content: "✦";
+    font-size: 58px;
+    color: var(--gold);
+}
+
+@keyframes halo {
+    50% {
+        box-shadow: 0 0 110px #8ce5dc2a;
+        border-color: #d9bd72a0;
+    }
+}
+
+.footer {
+    color: var(--faint);
+    font-size: 11px;
+    margin-top: 24px;
+}

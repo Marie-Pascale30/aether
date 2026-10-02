@@ -1,0 +1,72 @@
+.garden {
+    position: relative;
+    height: 430px;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #0b252c;
+}
+
+.garden svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+@media (max-width: 760px) {
+    .garden {
+        height: 300px;
+    }
+}
+
+/* Chaque élément du jardin apparaît en douceur quand son stade est atteint. */
+.layer {
+    opacity: 0;
+    transition: opacity 1.4s var(--ease), transform 1.8s var(--ease);
+}
+
+.layer[data-on="true"] {
+    opacity: 1;
+}
+
+.grow {
+    transform-origin: 0 0;
+    transform-box: view-box;
+}
+
+.layer.grow[data-on="false"] {
+    transform: scale(0) !important;
+}
+
+.garden[data-instant] .layer {
+    transition: none;
+}
+
+.stars circle {
+    fill: #edf1dfb3;
+    animation: twinkle 4.2s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+    50% {
+        opacity: .25;
+    }
+}
+
+.fireflies circle {
+    fill: #f3dc92;
+    filter: drop-shadow(0 0 3px #d9bd72);
+    animation: drift 5s ease-in-out infinite;
+}
+
+@keyframes drift {
+    0%,
+    100% {
+        transform: translate(0, 0);
+        opacity: .9;
+    }
+
+    50% {
+        transform: translate(6px, -10px);
+        opacity: .3;
+    }
+}

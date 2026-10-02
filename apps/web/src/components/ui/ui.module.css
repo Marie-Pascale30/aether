@@ -1,0 +1,210 @@
+/* ─── Boutons ─────────────────────────────────────────────────────────────── */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #d9bd7280;
+    background: #d9bd7214;
+    color: var(--text);
+    padding: 12px 22px;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .2s, border-color .2s, transform .15s var(--ease), opacity .2s;
+}
+
+.btn:hover:not(:disabled) {
+    background: #d9bd7226;
+}
+
+.btn:active:not(:disabled) {
+    transform: scale(.97);
+}
+
+.btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.primary {
+    background: var(--gold);
+    color: #132019;
+    border-color: var(--gold);
+    font-weight: 700;
+}
+
+.primary:hover:not(:disabled) {
+    background: #e6cc86;
+}
+
+.ghost {
+    border-color: transparent;
+    background: transparent;
+    color: var(--muted);
+}
+
+.ghost:hover:not(:disabled) {
+    background: #ffffff0d;
+    color: var(--text);
+}
+
+.danger {
+    border-color: #d8a58e80;
+    background: #d8a58e14;
+    color: var(--danger);
+}
+
+/* ─── Panneaux ────────────────────────────────────────────────────────────── */
+
+.panel {
+    background: linear-gradient(145deg, #122b32ee, #091a21ee);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 34px;
+    box-shadow: 0 20px 80px #00000038;
+}
+
+@media (max-width: 760px) {
+    .panel {
+        padding: 22px;
+    }
+}
+
+.callout {
+    padding: 14px 16px;
+    border-left: 2px solid var(--cyan);
+    background: #8ce5dc0b;
+    border-radius: var(--radius-sm);
+    margin: 16px 0;
+    color: #cbd8d3;
+}
+
+/* ─── Étoiles ─────────────────────────────────────────────────────────────── */
+
+.stars {
+    display: inline-flex;
+    gap: 2px;
+    line-height: 1;
+}
+
+.stars_sm {
+    font-size: 13px;
+}
+
+.stars_md {
+    font-size: 18px;
+}
+
+.stars_lg {
+    font-size: 44px;
+    gap: 10px;
+}
+
+.starOn {
+    color: var(--gold);
+    text-shadow: 0 0 12px #d9bd7266;
+}
+
+.starOff {
+    color: #dcebdc26;
+}
+
+.starOn[data-animate],
+.starOff[data-animate] {
+    animation: starPop .6s var(--ease) both;
+}
+
+@keyframes starPop {
+    from {
+        opacity: 0;
+        transform: scale(.3) rotate(-30deg);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ─── Formulaires ─────────────────────────────────────────────────────────── */
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field label {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.field input,
+.field textarea {
+    width: 100%;
+    padding: 11px 14px;
+    background: #0a1c22;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    transition: border-color .2s;
+}
+
+.field textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus {
+    border-color: var(--cyan);
+    outline: none;
+}
+
+.field input[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
+    border-color: var(--danger);
+}
+
+.fieldError {
+    color: var(--danger);
+}
+
+.fieldHint {
+    color: var(--faint);
+}
+
+/* ─── États ───────────────────────────────────────────────────────────────── */
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 120px 0;
+    color: var(--muted);
+}
+
+.loadingGlyph {
+    font-size: 34px;
+    color: var(--gold);
+    animation: breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+    50% {
+        opacity: .35;
+        transform: scale(.85);
+    }
+}
+
+.errorState {
+    max-width: 560px;
+    margin: 60px auto;
+    text-align: center;
+}
+
+.errorState p {
+    margin-inline: auto;
+}

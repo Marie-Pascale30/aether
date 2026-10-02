@@ -1,0 +1,146 @@
+:root {
+    --bg: #07131b;
+    --bg-deep: #040b10;
+    --panel: #10252c;
+    --surface: #10282f;
+    --line: #dcebdc24;
+    --line-strong: #dcebdc3d;
+    --text: #edf1df;
+    --muted: #9db4ad;
+    --faint: #6f8983;
+    --gold: #d9bd72;
+    --cyan: #8ce5dc;
+    --green: #75b78a;
+    --danger: #d8a58e;
+
+    --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-serif: Georgia, "Times New Roman", serif;
+
+    --radius-sm: 8px;
+    --radius-md: 18px;
+    --radius-lg: 24px;
+    --radius-pill: 999px;
+
+    --ease: cubic-bezier(.2, .7, .2, 1);
+
+    color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    background: var(--bg-deep); /* sous le dégradé du body, visible au-delà du premier écran */
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 0%, #17333a, var(--bg) 55%, var(--bg-deep)) no-repeat;
+    background-color: var(--bg-deep);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+a {
+    color: var(--cyan);
+}
+
+h1,
+h2,
+h3 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+h1 {
+    font-size: clamp(42px, 8vw, 62px);
+    letter-spacing: .18em;
+    margin: 0 0 10px;
+}
+
+h2 {
+    font-size: clamp(30px, 5vw, 42px);
+    margin: 12px 0;
+}
+
+h3 {
+    font-size: 22px;
+    margin: 0 0 8px;
+}
+
+p {
+    line-height: 1.7;
+    color: var(--muted);
+    max-width: 680px;
+}
+
+:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 3px;
+}
+
+/* ─── Utilitaires ─────────────────────────────────────────────────────────── */
+
+.tag {
+    color: var(--cyan);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    font-size: 11px;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.center {
+    text-align: center;
+}
+
+/* ─── Accessibilité : respect de la préférence « moins d'animations » ─────── */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}

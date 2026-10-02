@@ -1,0 +1,41 @@
+.garden {
+    height: 430px;
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(160deg, #163e40, #0b252c 60%, #10251e)
+}
+
+.garden:after {
+    content: "";
+    position: absolute;
+    left: -10%;
+    right: -10%;
+    bottom: -70px;
+    height: 200px;
+    border-radius: 50% 50% 0 0;
+    background: #15382d
+}
+
+.garden__stars {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, #edf1dfb3 1px, transparent 1.5px);
+    background-size: 70px 70px;
+    opacity: .3
+}
+
+.garden__tree {
+    position: absolute;
+    left: 18%;
+    bottom: 70px;
+    font-size: 110px;
+    z-index: 2;
+    transition: 1s
+}
+
+@media (max-width: 760px) {
+    .garden {
+        height: 300px
+    }
+}

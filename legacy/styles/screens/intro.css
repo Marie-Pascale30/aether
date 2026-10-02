@@ -1,0 +1,12 @@
+.intro {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    align-items: center
+}
+
+@media (max-width: 760px) {
+    .intro {
+        grid-template-columns: 1fr
+    }
+}

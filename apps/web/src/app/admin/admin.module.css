@@ -1,0 +1,84 @@
+.head {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.error {
+    color: var(--danger);
+}
+
+.scroll {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.table th,
+.table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+}
+
+.table th {
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.table tr[data-draft] td {
+    opacity: .7;
+}
+
+.table a {
+    color: var(--text);
+    font-family: var(--font-serif);
+    font-size: 16px;
+}
+
+.position {
+    color: var(--gold);
+    font-family: var(--font-serif);
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line-strong);
+    color: var(--muted);
+}
+
+.badge[data-published="true"] {
+    border-color: #75b78a80;
+    color: var(--green);
+}
+
+.orderButtons,
+.rowActions {
+    display: flex;
+    gap: 4px;
+}
+
+.orderButtons button {
+    padding: 6px 12px;
+}
+
+.rowActions > * {
+    padding: 8px 14px;
+}

@@ -1,0 +1,202 @@
+.head {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-top: 12px;
+}
+
+@media (max-width: 860px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.saved {
+    color: var(--green);
+}
+
+.issues {
+    margin: 0 0 12px;
+    padding: 12px 12px 12px 32px;
+    border: 1px solid #d8a58e55;
+    border-radius: 12px;
+    background: #d8a58e0f;
+    color: var(--danger);
+}
+
+.help {
+    color: var(--faint);
+}
+
+.fieldset {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 14px 16px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fieldset legend {
+    padding: 0 6px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.hintRow {
+    display: flex;
+    align-items: start;
+    gap: 6px;
+}
+
+.hintRow > div {
+    flex: 1;
+}
+
+.hintRow > button {
+    margin-top: 22px;
+    padding-inline: 12px;
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--gold);
+}
+
+.boardHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.boardHead h3 {
+    margin: 0;
+}
+
+.columns {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.columns select {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--line-strong);
+    background: #0a1c22;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(var(--columns, 4), minmax(0, 1fr));
+    gap: 8px;
+}
+
+.cell {
+    --pair: transparent;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 6px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 2px var(--pair);
+    transition: box-shadow .2s, border-color .2s;
+}
+
+.cell[data-picking] {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 2px #8ce5dc40;
+}
+
+.cell[data-invalid] {
+    border-color: var(--danger);
+}
+
+.cell input {
+    width: 100%;
+    text-align: center;
+    font-size: 26px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--line-strong);
+}
+
+.cell input:focus {
+    outline: none;
+    border-bottom-color: var(--cyan);
+}
+
+.pairButton {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.pairButton[aria-pressed="true"] {
+    border-color: var(--pair);
+    color: var(--pair);
+}
+
+.remove {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    border: none;
+    background: none;
+    color: var(--faint);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.remove:hover:not(:disabled) {
+    color: var(--danger);
+}
+
+.remove:disabled {
+    visibility: hidden;
+}
+
+.pairList {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.pairList li::marker {
+    color: var(--pair);
+}
+
+.pairList b {
+    color: var(--pair);
+    font-weight: 400;
+    font-size: 18px;
+}

@@ -1,0 +1,45 @@
+.board {
+    display: grid;
+    grid-template-columns: repeat(var(--board-columns, 4), 1fr);
+    gap: 12px;
+    max-width: 620px;
+    margin: 28px auto
+}
+
+.node {
+    aspect-ratio: 1;
+    border: 1px solid #dcebdc2e;
+    border-radius: var(--radius-md);
+    background: #10282f;
+    color: var(--text);
+    cursor: pointer;
+    position: relative
+}
+
+.node--selected {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 2px #8ce5dc1f, 0 0 30px #8ce5dc1f
+}
+
+.node--linked {
+    cursor: default
+}
+
+.node--linked:after {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border: 2px solid var(--gold);
+    border-radius: 50%
+}
+
+.node__shape {
+    font-size: 34px;
+    display: block;
+    margin-top: 15px
+}
+
+.node__label {
+    color: var(--muted);
+    font-size: 10px
+}

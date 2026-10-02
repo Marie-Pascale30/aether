@@ -1,0 +1,12 @@
+.story {
+    max-width: 720px;
+    margin: auto;
+    text-align: center;
+    padding-top: 90px
+}
+
+.quote {
+    font-family: var(--font-serif);
+    font-size: 30px;
+    line-height: 1.5
+}

@@ -1,0 +1,19 @@
+.app {
+    max-width: 1050px;
+    margin: auto;
+    padding: 24px 16px;
+}
+
+@media (min-width: 761px) {
+    .app {
+        padding: 24px;
+    }
+}
+
+.footer {
+    text-align: center;
+    color: var(--faint);
+    font-size: 11px;
+    letter-spacing: .08em;
+    margin-top: 40px;
+}

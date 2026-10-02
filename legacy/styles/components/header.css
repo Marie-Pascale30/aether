@@ -1,0 +1,12 @@
+.top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 18px
+}
+
+.logo {
+    letter-spacing: .3em;
+    color: var(--gold);
+    font-size: 13px;
+    font-weight: 700
+}
