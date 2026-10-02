@@ -114,12 +114,26 @@ async function seedLevels() {
     console.log(`${LEVELS.length} niveaux créés.`);
 }
 
+/** Mot de passe d'exemple de `.env.example`. */
+const EXAMPLE_ADMIN_PASSWORD = "change-moi-vite";
+const ADMIN_PASSWORD_MIN = 12;
+
 async function seedAdmin() {
     const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
     const password = process.env.ADMIN_PASSWORD;
     if (!email || !password) {
         console.log("ADMIN_EMAIL / ADMIN_PASSWORD absents : aucun administrateur créé.");
         return;
+    }
+
+    const weak = password === EXAMPLE_ADMIN_PASSWORD || password.length < ADMIN_PASSWORD_MIN;
+    if (weak && process.env.NODE_ENV === "production") {
+        throw new Error(
+            `ADMIN_PASSWORD refusé en production : la valeur d'exemple et les mots de passe de moins de ${ADMIN_PASSWORD_MIN} caractères sont interdits.`,
+        );
+    }
+    if (weak) {
+        console.warn(`⚠ ADMIN_PASSWORD est faible (exemple ou < ${ADMIN_PASSWORD_MIN} caractères) : à changer avant toute mise en ligne.`);
     }
 
     const passwordHash = await hashPassword(password);
