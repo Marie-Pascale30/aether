@@ -16,6 +16,7 @@ function toAdminWorld(world: WorldWithCount): AdminWorld {
         description: world.description,
         theme: toTheme(world.theme),
         published: world.published,
+        isDaily: world.isDaily,
         levelCount: world._count.levels,
     };
 }

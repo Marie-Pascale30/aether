@@ -25,6 +25,7 @@ model User {
 
   progress LevelProgress[]
   sessions PlaySession[]
+  daily    DailyResult[]
 }
 
 /// Genre d'énigme : paires, groupes (3–4 cases) ou suites ordonnées (3–5 cases).
@@ -47,6 +48,8 @@ model World {
   /// Palette du jardin : origines | foret | ocean | cosmos.
   theme       String   @default("origines")
   published   Boolean  @default(true)
+  /// Réserve de l'énigme du jour : hors du parcours, du classement et de la progression.
+  isDaily     Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -78,6 +81,7 @@ model Level {
   progress LevelProgress[]
   sessions PlaySession[]
   attempts Attempt[]
+  daily    DailyChallenge[]
 
   @@index([worldId, published, order])
 }
@@ -136,4 +140,36 @@ model Attempt {
   level   Level       @relation(fields: [levelId], references: [id], onDelete: Cascade)
 
   @@index([levelId, correct])
+}
+
+/// Énigme tirée pour un jour donné (fuseau DAILY_TIMEZONE), identique pour tous les joueurs.
+model DailyChallenge {
+  date      DateTime @id @db.Date
+  levelId   String
+  createdAt DateTime @default(now())
+
+  level   Level         @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  results DailyResult[]
+
+  @@index([levelId, date])
+}
+
+/// Première victoire d'un joueur sur l'énigme du jour : la seule qui compte pour la série.
+model DailyResult {
+  userId     String
+  date       DateTime @db.Date
+  sessionId  String
+  stars      Int
+  durationMs Int
+  mistakes   Int
+  hintsUsed  Int
+  /// Coups joués dans l'ordre (true = juste), pour le résumé à partager.
+  pattern    Boolean[]
+  createdAt  DateTime @default(now())
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge DailyChallenge @relation(fields: [date], references: [date], onDelete: Cascade)
+
+  @@id([userId, date])
+  @@index([date])
 }

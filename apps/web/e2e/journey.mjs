@@ -200,6 +200,29 @@ try {
         await admin.screenshot({ path: OUT + "13-sequence-linked.png" });
     });
 
+    await step("énigme du jour : résolue puis résumé à partager", async () => {
+        const daily = await (await admin.request.get(BASE + "/api/daily")).json();
+        const { groups } = await (await admin.request.get(`${BASE}/api/admin/levels/${daily.level.id}`)).json();
+        await admin.goto(BASE + "/quotidien");
+        await admin.getByRole("heading", { name: daily.level.title }).waitFor();
+        await admin.getByRole("link", { name: /Relever le défi|Rejouer/ }).click();
+        await admin.getByText("ÉNIGME DU JOUR", { exact: true }).waitFor();
+        await admin.getByRole("button", { name: /Recommencer/ }).click();
+        await admin.waitForTimeout(300);
+        for (const group of groups) {
+            for (const cell of group) await admin.getByRole("button", { name: new RegExp(`^Écho ${cell + 1} :`) }).click();
+            await admin.waitForTimeout(250);
+        }
+        await admin.getByRole("dialog").getByText("Énigme du jour", { exact: true }).waitFor();
+        await admin.getByRole("dialog").getByRole("button", { name: "Partager mon résultat" }).waitFor();
+        await admin.waitForTimeout(1200);
+        await admin.screenshot({ path: OUT + "13b-daily-completion.png" });
+        await admin.getByRole("link", { name: "Résumé du jour" }).click();
+        await admin.getByText("Série en cours").waitFor();
+        await admin.getByText(/AETHER · Énigme du jour/).waitFor();
+        await admin.screenshot({ path: OUT + "13c-daily.png", fullPage: true });
+    });
+
     await step("admin : mondes", async () => {
         await admin.goto(BASE + "/admin/mondes");
         await admin.getByRole("heading", { name: "Mondes" }).waitFor();

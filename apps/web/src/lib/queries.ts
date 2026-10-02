@@ -13,6 +13,7 @@ export const keys = {
     progress: ["me", "progress"] as const,
     stats: ["me", "stats"] as const,
     leaderboard: ["leaderboard"] as const,
+    daily: ["daily"] as const,
     adminLevels: ["admin", "levels"] as const,
     adminLevel: (id: string) => ["admin", "levels", id] as const,
     adminWorlds: ["admin", "worlds"] as const,
@@ -95,6 +96,10 @@ export function useStats() {
     return useQuery({ queryKey: keys.stats, queryFn: api.me.stats });
 }
 
+export function useDaily() {
+    return useQuery({ queryKey: keys.daily, queryFn: api.daily });
+}
+
 export function useLeaderboard(limit = 20) {
     return useQuery({ queryKey: [...keys.leaderboard, limit], queryFn: () => api.leaderboard(limit) });
 }
@@ -104,7 +109,7 @@ export function useInvalidateProgress() {
     const qc = useQueryClient();
     return () =>
         Promise.all(
-            [keys.worlds, keys.progress, keys.stats, keys.leaderboard].map((queryKey) =>
+            [keys.worlds, keys.progress, keys.stats, keys.leaderboard, keys.daily].map((queryKey) =>
                 qc.invalidateQueries({ queryKey }),
             ),
         );

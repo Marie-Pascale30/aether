@@ -18,7 +18,7 @@ const THEME_LABELS: Record<WorldTheme, string> = {
     cosmos: "Cosmos (violet)",
 };
 
-const EMPTY: WorldInput = { slug: "", title: "", tagline: "", description: "", theme: "origines", published: false };
+const EMPTY: WorldInput = { slug: "", title: "", tagline: "", description: "", theme: "origines", published: false, isDaily: false };
 
 export default function AdminWorldsPage() {
     const worlds = useAdminWorlds();
@@ -88,6 +88,7 @@ export default function AdminWorldsPage() {
                             <span className={styles.badge} data-published={world.published}>
                                 {world.published ? "Publié" : "Brouillon"}
                             </span>{" "}
+                            {world.isDaily && <span className={styles.badge}>Réserve du jour</span>}{" "}
                             <span className={styles.muted}>{world.levelCount} énigme{world.levelCount > 1 ? "s" : ""}</span>
                         </div>
                         <div className={styles.worldActions}>
@@ -168,10 +169,16 @@ function WorldForm({ world, onDone }: { world?: AdminWorld; onDone: () => void }
                             ))}
                         </select>
                     </label>
-                    <label className={styles.checkbox}>
-                        <input type="checkbox" checked={draft.published} onChange={(e) => set("published", e.target.checked)} />
-                        Publié (visible des joueurs)
-                    </label>
+                    <div>
+                        <label className={styles.checkbox}>
+                            <input type="checkbox" checked={draft.published} onChange={(e) => set("published", e.target.checked)} />
+                            Publié (visible des joueurs)
+                        </label>
+                        <label className={styles.checkbox}>
+                            <input type="checkbox" checked={draft.isDaily} onChange={(e) => set("isDaily", e.target.checked)} />
+                            Réserve de l&apos;énigme du jour (hors parcours)
+                        </label>
+                    </div>
                 </div>
                 <Garden stage={4} theme={draft.theme} instant className={styles.preview} />
                 {errors.form && (

@@ -95,6 +95,8 @@ export interface LevelDetail {
     hintCount: number;
     previousLevelId: string | null;
     nextLevelId: string | null;
+    /** Énigme du jour (hors parcours). */
+    isDaily: boolean;
 }
 
 // ─── Partie ──────────────────────────────────────────────────────────────────
@@ -129,6 +131,36 @@ export interface CompletionResult {
     gameCompleted: boolean;
     /** Jardin du monde de l'énigme. */
     garden: GardenState;
+    /** Renseigné quand l'énigme résolue est celle du jour. */
+    daily: DailyOutcome | null;
+}
+
+// ─── Énigme du jour ─────────────────────────────────────────────────────────
+
+export interface StreakSummary {
+    current: number;
+    best: number;
+    playedToday: boolean;
+}
+
+export interface DailyOutcome {
+    date: string;
+    /** Première victoire du jour : c'est elle qui compte pour la série. */
+    firstToday: boolean;
+    streak: StreakSummary;
+    share: string;
+}
+
+export interface DailyState {
+    /** Jour « AAAA-MM-JJ » dans le fuseau du jeu. */
+    date: string;
+    level: { id: string; title: string; kind: LevelKind; groupCount: number };
+    result: { stars: number; durationMs: number; mistakes: number; hintsUsed: number } | null;
+    streak: StreakSummary;
+    share: string | null;
+    /** Joueurs ayant déjà résolu l'énigme du jour. */
+    solvedToday: number;
+    timeZone: string;
 }
 
 export interface AttemptResult {
@@ -211,6 +243,7 @@ export interface AdminWorld {
     description: string;
     theme: WorldTheme;
     published: boolean;
+    isDaily: boolean;
     levelCount: number;
 }
 

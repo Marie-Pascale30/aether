@@ -225,6 +225,46 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         assert.equal(after.sessions, before, "une partie admin a été comptée");
     });
 
+    await check("énigme du jour : hors parcours, première victoire comptée, série et partage", async () => {
+        const daily = (await player("GET", "/daily")).body;
+        assert.match(daily.date, /^\d{4}-\d{2}-\d{2}$/);
+        assert.equal(daily.result, null);
+        assert.equal(daily.streak.playedToday, false);
+        assert.ok(!worlds.some((w) => w.slug === "quotidien"), "la réserve du jour apparaît dans les mondes");
+
+        const detail = (await player("GET", `/levels/${daily.level.id}`)).body;
+        assert.equal(detail.isDaily, true);
+        assert.equal(detail.groups, undefined);
+
+        // Une autre énigme de la réserve n'est pas jouable avant son jour.
+        const reserve = (await admin("GET", "/admin/worlds")).body.find((w) => w.isDaily);
+        const other = (await admin("GET", "/admin/levels")).body.find((l) => l.worldId === reserve.id && l.id !== daily.level.id);
+        assert.equal((await player("GET", `/levels/${other.id}`)).status, 404);
+
+        // La solution du jour, lue côté admin, jouée par le joueur après une erreur.
+        const { groups, symbols } = (await admin("GET", `/admin/levels/${daily.level.id}`)).body;
+        const linked = new Set(groups.flat());
+        const wrong = [...symbols.keys()].filter((cell) => !linked.has(cell)).slice(0, groups[0].length);
+        const s = (await player("POST", `/levels/${daily.level.id}/sessions`, { restart: true })).body;
+        assert.equal((await attempt(player, s.sessionId, wrong)).body.result, "mismatch");
+        let last;
+        for (const group of groups) last = (await attempt(player, s.sessionId, group)).body;
+        assert.equal(last.completion.daily.firstToday, true);
+        assert.equal(last.completion.daily.streak.current, 1);
+        assert.match(last.completion.daily.share, /🟥🟩/);
+        assert.match(last.completion.daily.share, /Série : 1 jour$/);
+
+        // Rejouer ne change pas le résultat du jour.
+        const replay = (await player("POST", `/levels/${daily.level.id}/sessions`, {})).body;
+        let again;
+        for (const group of groups) again = (await attempt(player, replay.sessionId, group)).body;
+        assert.equal(again.completion.daily.firstToday, false);
+        const after = (await player("GET", "/daily")).body;
+        assert.equal(after.result.mistakes, 1);
+        assert.ok(after.solvedToday >= 1);
+        assert.equal((await player("GET", "/me/progress")).body.totalLevels, 20);
+    });
+
     await check("trio : 3 cases dans n'importe quel ordre", async () => {
         // Seed : Forêt 1 = cases 0, 2, 4.
         const detail = (await admin("GET", `/levels/${foret.levels[0].id}`)).body;

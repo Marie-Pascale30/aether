@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 import type { CompletionResult } from "@aether/shared";
+import { ShareButton } from "@/components/daily/ShareButton";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Stars } from "@/components/ui/Stars";
 import { formatDuration } from "@/lib/format";
@@ -18,7 +19,7 @@ interface Props {
 export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Props) {
     const titleId = useId();
     const primaryRef = useRef<HTMLAnchorElement>(null);
-    const { stars, durationMs, mistakes, hintsUsed, isNewBest, bestStars, bestTimeMs, nextLevelId, gameCompleted, worldCompleted, nextWorld } =
+    const { stars, durationMs, mistakes, hintsUsed, isNewBest, bestStars, bestTimeMs, nextLevelId, gameCompleted, worldCompleted, nextWorld, daily } =
         completion;
     const worldJustDone = worldCompleted && !nextLevelId;
 
@@ -29,7 +30,9 @@ export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Pr
         return () => window.removeEventListener("keydown", onKey);
     }, [onClose]);
 
-    const primary = nextLevelId
+    const primary = daily
+        ? { href: "/quotidien", label: "Résumé du jour" }
+        : nextLevelId
         ? { href: `/niveaux/${nextLevelId}`, label: "Énigme suivante" }
         : gameCompleted
           ? { href: "/fin", label: "Découvrir la fin" }
@@ -46,7 +49,7 @@ export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Pr
                 aria-labelledby={titleId}
                 onClick={(event) => event.stopPropagation()}
             >
-                <div className="tag">{worldJustDone ? "Monde restauré" : "Énigme restaurée"}</div>
+                <div className="tag">{daily ? "Énigme du jour" : worldJustDone ? "Monde restauré" : "Énigme restaurée"}</div>
                 <h2 id={titleId}>{worldJustDone ? "Le monde se souvient" : "Le lien est juste"}</h2>
                 <Stars count={stars} size="lg" animate />
 
@@ -65,6 +68,16 @@ export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Pr
                     </div>
                 </dl>
 
+                {daily && (
+                    <p className={styles.record}>
+                        {daily.firstToday ? (
+                            <strong>✦ Série : {daily.streak.current} jour{daily.streak.current > 1 ? "s" : ""}</strong>
+                        ) : (
+                            "Ta première victoire du jour reste celle qui compte pour la série."
+                        )}
+                    </p>
+                )}
+
                 <p className={styles.record}>
                     {isNewBest ? (
                         <strong>✦ Nouveau record</strong>
@@ -79,6 +92,7 @@ export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Pr
                     <ButtonLink ref={primaryRef} href={primary.href} variant="primary">
                         {primary.label}
                     </ButtonLink>
+                    {daily && <ShareButton text={daily.share} />}
                     <Button onClick={onReplay}>Rejouer</Button>
                     <Button variant="ghost" onClick={onClose}>
                         Voir le plateau

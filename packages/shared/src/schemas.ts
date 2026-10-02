@@ -100,6 +100,8 @@ export const worldInputSchema = z.object({
     description: z.string().trim().min(1, "La description est requise.").max(400),
     theme: z.enum(WORLD_THEMES),
     published: z.boolean(),
+    /** Réserve de l'énigme du jour : le monde n'apparaît pas dans le parcours. */
+    isDaily: z.boolean().default(false),
 });
 
 export const reorderWorldsSchema = z.object({

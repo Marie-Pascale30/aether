@@ -31,7 +31,8 @@ export class JourneyService {
 
     async load(userId: string): Promise<Journey> {
         const rows = await this.prisma.world.findMany({
-            where: { published: true },
+            // La réserve de l'énigme du jour n'appartient pas au parcours.
+            where: { published: true, isDaily: false },
             orderBy: BY_ORDER,
             include: { levels: { where: { published: true }, orderBy: BY_ORDER } },
         });

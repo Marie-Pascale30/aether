@@ -3,6 +3,7 @@ import type {
     AdminWorld,
     ApiErrorBody,
     AttemptResult,
+    DailyState,
     HintResult,
     Leaderboard,
     LevelDetail,
@@ -84,6 +85,7 @@ export const api = {
         progress: () => request<ProgressSummary>("GET", "/me/progress"),
         stats: () => request<PlayerStats>("GET", "/me/stats"),
     },
+    daily: () => request<DailyState>("GET", "/daily"),
     leaderboard: (limit = 20) => request<Leaderboard>("GET", `/leaderboard?limit=${limit}`),
     admin: {
         levels: () => request<AdminLevel[]>("GET", "/admin/levels"),

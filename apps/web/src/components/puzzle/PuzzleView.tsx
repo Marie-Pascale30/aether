@@ -30,8 +30,9 @@ export function PuzzleView({ levelId }: { levelId: string }) {
                 <header className={styles.head}>
                     <div>
                         <div className={styles.level}>
-                            {detail.world.title.toUpperCase()} ·{" "}
-                            {detail.position > 0 ? `ÉNIGME ${pad2(detail.position)} / ${pad2(detail.total)}` : "APERÇU · BROUILLON"}
+                            {detail.isDaily
+                                ? "ÉNIGME DU JOUR"
+                                : `${detail.world.title.toUpperCase()} · ${detail.position > 0 ? `ÉNIGME ${pad2(detail.position)} / ${pad2(detail.total)}` : "APERÇU · BROUILLON"}`}
                         </div>
                         <h2>{detail.title}</h2>
                         <span className={styles.kind}>
@@ -94,8 +95,8 @@ export function PuzzleView({ levelId }: { levelId: string }) {
                     <Button variant="ghost" onClick={puzzle.restart} disabled={puzzle.restarting}>
                         ↺ Recommencer
                     </Button>
-                    <ButtonLink href={`/mondes/${detail.world.slug}`} variant="ghost">
-                        {detail.world.title}
+                    <ButtonLink href={detail.isDaily ? "/quotidien" : `/mondes/${detail.world.slug}`} variant="ghost">
+                        {detail.isDaily ? "Énigme du jour" : detail.world.title}
                     </ButtonLink>
                 </div>
             </Panel>

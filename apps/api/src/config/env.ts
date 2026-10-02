@@ -14,6 +14,8 @@ const envSchema = z
         /** Adresse publique du site, utilisée dans les liens envoyés par e-mail. */
         APP_URL: z.string().url().default("http://localhost:3100"),
         LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
+        /** Fuseau du changement d'énigme du jour (minuit local). */
+        DAILY_TIMEZONE: z.string().default("Europe/Paris"),
 
         /** `log` : les e-mails sont écrits dans `.mail-outbox/` (développement) ; `smtp` : envoi réel. */
         MAIL_TRANSPORT: z.enum(["log", "smtp"]).default("log"),

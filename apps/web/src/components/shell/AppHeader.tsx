@@ -8,6 +8,7 @@ import styles from "./AppHeader.module.css";
 
 const LINKS = [
     { href: "/mondes", label: "Mondes" },
+    { href: "/quotidien", label: "Énigme du jour" },
     { href: "/classement", label: "Classement" },
 ];
 

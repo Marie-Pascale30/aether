@@ -14,6 +14,7 @@ import {
     type SessionState,
 } from "@aether/shared";
 import type { AuthUser } from "../common/auth.decorators";
+import { DailyService } from "../levels/daily.service";
 import { JourneyService } from "../levels/journey.service";
 import { parseGroups, toWorldRef } from "../levels/level.mapper";
 import { LevelsService } from "../levels/levels.service";
@@ -33,6 +34,7 @@ export class PlayService {
         private readonly prisma: PrismaService,
         private readonly levels: LevelsService,
         private readonly journeys: JourneyService,
+        private readonly daily: DailyService,
     ) {}
 
     /** Reprend la partie en cours sur ce niveau, ou en ouvre une (toujours une neuve si `restart`). */
@@ -156,8 +158,19 @@ export class PlayService {
         const performance = { stars, durationMs, mistakes: session.mistakes, hintsUsed: session.hintsUsed, ...best };
 
         if (!location) {
-            // Brouillon joué par un administrateur : pas de parcours autour.
-            return { ...performance, nextLevelId: null, worldCompleted: false, nextWorld: null, gameCompleted: false, garden: { stage: 0, completedLevels: 0, totalLevels: 0 } };
+            // Hors parcours : énigme du jour, ou brouillon joué par un administrateur.
+            const daily = (await this.daily.isTodayLevel(session.levelId))
+                ? await this.daily.recordWin(user, { id: session.id, stars, durationMs, mistakes: session.mistakes, hintsUsed: session.hintsUsed })
+                : null;
+            return {
+                ...performance,
+                nextLevelId: null,
+                worldCompleted: false,
+                nextWorld: null,
+                gameCompleted: false,
+                garden: { stage: 0, completedLevels: 0, totalLevels: 0 },
+                daily,
+            };
         }
 
         const { world, levels } = journey.worlds[location.worldIndex]!;
@@ -171,6 +184,7 @@ export class PlayService {
             nextWorld: worldCompleted && nextWorld && journey.worldStatuses.get(nextWorld.world.id) !== "locked" ? toWorldRef(nextWorld.world) : null,
             gameCompleted: journey.worlds.every((w) => journey.worldStatuses.get(w.world.id) === "completed"),
             garden: this.journeys.worldSummary(journey, location.worldIndex).garden,
+            daily: null,
         };
     }
 
