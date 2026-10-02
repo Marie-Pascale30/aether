@@ -1,0 +1,13 @@
+# Rien de local ni de secret dans le contexte de build.
+.git
+**/node_modules
+**/.next
+**/dist
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+.env.production
+**/.mail-outbox
+apps/web/e2e/.shots
+legacy

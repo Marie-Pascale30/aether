@@ -1,0 +1,69 @@
+# Déploiement complet : base, migrations, API, front.
+#   cp .env.production.example .env.production   # puis renseigner les secrets
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Le front écoute sur WEB_PORT ; placer un proxy HTTPS (Caddy, Traefik, nginx…) devant :
+# en production, le cookie de session est « Secure » et n'est envoyé qu'en HTTPS.
+name: aether-prod
+
+x-api-env: &api-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://aether:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}@db:5432/aether?schema=public
+  # Le front (autre conteneur du réseau Docker) transmet l'IP des joueurs.
+  TRUST_PROXY: loopback,uniquelocal
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aether
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}
+      POSTGRES_DB: aether
+    volumes:
+      - aether-prod-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aether -d aether"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Tâche ponctuelle : applique les migrations et le seed, puis s'arrête.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    env_file: .env.production
+    environment: *api-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    env_file: .env.production
+    environment: *api-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        API_URL: http://api:4100
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:3100"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  aether-prod-db:

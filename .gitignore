@@ -18,3 +18,6 @@ apps/web/e2e/.shots/
 
 # E-mails écrits en local par l'API (MAIL_TRANSPORT=log)
 apps/api/.mail-outbox/
+
+# Secrets de production
+.env.production

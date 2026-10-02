@@ -12,9 +12,9 @@ async function bootstrap() {
     app.useLogger(logger);
     const env = app.get<Env>(ENV);
 
-    // Le front relaie les appels via son proxy local : on lui fait confiance pour l'IP cliente
+    // Le front relaie les appels via son proxy : on lui fait confiance pour l'IP cliente
     // (sinon la limitation de débit traiterait tous les joueurs comme un seul).
-    app.set("trust proxy", "loopback");
+    app.set("trust proxy", env.TRUST_PROXY.split(",").map((value) => value.trim()));
     app.setGlobalPrefix("api");
     app.use(cookieParser());
     app.enableCors({ origin: env.WEB_ORIGIN, credentials: true, exposedHeaders: ["x-request-id"] });

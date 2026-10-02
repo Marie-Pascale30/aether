@@ -11,6 +11,12 @@ const envSchema = z
         DATABASE_URL: z.string().min(1, "DATABASE_URL est requis."),
         JWT_SECRET: z.string().min(32, "JWT_SECRET doit contenir au moins 32 caractères."),
         WEB_ORIGIN: z.string().default("http://localhost:3100"),
+        /**
+         * Proxys autorisés à transmettre l'IP du joueur (X-Forwarded-For), au format Express :
+         * « loopback » en local, « loopback,uniquelocal » quand le front tourne dans un autre conteneur.
+         * Ne jamais exposer l'API directement sur Internet avec une valeur trop large.
+         */
+        TRUST_PROXY: z.string().default("loopback"),
         /** Adresse publique du site, utilisée dans les liens envoyés par e-mail. */
         APP_URL: z.string().url().default("http://localhost:3100"),
         LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
