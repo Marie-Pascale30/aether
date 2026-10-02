@@ -30,7 +30,8 @@ export class LeaderboardService {
                 FROM "LevelProgress" p
                 JOIN "User" u ON u.id = p."userId"
                 JOIN "Level" l ON l.id = p."levelId"
-                WHERE u."isGuest" = false AND l.published = true
+                JOIN "World" w ON w.id = l."worldId"
+                WHERE u."isGuest" = false AND l.published = true AND w.published = true
                 GROUP BY u.id, u."displayName"
             ),
             ranked AS (

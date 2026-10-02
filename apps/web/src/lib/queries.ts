@@ -1,19 +1,21 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LevelInput, LoginInput, Me, RegisterInput } from "@aether/shared";
+import type { LevelInput, LoginInput, Me, RegisterInput, WorldInput } from "@aether/shared";
 import { api, ApiError } from "./api";
 import { signedOut } from "./signedOut";
 
 export const keys = {
     me: ["me"] as const,
-    levels: ["levels"] as const,
+    worlds: ["worlds"] as const,
+    world: (slug: string) => ["worlds", slug] as const,
     level: (id: string) => ["levels", id] as const,
     progress: ["me", "progress"] as const,
     stats: ["me", "stats"] as const,
     leaderboard: ["leaderboard"] as const,
     adminLevels: ["admin", "levels"] as const,
     adminLevel: (id: string) => ["admin", "levels", id] as const,
+    adminWorlds: ["admin", "worlds"] as const,
 };
 
 // ─── Session ────────────────────────────────────────────────────────────────
@@ -72,8 +74,12 @@ export function useUpdateDisplayName() {
 
 // ─── Jeu ────────────────────────────────────────────────────────────────────
 
-export function useLevels(enabled = true) {
-    return useQuery({ queryKey: keys.levels, queryFn: api.levels.list, enabled });
+export function useWorlds() {
+    return useQuery({ queryKey: keys.worlds, queryFn: api.worlds.list });
+}
+
+export function useWorld(slug: string) {
+    return useQuery({ queryKey: keys.world(slug), queryFn: () => api.worlds.get(slug), retry: noRetryOn4xx });
 }
 
 export function useLevel(id: string) {
@@ -97,7 +103,7 @@ export function useInvalidateProgress() {
     const qc = useQueryClient();
     return () =>
         Promise.all(
-            [keys.levels, keys.progress, keys.stats, keys.leaderboard].map((queryKey) =>
+            [keys.worlds, keys.progress, keys.stats, keys.leaderboard].map((queryKey) =>
                 qc.invalidateQueries({ queryKey }),
             ),
         );
@@ -118,7 +124,10 @@ function useAdminMutation<TArgs, TResult>(mutationFn: (args: TArgs) => Promise<T
     return useMutation({
         mutationFn,
         // Le parcours des joueurs dépend aussi des niveaux : on invalide les deux côtés.
-        onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ["admin"] }), qc.invalidateQueries({ queryKey: keys.levels })]),
+        onSuccess: () =>
+            Promise.all(
+                [["admin"], keys.worlds, ["levels"], keys.progress].map((queryKey) => qc.invalidateQueries({ queryKey })),
+            ),
     });
 }
 
@@ -126,7 +135,19 @@ export const useCreateLevel = () => useAdminMutation((input: LevelInput) => api.
 export const useUpdateLevel = () =>
     useAdminMutation(({ id, input }: { id: string; input: LevelInput }) => api.admin.update(id, input));
 export const useDeleteLevel = () => useAdminMutation((id: string) => api.admin.remove(id));
-export const useReorderLevels = () => useAdminMutation((ids: string[]) => api.admin.reorder(ids));
+export const useDuplicateLevel = () => useAdminMutation((id: string) => api.admin.duplicate(id));
+export const useReorderLevels = () =>
+    useAdminMutation(({ worldId, ids }: { worldId: string; ids: string[] }) => api.admin.reorder(worldId, ids));
+
+export function useAdminWorlds() {
+    return useQuery({ queryKey: keys.adminWorlds, queryFn: api.admin.worlds });
+}
+
+export const useCreateWorld = () => useAdminMutation((input: WorldInput) => api.admin.createWorld(input));
+export const useUpdateWorld = () =>
+    useAdminMutation(({ id, input }: { id: string; input: WorldInput }) => api.admin.updateWorld(id, input));
+export const useDeleteWorld = () => useAdminMutation((id: string) => api.admin.removeWorld(id));
+export const useReorderWorlds = () => useAdminMutation((ids: string[]) => api.admin.reorderWorlds(ids));
 
 function noRetryOn4xx(failureCount: number, error: Error) {
     if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;

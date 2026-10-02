@@ -91,7 +91,7 @@
     margin: 0;
 }
 
-.columns {
+.select {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -99,7 +99,7 @@
     color: var(--muted);
 }
 
-.columns select {
+.select select {
     padding: 6px 10px;
     border-radius: 8px;
     border: 1px solid var(--line-strong);
@@ -199,4 +199,38 @@
     color: var(--pair);
     font-weight: 400;
     font-size: 18px;
+}
+
+.kindRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.kinds {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+}
+
+.kindButton {
+    padding: 6px 14px;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.kindButton[aria-checked="true"] {
+    background: #d9bd7226;
+    color: var(--gold);
+}
+
+.pairList small {
+    color: var(--faint);
 }

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { GARDEN_STAGE_COUNT } from "../constants";
-import { levelInputSchema } from "../schemas";
+import { attemptSchema, levelInputSchema } from "../schemas";
 import { gardenStage } from "./garden";
-import { findPairIndex, validateLevelDefinition } from "./levels";
+import { findGroupIndex, matchesGroup, validateLevelDefinition } from "./levels";
 import { computeStars, isBetterResult } from "./scoring";
-import { computeLevelStatuses } from "./unlock";
+import { computeJourney, computeLevelStatuses } from "./unlock";
 
 describe("computeStars", () => {
     it("donne 3 étoiles à une résolution parfaite", () => {
@@ -38,41 +38,57 @@ describe("gardenStage", () => {
         expect(stages[9]).toBeLessThan(GARDEN_STAGE_COUNT - 1);
         stages.slice(1).forEach((stage, i) => expect(stage).toBeGreaterThanOrEqual(stages[i]!));
     });
-    it("gère un parcours vide", () => {
+    it("gère un monde vide", () => {
         expect(gardenStage(0, 0)).toBe(0);
     });
 });
 
 describe("validateLevelDefinition", () => {
-    const symbols = ["○", "✦", "△", "○"];
+    const symbols = ["○", "✦", "△", "○", "□", "◇"];
 
-    it("accepte une énigme cohérente", () => {
-        expect(validateLevelDefinition({ symbols, pairs: [[0, 3]] })).toEqual([]);
+    it("accepte une énigme cohérente de chaque genre", () => {
+        expect(validateLevelDefinition({ kind: "PAIRS", symbols, groups: [[0, 3]] })).toEqual([]);
+        expect(validateLevelDefinition({ kind: "GROUPS", symbols, groups: [[0, 1, 2]] })).toEqual([]);
+        expect(validateLevelDefinition({ kind: "SEQUENCE", symbols, groups: [[2, 0, 4, 5]] })).toEqual([]);
     });
-    it("refuse une case hors plateau", () => {
-        expect(validateLevelDefinition({ symbols, pairs: [[0, 9]] })).toHaveLength(1);
+    it("refuse une taille de groupe interdite pour le genre", () => {
+        expect(validateLevelDefinition({ kind: "PAIRS", symbols, groups: [[0, 1, 2]] })).toHaveLength(1);
+        expect(validateLevelDefinition({ kind: "GROUPS", symbols, groups: [[0, 1]] })).toHaveLength(1);
     });
-    it("refuse une case utilisée deux fois", () => {
-        expect(validateLevelDefinition({ symbols, pairs: [[0, 0]] })).toHaveLength(1);
-        expect(validateLevelDefinition({ symbols, pairs: [[0, 1], [1, 2]] })).toHaveLength(1);
+    it("refuse des groupes de tailles différentes", () => {
+        expect(validateLevelDefinition({ kind: "GROUPS", symbols, groups: [[0, 1, 2], [3, 4, 5, 1]] }).length).toBeGreaterThan(0);
+    });
+    it("refuse une case hors plateau ou utilisée deux fois", () => {
+        expect(validateLevelDefinition({ kind: "PAIRS", symbols, groups: [[0, 9]] })).toHaveLength(1);
+        expect(validateLevelDefinition({ kind: "PAIRS", symbols, groups: [[0, 0]] })).toHaveLength(1);
+        expect(validateLevelDefinition({ kind: "PAIRS", symbols, groups: [[0, 1], [1, 2]] })).toHaveLength(1);
     });
     it("est appliquée par le schéma de l'éditeur", () => {
-        const base = { title: "T", description: "D", hints: ["h"], symbols, columns: 4, published: true };
-        expect(levelInputSchema.safeParse({ ...base, pairs: [[0, 3]] }).success).toBe(true);
-        expect(levelInputSchema.safeParse({ ...base, pairs: [[0, 9]] }).success).toBe(false);
+        const base = { worldId: "w", kind: "PAIRS", title: "T", description: "D", hints: ["h"], symbols, columns: 3, published: true };
+        expect(levelInputSchema.safeParse({ ...base, groups: [[0, 3]] }).success).toBe(true);
+        expect(levelInputSchema.safeParse({ ...base, groups: [[0, 9]] }).success).toBe(false);
     });
 });
 
-describe("findPairIndex", () => {
-    const pairs: [number, number][] = [[0, 5], [1, 3]];
-
-    it("trouve une paire dans les deux sens", () => {
-        expect(findPairIndex(pairs, [], 5, 0)).toBe(0);
-        expect(findPairIndex(pairs, [], 1, 3)).toBe(1);
+describe("matchesGroup / findGroupIndex", () => {
+    it("ignore l'ordre pour des paires et des groupes", () => {
+        expect(matchesGroup([0, 5], [5, 0], false)).toBe(true);
+        expect(matchesGroup([1, 2, 3], [3, 1, 2], false)).toBe(true);
+        expect(matchesGroup([1, 2, 3], [1, 2], false)).toBe(false);
     });
-    it("ignore les paires déjà trouvées et les mauvaises paires", () => {
-        expect(findPairIndex(pairs, [0], 0, 5)).toBe(-1);
-        expect(findPairIndex(pairs, [], 0, 1)).toBe(-1);
+    it("exige l'ordre exact pour une suite", () => {
+        expect(matchesGroup([4, 1, 7], [4, 1, 7], true)).toBe(true);
+        expect(matchesGroup([4, 1, 7], [7, 1, 4], true)).toBe(false);
+    });
+    it("ignore les groupes déjà trouvés", () => {
+        const groups = [[0, 5], [1, 3]];
+        expect(findGroupIndex(groups, [], [3, 1], false)).toBe(1);
+        expect(findGroupIndex(groups, [0], [0, 5], false)).toBe(-1);
+        expect(findGroupIndex(groups, [], [0, 1], false)).toBe(-1);
+    });
+    it("refuse un coup qui choisit deux fois la même case", () => {
+        expect(attemptSchema.safeParse({ cells: [1, 1] }).success).toBe(false);
+        expect(attemptSchema.safeParse({ cells: [1, 2, 3] }).success).toBe(true);
     });
 });
 
@@ -84,5 +100,26 @@ describe("computeLevelStatuses", () => {
     it("garde résolue une énigme dont la précédente vient d'être insérée", () => {
         const statuses = computeLevelStatuses(["a", "new", "b"], new Set(["a", "b"]));
         expect([...statuses.values()]).toEqual(["completed", "available", "completed"]);
+    });
+});
+
+describe("computeJourney", () => {
+    const worlds = [
+        { id: "w1", levelIds: ["a", "b"] },
+        { id: "w2", levelIds: ["c", "d"] },
+        { id: "w3", levelIds: ["e"] },
+    ];
+
+    it("scelle les mondes suivants tant que le premier n'est pas restauré", () => {
+        const { worlds: w, levels } = computeJourney(worlds, new Set(["a"]));
+        expect([...w.values()]).toEqual(["available", "locked", "locked"]);
+        expect(levels.get("b")).toBe("available");
+        expect(levels.get("c")).toBe("locked");
+    });
+    it("ouvre le monde suivant quand le précédent est entièrement restauré", () => {
+        const { worlds: w, levels } = computeJourney(worlds, new Set(["a", "b"]));
+        expect([...w.values()]).toEqual(["completed", "available", "locked"]);
+        expect(levels.get("c")).toBe("available");
+        expect(levels.get("d")).toBe("locked");
     });
 });

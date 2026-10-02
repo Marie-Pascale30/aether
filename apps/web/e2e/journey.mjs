@@ -54,15 +54,16 @@ try {
         await page.screenshot({ path: OUT + "01-home.png" });
     });
 
-    await step("commencer → jardin (invité créé)", async () => {
+    await step("commencer → premier monde (invité créé)", async () => {
         await page.getByRole("link", { name: "Commencer" }).click();
-        await page.getByRole("heading", { name: "Les Liens" }).waitFor();
+        await page.waitForURL("**/mondes/origines");
+        await page.getByRole("heading", { name: "Jardin des Origines" }).waitFor();
         await page.waitForTimeout(900);
-        await page.screenshot({ path: OUT + "02-jardin.png" });
+        await page.screenshot({ path: OUT + "02-monde.png", fullPage: true });
     });
 
     await step("entrer → énigme 1", async () => {
-        await page.getByRole("link", { name: "Entrer dans le jardin" }).click();
+        await page.getByRole("link", { name: "Entrer dans le monde" }).click();
         await page.getByRole("heading", { name: "Le premier lien" }).waitFor();
         await page.getByText("ÉNIGME 01 / 10").waitFor();
     });
@@ -102,17 +103,24 @@ try {
         await page.screenshot({ path: OUT + "05-board-linked.png" });
     });
 
-    await step("énigme suivante", async () => {
-        await page.goto(BASE + "/niveaux");
-        await page.getByRole("heading", { name: "Les énigmes" }).waitFor();
-        await page.waitForTimeout(500);
-        await page.screenshot({ path: OUT + "06-map.png" });
+    await step("mondes : le premier entamé, les suivants scellés", async () => {
+        await page.goto(BASE + "/mondes");
+        await page.getByRole("heading", { name: "Les mondes" }).waitFor();
+        await page.getByText("1 / 20 énigmes").waitFor();
+        await page.getByText("Restaure le monde précédent pour l'ouvrir.").first().waitFor();
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: OUT + "06-mondes.png", fullPage: true });
+    });
+
+    await step("énigme suivante depuis la carte du monde", async () => {
+        await page.getByRole("link", { name: /Jardin des Origines/ }).click();
         await page.getByRole("link", { name: /L'ombre et la lumière/ }).click();
         await page.getByRole("heading", { name: "L'ombre et la lumière" }).waitFor();
     });
 
-    await step("jardin a poussé", async () => {
+    await step("« mon jardin » mène au monde en cours, qui a poussé", async () => {
         await page.goto(BASE + "/jardin");
+        await page.waitForURL("**/mondes/origines");
         await page.getByText("1 / 10 énigmes restaurées").waitFor();
         await page.waitForTimeout(2500);
         await page.screenshot({ path: OUT + "07-jardin-grown.png" });
@@ -128,7 +136,7 @@ try {
         await page.getByLabel("Adresse e-mail").fill(`e2e-${id}@aether.local`);
         await page.getByLabel("Mot de passe").fill("motdepasse-solide");
         await page.getByRole("button", { name: "Créer mon compte" }).click();
-        await page.waitForURL("**/niveaux");
+        await page.waitForURL("**/mondes");
         await page.getByRole("link", { name: /Flore/ }).waitFor();
     });
 
@@ -147,25 +155,50 @@ try {
     await step("déconnexion → pas de nouvel invité automatique", async () => {
         await page.getByRole("button", { name: "Se déconnecter" }).click();
         await page.waitForURL(BASE + "/");
-        await page.goto(BASE + "/niveaux");
+        await page.goto(BASE + "/mondes");
         await page.getByRole("heading", { name: "Session fermée" }).waitFor();
     });
 
     const admin = await (await browser.newContext({ viewport: { width: 1280, height: 1000 } })).newPage();
     watch(admin, "admin");
 
-    await step("admin : connexion + liste", async () => {
+    await step("admin : connexion + liste par monde", async () => {
         await admin.goto(BASE + "/connexion?next=/admin/niveaux");
         await admin.getByLabel("Adresse e-mail").fill(ADMIN_EMAIL);
         await admin.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
         await admin.getByRole("button", { name: "Me connecter" }).click();
         await admin.waitForURL("**/admin/niveaux");
         await admin.getByRole("link", { name: "Le premier lien" }).waitFor();
-        await admin.screenshot({ path: OUT + "11-admin-list.png" });
+        await admin.getByRole("heading", { name: "Rivage des Suites" }).waitFor();
+        await admin.screenshot({ path: OUT + "11-admin-list.png", fullPage: true });
     });
 
-    await step("admin : éditeur (paire invalide refusée côté client)", async () => {
-        await admin.getByRole("link", { name: "+ Nouvelle énigme" }).click();
+    await step("suite jouée dans l'ordre (aperçu admin)", async () => {
+        // Seed : Rivage 1 = cases 6 → 2 → 4 (glace, eau, nuage), numérotées à partir de 1.
+        await admin.getByRole("row", { name: /La glace et la vapeur/ }).getByRole("link", { name: "Tester" }).click();
+        await admin.getByRole("heading", { name: "La glace et la vapeur" }).waitFor();
+        await admin.getByRole("button", { name: /Recommencer/ }).click();
+        await admin.getByText("Relie 3 éléments dans le bon ordre").waitFor();
+        await admin.getByRole("button", { name: /^Écho 6 :/ }).click();
+        await admin.getByRole("button", { name: /^Écho 2 :/ }).click();
+        await admin.getByRole("button", { name: /^Écho 2 :.*étape 2/ }).waitFor();
+        await admin.screenshot({ path: OUT + "12-sequence-selection.png" });
+        await admin.getByRole("button", { name: /^Écho 4 :/ }).click();
+        await admin.getByRole("dialog").waitFor();
+        await admin.getByRole("button", { name: "Voir le plateau" }).click();
+        await admin.waitForTimeout(900);
+        await admin.screenshot({ path: OUT + "13-sequence-linked.png" });
+    });
+
+    await step("admin : mondes", async () => {
+        await admin.goto(BASE + "/admin/mondes");
+        await admin.getByRole("heading", { name: "Mondes" }).waitFor();
+        await admin.getByRole("heading", { name: "Forêt des Échos" }).waitFor();
+        await admin.screenshot({ path: OUT + "14-admin-mondes.png", fullPage: true });
+    });
+
+    await step("admin : éditeur d'une famille (validation en direct)", async () => {
+        await admin.goto(BASE + "/admin/niveaux/nouveau");
         await admin.getByRole("heading", { name: "Nouvelle énigme" }).waitFor();
         await admin.getByRole("button", { name: "Enregistrer" }).click();
         await admin.getByText("Le titre est requis.").first().waitFor();
@@ -173,11 +206,11 @@ try {
         if (await admin.getByText("Le titre est requis.").count()) throw new Error("erreur de titre toujours affichée après correction");
         await admin.getByRole("textbox", { name: "Description" }).fill("Brouillon de test");
         await admin.getByRole("textbox", { name: "Indice 1" }).fill("Regarde bien.");
-        const relier = admin.getByRole("button", { name: "relier" });
-        await relier.nth(0).click();
-        await admin.getByRole("button", { name: "relier" }).nth(3).click(); // case 5 (4e bouton « relier » restant)
-        await admin.getByText("Paire 1 :").waitFor();
-        await admin.screenshot({ path: OUT + "12-editor.png", fullPage: true });
+        await admin.getByRole("radio", { name: /Familles/ }).click();
+        // Cases 1, 4 et 5 : chaque case choisie quitte la liste des boutons « relier ».
+        for (const nth of [0, 2, 2]) await admin.getByRole("button", { name: "relier" }).nth(nth).click();
+        await admin.getByText("Lien 1 :").waitFor();
+        await admin.screenshot({ path: OUT + "15-editor.png", fullPage: true });
         await admin.getByRole("button", { name: "Enregistrer" }).click();
         await admin.waitForURL(/\/admin\/niveaux\/[a-z0-9]+$/);
         await admin.getByRole("heading", { name: "Modifier l'énigme" }).waitFor();
@@ -195,9 +228,9 @@ try {
         const mobile = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true })).newPage();
         watch(mobile, "mobile");
         await mobile.goto(BASE + "/jardin");
-        await mobile.getByRole("link", { name: "Entrer dans le jardin" }).click();
+        await mobile.getByRole("link", { name: "Entrer dans le monde" }).click();
         await mobile.getByRole("heading", { name: "Le premier lien" }).waitFor();
-        await mobile.screenshot({ path: OUT + "13-mobile.png", fullPage: true });
+        await mobile.screenshot({ path: OUT + "16-mobile.png", fullPage: true });
         const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
         if (overflow) throw new Error("défilement horizontal sur mobile");
     });

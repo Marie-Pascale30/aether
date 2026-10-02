@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_LIMITS, LEVEL_LIMITS as L } from "./constants";
+import { ACCOUNT_LIMITS, GROUP_SIZE, LEVEL_LIMITS as L, WORLD_THEMES } from "./constants";
 import { validateLevelDefinition } from "./rules/levels";
 
 // ─── Comptes ────────────────────────────────────────────────────────────────
@@ -37,12 +37,14 @@ export const startSessionSchema = z.object({
     restart: z.boolean().optional(),
 });
 
-export const attemptSchema = z
-    .object({
-        a: z.number().int().min(0),
-        b: z.number().int().min(0),
-    })
-    .refine((attempt) => attempt.a !== attempt.b, "Choisis deux éléments différents.");
+/** Cases choisies pour former un lien, dans l'ordre de sélection (significatif pour une suite). */
+export const attemptSchema = z.object({
+    cells: z
+        .array(z.number().int().min(0))
+        .min(GROUP_SIZE.PAIRS.min)
+        .max(GROUP_SIZE.SEQUENCE.max)
+        .refine((cells) => new Set(cells).size === cells.length, "Choisis des éléments différents."),
+});
 
 export const leaderboardQuerySchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -50,10 +52,12 @@ export const leaderboardQuerySchema = z.object({
 
 // ─── Éditeur de niveaux ─────────────────────────────────────────────────────
 
-const pairSchema = z.tuple([z.number().int().min(0), z.number().int().min(0)]);
+const groupSchema = z.array(z.number().int().min(0)).min(GROUP_SIZE.PAIRS.min).max(GROUP_SIZE.SEQUENCE.max);
 
 export const levelInputSchema = z
     .object({
+        worldId: z.string().min(1, "Choisis un monde."),
+        kind: z.enum(["PAIRS", "GROUPS", "SEQUENCE"]),
         title: z.string().trim().min(1, "Le titre est requis.").max(L.titleMax, `${L.titleMax} caractères maximum.`),
         description: z
             .string()
@@ -69,7 +73,7 @@ export const levelInputSchema = z
             .min(L.symbolsMin, `Au moins ${L.symbolsMin} symboles.`)
             .max(L.symbolsMax, `${L.symbolsMax} symboles maximum.`),
         columns: z.number().int().min(L.columnsMin).max(L.columnsMax),
-        pairs: z.array(pairSchema).min(1, "Définis au moins une paire à relier."),
+        groups: z.array(groupSchema).min(1, "Définis au moins un lien à trouver."),
         published: z.boolean(),
     })
     .superRefine((level, ctx) => {
@@ -78,7 +82,27 @@ export const levelInputSchema = z
         }
     });
 
+/** Nouvel ordre des énigmes d'un monde : `ids` liste exactement toutes ses énigmes. */
 export const reorderLevelsSchema = z.object({
+    worldId: z.string().min(1),
+    ids: z.array(z.string().min(1)).min(1),
+});
+
+export const worldInputSchema = z.object({
+    slug: z
+        .string()
+        .trim()
+        .toLowerCase()
+        .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Lettres minuscules, chiffres et tirets uniquement (ex. foret-des-echos).")
+        .max(40),
+    title: z.string().trim().min(1, "Le titre est requis.").max(60),
+    tagline: z.string().trim().min(1, "Une phrase d'accroche est requise.").max(120),
+    description: z.string().trim().min(1, "La description est requise.").max(400),
+    theme: z.enum(WORLD_THEMES),
+    published: z.boolean(),
+});
+
+export const reorderWorldsSchema = z.object({
     ids: z.array(z.string().min(1)).min(1),
 });
 
@@ -101,4 +125,6 @@ export type AttemptInput = z.infer<typeof attemptSchema>;
 export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;
 export type LevelInput = z.infer<typeof levelInputSchema>;
 export type ReorderLevelsInput = z.infer<typeof reorderLevelsSchema>;
+export type WorldInput = z.infer<typeof worldInputSchema>;
+export type ReorderWorldsInput = z.infer<typeof reorderWorldsSchema>;
 export type ClientErrorInput = z.infer<typeof clientErrorSchema>;

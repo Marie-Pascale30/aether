@@ -2,36 +2,37 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import type { Level, PlaySession } from "@prisma/client";
 import {
     computeStars,
-    findPairIndex,
+    findGroupIndex,
+    groupsAt,
+    groupSizeOf,
     isBetterResult,
-    pairsAt,
+    isOrdered,
     type AttemptInput,
     type AttemptResult,
     type CompletionResult,
     type HintResult,
-    type Pair,
     type SessionState,
 } from "@aether/shared";
 import type { AuthUser } from "../common/auth.decorators";
-import { parsePairs } from "../levels/level.mapper";
+import { JourneyService } from "../levels/journey.service";
+import { parseGroups, toWorldRef } from "../levels/level.mapper";
 import { LevelsService } from "../levels/levels.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { ProgressService } from "../progress/progress.service";
 
 type SessionWithLevel = PlaySession & { level: Level };
 
 const CONCURRENT_UPDATE = "La partie a changé entre-temps : recharge l'énigme.";
 
 /**
- * Boucle de jeu autoritaire : le client ne connaît jamais les réponses, il soumet des paires
- * et le serveur tient le compte des liens trouvés, des erreurs, des indices et du temps.
+ * Boucle de jeu autoritaire : le client ne connaît jamais les réponses, il soumet des groupes
+ * de cases et le serveur tient le compte des liens trouvés, des erreurs, des indices et du temps.
  */
 @Injectable()
 export class PlayService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly levels: LevelsService,
-        private readonly progress: ProgressService,
+        private readonly journeys: JourneyService,
     ) {}
 
     /** Reprend la partie en cours sur ce niveau, ou en ouvre une (toujours une neuve si `restart`). */
@@ -48,53 +49,54 @@ export class PlayService {
             if (open) return toSessionState(open, level);
         }
 
-        const session = await this.prisma.playSession.create({ data: { userId: user.id, levelId, foundPairs: [] } });
+        const session = await this.prisma.playSession.create({ data: { userId: user.id, levelId, foundGroups: [] } });
         return toSessionState(session, level);
     }
 
-    async attempt(user: AuthUser, sessionId: string, { a, b }: AttemptInput): Promise<AttemptResult> {
+    async attempt(user: AuthUser, sessionId: string, { cells }: AttemptInput): Promise<AttemptResult> {
         const session = await this.openSession(user, sessionId);
-        const pairs = parsePairs(session.level.pairs);
-        const cellCount = session.level.symbols.length;
+        const groups = parseGroups(session.level.groups);
+        const size = groupSizeOf({ groups });
 
-        if (a >= cellCount || b >= cellCount) throw new BadRequestException("Cette case n'existe pas.");
-        const linked = pairsAt(pairs, session.foundPairs).flat();
-        if (linked.includes(a) || linked.includes(b)) throw new BadRequestException("Cette case est déjà reliée.");
+        if (cells.length !== size) throw new BadRequestException(`Choisis exactement ${size} éléments.`);
+        if (cells.some((cell) => cell >= session.level.symbols.length)) throw new BadRequestException("Cette case n'existe pas.");
+        const linked = groupsAt(groups, session.foundGroups).flat();
+        if (cells.some((cell) => linked.includes(cell))) throw new BadRequestException("Cette case est déjà reliée.");
 
-        const pairIndex = findPairIndex(pairs, session.foundPairs, a, b);
+        const groupIndex = findGroupIndex(groups, session.foundGroups, cells, isOrdered(session.level.kind));
 
-        if (pairIndex === -1) {
+        if (groupIndex === -1) {
             const updated = await this.prisma.playSession.update({
                 where: { id: session.id },
                 data: { mistakes: { increment: 1 } },
             });
             return {
                 result: "mismatch",
-                pair: [a, b],
-                foundPairs: pairsAt(pairs, session.foundPairs),
-                remaining: pairs.length - session.foundPairs.length,
+                cells,
+                foundGroups: groupsAt(groups, session.foundGroups),
+                remaining: groups.length - session.foundGroups.length,
                 mistakes: updated.mistakes,
                 completion: null,
             };
         }
 
-        const found = [...session.foundPairs, pairIndex];
-        const completion = found.length === pairs.length ? await this.complete(user, session, found) : null;
+        const found = [...session.foundGroups, groupIndex];
+        const completion = found.length === groups.length ? await this.complete(user, session, found) : null;
 
         if (!completion) {
-            // Condition sur l'état lu : deux requêtes simultanées ne peuvent pas valider la même paire.
+            // Condition sur l'état lu : deux requêtes simultanées ne peuvent pas valider le même groupe.
             const { count } = await this.prisma.playSession.updateMany({
-                where: { id: session.id, completedAt: null, NOT: { foundPairs: { has: pairIndex } } },
-                data: { foundPairs: { push: pairIndex } },
+                where: { id: session.id, completedAt: null, NOT: { foundGroups: { has: groupIndex } } },
+                data: { foundGroups: { push: groupIndex } },
             });
             if (count === 0) throw new ConflictException(CONCURRENT_UPDATE);
         }
 
         return {
             result: "match",
-            pair: [a, b],
-            foundPairs: pairsAt(pairs, found),
-            remaining: pairs.length - found.length,
+            cells,
+            foundGroups: groupsAt(groups, found),
+            remaining: groups.length - found.length,
             mistakes: session.mistakes,
             completion,
         };
@@ -123,7 +125,7 @@ export class PlayService {
         const best = await this.prisma.$transaction(async (tx) => {
             const { count } = await tx.playSession.updateMany({
                 where: { id: session.id, completedAt: null },
-                data: { foundPairs: found, completedAt: new Date(), stars, durationMs },
+                data: { foundGroups: found, completedAt: new Date(), stars, durationMs },
             });
             if (count === 0) throw new ConflictException(CONCURRENT_UPDATE);
 
@@ -145,20 +147,27 @@ export class PlayService {
             return { isNewBest, bestStars: saved.bestStars, bestTimeMs: saved.bestTimeMs };
         });
 
-        const [summary, { journey, index }] = await Promise.all([
-            this.progress.summary(user.id),
-            this.levels.playable(user, session.levelId),
-        ]);
+        // Parcours relu après la sauvegarde : déblocages et jardin tiennent compte de cette victoire.
+        const journey = await this.journeys.load(user.id);
+        const location = this.journeys.locate(journey, session.levelId);
+        const performance = { stars, durationMs, mistakes: session.mistakes, hintsUsed: session.hintsUsed, ...best };
+
+        if (!location) {
+            // Brouillon joué par un administrateur : pas de parcours autour.
+            return { ...performance, nextLevelId: null, worldCompleted: false, nextWorld: null, gameCompleted: false, garden: { stage: 0, completedLevels: 0, totalLevels: 0 } };
+        }
+
+        const { world, levels } = journey.worlds[location.worldIndex]!;
+        const nextWorld = journey.worlds[location.worldIndex + 1];
+        const worldCompleted = journey.worldStatuses.get(world.id) === "completed";
 
         return {
-            stars,
-            durationMs,
-            mistakes: session.mistakes,
-            hintsUsed: session.hintsUsed,
-            ...best,
-            nextLevelId: index === -1 ? null : (journey.levels[index + 1]?.id ?? null),
-            gameCompleted: summary.garden.totalLevels > 0 && summary.garden.completedLevels === summary.garden.totalLevels,
-            garden: summary.garden,
+            ...performance,
+            nextLevelId: levels[location.levelIndex + 1]?.id ?? null,
+            worldCompleted,
+            nextWorld: worldCompleted && nextWorld && journey.worldStatuses.get(nextWorld.world.id) !== "locked" ? toWorldRef(nextWorld.world) : null,
+            gameCompleted: journey.worlds.every((w) => journey.worldStatuses.get(w.world.id) === "completed"),
+            garden: this.journeys.worldSummary(journey, location.worldIndex).garden,
         };
     }
 
@@ -171,12 +180,11 @@ export class PlayService {
 }
 
 function toSessionState(session: PlaySession, level: Level): SessionState {
-    const pairs: Pair[] = parsePairs(level.pairs);
     return {
         sessionId: session.id,
         levelId: level.id,
         startedAt: session.startedAt.toISOString(),
-        foundPairs: pairsAt(pairs, session.foundPairs),
+        foundGroups: groupsAt(parseGroups(level.groups), session.foundGroups),
         mistakes: session.mistakes,
         hints: level.hints.slice(0, session.hintsUsed),
         hintCount: level.hints.length,

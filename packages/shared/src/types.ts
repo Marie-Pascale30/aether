@@ -5,8 +5,19 @@
 
 export type Role = "PLAYER" | "ADMIN";
 
-/** Deux indices de cases (dans `symbols`) qui forment un lien. */
-export type Pair = [number, number];
+/**
+ * Genre d'énigme :
+ *   PAIRS     relier des paires (2 cases, ordre indifférent)
+ *   GROUPS    réunir des groupes de 3 ou 4 cases (ordre indifférent)
+ *   SEQUENCE  suivre des chemins de 3 à 5 cases, dans l'ordre
+ */
+export type LevelKind = "PAIRS" | "GROUPS" | "SEQUENCE";
+
+/** Indices de cases (dans `symbols`) qui forment ensemble un lien. Pour une suite, l'ordre compte. */
+export type Group = number[];
+
+/** Palette du jardin d'un monde. */
+export type WorldTheme = "origines" | "foret" | "ocean" | "cosmos";
 
 export interface Me {
     id: string;
@@ -17,31 +28,70 @@ export interface Me {
     isGuest: boolean;
 }
 
-// ─── Niveaux ─────────────────────────────────────────────────────────────────
+// ─── Mondes et niveaux ──────────────────────────────────────────────────────
 
 export type LevelStatus = "locked" | "available" | "completed";
 
-export interface LevelSummary {
+export interface GardenState {
+    stage: number;
+    completedLevels: number;
+    totalLevels: number;
+}
+
+export interface WorldSummary {
     id: string;
+    slug: string;
     /** Position 1-based dans le parcours publié. */
     position: number;
     title: string;
-    pairCount: number;
+    tagline: string;
+    theme: WorldTheme;
+    status: LevelStatus;
+    stars: number;
+    maxStars: number;
+    garden: GardenState;
+}
+
+export interface LevelSummary {
+    id: string;
+    /** Position 1-based dans son monde. */
+    position: number;
+    title: string;
+    kind: LevelKind;
+    groupCount: number;
     status: LevelStatus;
     bestStars: number | null;
     bestTimeMs: number | null;
 }
 
-/** Énigme telle que vue par le joueur : les paires (les réponses) n'y figurent jamais. */
+export interface WorldDetail extends WorldSummary {
+    description: string;
+    levels: LevelSummary[];
+    /** Première énigme ouverte et non résolue du monde. */
+    nextLevelId: string | null;
+}
+
+export interface WorldRef {
+    slug: string;
+    title: string;
+    theme: WorldTheme;
+}
+
+/** Énigme telle que vue par le joueur : les groupes (les réponses) n'y figurent jamais. */
 export interface LevelDetail {
     id: string;
+    world: WorldRef;
+    /** Position dans le monde (0 pour un brouillon vu par un administrateur). */
     position: number;
     total: number;
     title: string;
     description: string;
     symbols: string[];
     columns: number;
-    pairCount: number;
+    kind: LevelKind;
+    /** Nombre de cases à choisir pour former un lien. */
+    groupSize: number;
+    groupCount: number;
     hintCount: number;
     previousLevelId: string | null;
     nextLevelId: string | null;
@@ -53,18 +103,12 @@ export interface SessionState {
     sessionId: string;
     levelId: string;
     startedAt: string;
-    foundPairs: Pair[];
+    foundGroups: Group[];
     mistakes: number;
     /** Indices déjà révélés, dans l'ordre. */
     hints: string[];
     hintCount: number;
     completed: boolean;
-}
-
-export interface GardenState {
-    stage: number;
-    completedLevels: number;
-    totalLevels: number;
 }
 
 export interface CompletionResult {
@@ -75,16 +119,22 @@ export interface CompletionResult {
     isNewBest: boolean;
     bestStars: number;
     bestTimeMs: number;
+    /** Énigme suivante dans le même monde. */
     nextLevelId: string | null;
-    /** Toutes les énigmes publiées sont résolues. */
+    /** Ce monde vient d'être (ou est) entièrement restauré. */
+    worldCompleted: boolean;
+    /** Monde suivant, s'il existe et qu'il est désormais ouvert. */
+    nextWorld: WorldRef | null;
+    /** Tous les mondes publiés sont restaurés. */
     gameCompleted: boolean;
+    /** Jardin du monde de l'énigme. */
     garden: GardenState;
 }
 
 export interface AttemptResult {
     result: "match" | "mismatch";
-    pair: Pair;
-    foundPairs: Pair[];
+    cells: number[];
+    foundGroups: Group[];
     remaining: number;
     mistakes: number;
     completion: CompletionResult | null;
@@ -99,15 +149,18 @@ export interface HintResult {
 // ─── Progression & statistiques ─────────────────────────────────────────────
 
 export interface ProgressSummary {
-    garden: GardenState;
+    worlds: WorldSummary[];
     totalStars: number;
     maxStars: number;
-    /** Première énigme disponible non résolue (ou `null` si tout est résolu). */
-    nextLevelId: string | null;
+    completedLevels: number;
+    totalLevels: number;
+    /** Où reprendre : premier monde ouvert non terminé et son énigme suivante. */
+    resume: { world: WorldRef; levelId: string | null } | null;
 }
 
 export interface LevelStats {
     levelId: string;
+    worldTitle: string;
     position: number;
     title: string;
     bestStars: number | null;
@@ -149,15 +202,29 @@ export interface Leaderboard {
 
 // ─── Administration ─────────────────────────────────────────────────────────
 
+export interface AdminWorld {
+    id: string;
+    slug: string;
+    order: number;
+    title: string;
+    tagline: string;
+    description: string;
+    theme: WorldTheme;
+    published: boolean;
+    levelCount: number;
+}
+
 export interface AdminLevel {
     id: string;
+    worldId: string;
     order: number;
     title: string;
     description: string;
     hints: string[];
     symbols: string[];
     columns: number;
-    pairs: Pair[];
+    kind: LevelKind;
+    groups: Group[];
     published: boolean;
     createdAt: string;
     updatedAt: string;
@@ -169,6 +236,7 @@ export interface ApiErrorBody {
     statusCode: number;
     message: string | string[];
     error?: string;
-    /** Erreurs de validation, avec le chemin du champ concerné (ex. `["pairs", 0, 1]`). */
+    requestId?: string;
+    /** Erreurs de validation, avec le chemin du champ concerné (ex. `["groups", 0, 1]`). */
     issues?: { path: (string | number)[]; message: string }[];
 }

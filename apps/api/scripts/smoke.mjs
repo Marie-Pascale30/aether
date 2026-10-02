@@ -1,6 +1,8 @@
 // Test de bout en bout contre une API démarrée (et une base seedée) :
 //   npm run smoke -w @aether/api            (API_URL=http://localhost:4100/api par défaut)
-// Parcourt : invité → énigme 1 (erreur, indice, résolution) → verrous → inscription → classement → admin.
+// Parcourt : invité → mondes et verrous → énigme 1 (erreur, indice, résolution) → inscription
+// → classement → fusion de progression → admin (groupes, suites, mondes, éditeur).
+// Les réponses vérifiées sont celles du seed (prisma/seed.ts).
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 
@@ -31,7 +33,8 @@ async function check(label, fn) {
 
 const player = client();
 const unique = Date.now().toString(36);
-let levels, session;
+const attempt = (who, sessionId, cells) => who("POST", `/sessions/${sessionId}/attempts`, { cells });
+let worlds, origines, session;
 
 console.log(`Smoke test sur ${API}`);
 
@@ -52,7 +55,7 @@ await check("observabilité : identifiant de requête, erreurs en français, rap
 
 await check("sans session : /auth/me vaut null, routes de jeu → 401", async () => {
     assert.deepEqual((await player("GET", "/auth/me")).body, { me: null });
-    assert.equal((await player("GET", "/levels")).status, 401);
+    assert.equal((await player("GET", "/worlds")).status, 401);
 });
 
 await check("session invité", async () => {
@@ -61,29 +64,43 @@ await check("session invité", async () => {
     assert.equal(body.isGuest, true);
 });
 
-await check("parcours : 1re énigme ouverte, suivantes scellées, réponses jamais exposées", async () => {
-    levels = (await player("GET", "/levels")).body;
-    assert.ok(levels.length >= 2);
-    assert.equal(levels[0].status, "available");
-    assert.equal(levels[1].status, "locked");
-    const detail = (await player("GET", `/levels/${levels[0].id}`)).body;
-    assert.equal(detail.pairs, undefined);
-    assert.equal((await player("GET", `/levels/${levels[1].id}`)).status, 403);
+await check("mondes : le premier ouvert, les suivants scellés", async () => {
+    worlds = (await player("GET", "/worlds")).body;
+    assert.ok(worlds.length >= 3);
+    assert.deepEqual(worlds.map((w) => w.status).slice(0, 3), ["available", "locked", "locked"]);
+    assert.equal(worlds[0].garden.stage, 0);
+    origines = (await player("GET", `/worlds/${worlds[0].slug}`)).body;
+    assert.equal(origines.levels[0].status, "available");
+    assert.equal(origines.levels[1].status, "locked");
+    assert.equal(origines.nextLevelId, origines.levels[0].id);
+});
+
+await check("énigmes : réponses jamais exposées, énigme scellée → 403 (y compris dans un monde scellé)", async () => {
+    const detail = (await player("GET", `/levels/${origines.levels[0].id}`)).body;
+    assert.equal(detail.groups, undefined);
+    assert.equal(detail.kind, "PAIRS");
+    assert.equal(detail.groupSize, 2);
+    assert.equal(detail.world.slug, worlds[0].slug);
+    assert.equal((await player("GET", `/levels/${origines.levels[1].id}`)).status, 403);
+    const foret = (await player("GET", `/worlds/${worlds[1].slug}`)).body;
+    assert.equal(foret.levels[0].status, "locked");
+    assert.equal((await player("GET", `/levels/${foret.levels[0].id}`)).status, 403);
 });
 
 await check("démarrer puis reprendre la même partie", async () => {
-    session = (await player("POST", `/levels/${levels[0].id}/sessions`, {})).body;
-    const again = (await player("POST", `/levels/${levels[0].id}/sessions`, {})).body;
+    session = (await player("POST", `/levels/${origines.levels[0].id}/sessions`, {})).body;
+    const again = (await player("POST", `/levels/${origines.levels[0].id}/sessions`, {})).body;
     assert.equal(again.sessionId, session.sessionId);
 });
 
-await check("validations : même case, case hors plateau", async () => {
-    assert.equal((await player("POST", `/sessions/${session.sessionId}/attempts`, { a: 1, b: 1 })).status, 400);
-    assert.equal((await player("POST", `/sessions/${session.sessionId}/attempts`, { a: 0, b: 99 })).status, 400);
+await check("validations : même case, case hors plateau, mauvais nombre de cases", async () => {
+    assert.equal((await attempt(player, session.sessionId, [1, 1])).status, 400);
+    assert.equal((await attempt(player, session.sessionId, [0, 99])).status, 400);
+    assert.equal((await attempt(player, session.sessionId, [0, 1, 2])).status, 400);
 });
 
 await check("mauvaise paire → erreur comptée", async () => {
-    const { body } = await player("POST", `/sessions/${session.sessionId}/attempts`, { a: 0, b: 1 });
+    const { body } = await attempt(player, session.sessionId, [0, 1]);
     assert.equal(body.result, "mismatch");
     assert.equal(body.mistakes, 1);
 });
@@ -98,32 +115,37 @@ await check("indices révélés un par un, puis épuisés", async () => {
 
 await check("bonne paire (dans l'ordre inverse) → énigme résolue, 1 étoile", async () => {
     // Seed : énigme 1 = cases 0 et 3.
-    const { body } = await player("POST", `/sessions/${session.sessionId}/attempts`, { a: 3, b: 0 });
+    const { body } = await attempt(player, session.sessionId, [3, 0]);
     assert.equal(body.result, "match");
     assert.ok(body.completion);
     assert.equal(body.completion.stars, 1);
     assert.equal(body.completion.isNewBest, true);
-    assert.equal(body.completion.nextLevelId, levels[1].id);
-    assert.equal((await player("POST", `/sessions/${session.sessionId}/attempts`, { a: 0, b: 3 })).status, 409);
+    assert.equal(body.completion.nextLevelId, origines.levels[1].id);
+    assert.equal(body.completion.worldCompleted, false);
+    assert.equal(body.completion.garden.completedLevels, 1);
+    assert.equal((await attempt(player, session.sessionId, [0, 3])).status, 409);
 });
 
 await check("rejouer parfaitement → 3 étoiles, nouveau record", async () => {
-    const replay = (await player("POST", `/levels/${levels[0].id}/sessions`, {})).body;
-    const { body } = await player("POST", `/sessions/${replay.sessionId}/attempts`, { a: 0, b: 3 });
+    const replay = (await player("POST", `/levels/${origines.levels[0].id}/sessions`, {})).body;
+    const { body } = await attempt(player, replay.sessionId, [0, 3]);
     assert.equal(body.completion.stars, 3);
     assert.equal(body.completion.isNewBest, true);
 });
 
 await check("énigme 2 débloquée, progression et stats à jour", async () => {
-    const after = (await player("GET", "/levels")).body;
-    assert.equal(after[0].status, "completed");
-    assert.equal(after[0].bestStars, 3);
-    assert.equal(after[1].status, "available");
+    const after = (await player("GET", `/worlds/${worlds[0].slug}`)).body;
+    assert.equal(after.levels[0].status, "completed");
+    assert.equal(after.levels[0].bestStars, 3);
+    assert.equal(after.levels[1].status, "available");
+    assert.equal(after.stars, 3);
     const progress = (await player("GET", "/me/progress")).body;
-    assert.equal(progress.garden.completedLevels, 1);
-    assert.equal(progress.nextLevelId, levels[1].id);
+    assert.equal(progress.completedLevels, 1);
+    assert.equal(progress.resume.world.slug, worlds[0].slug);
+    assert.equal(progress.resume.levelId, origines.levels[1].id);
     const stats = (await player("GET", "/me/stats")).body;
     assert.equal(stats.levels[0].completions, 2);
+    assert.equal(stats.levels[0].worldTitle, worlds[0].title);
     assert.equal(stats.totals.mistakes, 1);
 });
 
@@ -144,7 +166,7 @@ await check("inscription : l'invité garde sa progression", async () => {
     });
     assert.equal(status, 201);
     assert.equal(body.isGuest, false);
-    assert.equal((await player("GET", "/levels")).body[0].status, "completed");
+    assert.equal((await player("GET", `/worlds/${worlds[0].slug}`)).body.levels[0].status, "completed");
 });
 
 await check("apparaît au classement une fois inscrit", async () => {
@@ -163,48 +185,88 @@ await check("connexion depuis un nouvel invité : progression fusionnée", async
         password: "motdepasse-solide",
     });
     assert.equal(status, 200);
-    assert.equal((await other("GET", "/levels")).body[0].status, "completed");
+    assert.equal((await other("GET", `/worlds/${worlds[0].slug}`)).body.levels[0].status, "completed");
 });
 
 await check("éditeur réservé aux administrateurs", async () => {
     assert.equal((await player("GET", "/admin/levels")).status, 403);
+    assert.equal((await player("GET", "/admin/worlds")).status, 403);
 });
 
 if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     const admin = client();
-    await check("admin : créer (invalide puis valide), réordonner, supprimer", async () => {
-        const login = await admin("POST", "/auth/login", {
-            email: process.env.ADMIN_EMAIL,
-            password: process.env.ADMIN_PASSWORD,
-        });
+    let foret, rivage;
+
+    await check("admin : connexion, aperçu d'énigmes scellées", async () => {
+        const login = await admin("POST", "/auth/login", { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD });
         assert.equal(login.status, 200);
+        foret = (await admin("GET", `/worlds/${worlds[1].slug}`)).body;
+        rivage = (await admin("GET", `/worlds/${worlds[2].slug}`)).body;
+        assert.equal((await admin("GET", `/levels/${foret.levels[0].id}`)).status, 200);
+    });
+
+    await check("trio : 3 cases dans n'importe quel ordre", async () => {
+        // Seed : Forêt 1 = cases 0, 2, 4.
+        const detail = (await admin("GET", `/levels/${foret.levels[0].id}`)).body;
+        assert.equal(detail.kind, "GROUPS");
+        assert.equal(detail.groupSize, 3);
+        const s = (await admin("POST", `/levels/${foret.levels[0].id}/sessions`, { restart: true })).body;
+        assert.equal((await attempt(admin, s.sessionId, [0, 2])).status, 400);
+        assert.equal((await attempt(admin, s.sessionId, [0, 2, 5])).body.result, "mismatch");
+        const { body } = await attempt(admin, s.sessionId, [4, 0, 2]);
+        assert.equal(body.result, "match");
+        assert.ok(body.completion);
+    });
+
+    await check("suite : l'ordre exact compte", async () => {
+        // Seed : Rivage 1 = cases 5 → 1 → 3 (glace, eau, nuage).
+        const s = (await admin("POST", `/levels/${rivage.levels[0].id}/sessions`, { restart: true })).body;
+        assert.equal((await attempt(admin, s.sessionId, [3, 1, 5])).body.result, "mismatch");
+        assert.equal((await attempt(admin, s.sessionId, [1, 5, 3])).body.result, "mismatch");
+        const { body } = await attempt(admin, s.sessionId, [5, 1, 3]);
+        assert.equal(body.result, "match");
+        assert.equal(body.completion.mistakes, 2);
+    });
+
+    await check("admin : mondes (création, identifiant unique, suppression protégée)", async () => {
+        const input = { slug: `essai-${unique}`, title: "Monde d'essai", tagline: "Test", description: "Test", theme: "cosmos", published: false };
+        assert.equal((await admin("POST", "/admin/worlds", { ...input, slug: "Pas Valide" })).status, 400);
+        const created = await admin("POST", "/admin/worlds", input);
+        assert.equal(created.status, 201);
+        assert.equal((await admin("POST", "/admin/worlds", input)).status, 409);
 
         const draft = {
+            worldId: created.body.id,
+            kind: "GROUPS",
             title: `Brouillon ${unique}`,
             description: "Test",
             hints: ["h"],
-            symbols: ["○", "△", "○", "□"],
-            columns: 2,
-            pairs: [[0, 9]],
+            symbols: ["○", "△", "○", "□", "○", "◇"],
+            columns: 3,
+            groups: [[0, 2]],
             published: false,
         };
         const invalid = await admin("POST", "/admin/levels", draft);
         assert.equal(invalid.status, 400);
-        assert.deepEqual(invalid.body.issues[0].path, ["pairs", 0, 1]);
+        assert.deepEqual(invalid.body.issues[0].path, ["groups"]);
 
-        const created = await admin("POST", "/admin/levels", { ...draft, pairs: [[0, 2]] });
-        assert.equal(created.status, 201);
-        assert.equal(created.body.pairs.length, 1);
+        const level = await admin("POST", "/admin/levels", { ...draft, groups: [[0, 2, 4]] });
+        assert.equal(level.status, 201);
+        assert.equal(level.body.kind, "GROUPS");
 
-        const all = (await admin("GET", "/admin/levels")).body;
-        const ids = all.map((level) => level.id);
-        const reordered = await admin("POST", "/admin/levels/reorder", { ids: [...ids].reverse() });
-        assert.equal(reordered.body[0].id, created.body.id);
-        await admin("POST", "/admin/levels/reorder", { ids });
+        const copy = await admin("POST", `/admin/levels/${level.body.id}/duplicate`);
+        assert.equal(copy.status, 201);
+        assert.equal(copy.body.published, false);
+        const reordered = await admin("POST", "/admin/levels/reorder", { worldId: created.body.id, ids: [copy.body.id, level.body.id] });
+        assert.equal(reordered.status, 200);
+        assert.equal(reordered.body.find((l) => l.worldId === created.body.id).id, copy.body.id);
 
-        // Un brouillon n'est pas visible des joueurs.
-        assert.equal((await player("GET", `/levels/${created.body.id}`)).status, 404);
-        assert.equal((await admin("DELETE", `/admin/levels/${created.body.id}`)).status, 204);
+        // Un monde non publié est invisible des joueurs ; il ne se supprime qu'une fois vide.
+        assert.equal((await player("GET", `/worlds/${input.slug}`)).status, 404);
+        assert.equal((await admin("DELETE", `/admin/worlds/${created.body.id}`)).status, 409);
+        assert.equal((await admin("DELETE", `/admin/levels/${level.body.id}`)).status, 204);
+        assert.equal((await admin("DELETE", `/admin/levels/${copy.body.id}`)).status, 204);
+        assert.equal((await admin("DELETE", `/admin/worlds/${created.body.id}`)).status, 204);
     });
 }
 

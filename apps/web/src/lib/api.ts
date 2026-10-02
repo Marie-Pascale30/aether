@@ -1,18 +1,21 @@
 import type {
     AdminLevel,
+    AdminWorld,
     ApiErrorBody,
     AttemptResult,
     HintResult,
     Leaderboard,
     LevelDetail,
     LevelInput,
-    LevelSummary,
     LoginInput,
     Me,
     PlayerStats,
     ProgressSummary,
     RegisterInput,
     SessionState,
+    WorldDetail,
+    WorldInput,
+    WorldSummary,
 } from "@aether/shared";
 
 export type ApiIssue = NonNullable<ApiErrorBody["issues"]>[number];
@@ -62,15 +65,18 @@ export const api = {
         logout: () => request<void>("POST", "/auth/logout"),
         updateMe: (displayName: string) => request<Me>("PATCH", "/auth/me", { displayName }),
     },
+    worlds: {
+        list: () => request<WorldSummary[]>("GET", "/worlds"),
+        get: (slug: string) => request<WorldDetail>("GET", `/worlds/${slug}`),
+    },
     levels: {
-        list: () => request<LevelSummary[]>("GET", "/levels"),
         get: (id: string) => request<LevelDetail>("GET", `/levels/${id}`),
     },
     play: {
         start: (levelId: string, restart = false) =>
             request<SessionState>("POST", `/levels/${levelId}/sessions`, { restart }),
-        attempt: (sessionId: string, a: number, b: number) =>
-            request<AttemptResult>("POST", `/sessions/${sessionId}/attempts`, { a, b }),
+        attempt: (sessionId: string, cells: number[]) =>
+            request<AttemptResult>("POST", `/sessions/${sessionId}/attempts`, { cells }),
         hint: (sessionId: string) => request<HintResult>("POST", `/sessions/${sessionId}/hints`),
     },
     me: {
@@ -84,6 +90,12 @@ export const api = {
         create: (input: LevelInput) => request<AdminLevel>("POST", "/admin/levels", input),
         update: (id: string, input: LevelInput) => request<AdminLevel>("PUT", `/admin/levels/${id}`, input),
         remove: (id: string) => request<void>("DELETE", `/admin/levels/${id}`),
-        reorder: (ids: string[]) => request<AdminLevel[]>("POST", "/admin/levels/reorder", { ids }),
+        duplicate: (id: string) => request<AdminLevel>("POST", `/admin/levels/${id}/duplicate`),
+        reorder: (worldId: string, ids: string[]) => request<AdminLevel[]>("POST", "/admin/levels/reorder", { worldId, ids }),
+        worlds: () => request<AdminWorld[]>("GET", "/admin/worlds"),
+        createWorld: (input: WorldInput) => request<AdminWorld>("POST", "/admin/worlds", input),
+        updateWorld: (id: string, input: WorldInput) => request<AdminWorld>("PUT", `/admin/worlds/${id}`, input),
+        removeWorld: (id: string) => request<void>("DELETE", `/admin/worlds/${id}`),
+        reorderWorlds: (ids: string[]) => request<AdminWorld[]>("POST", "/admin/worlds/reorder", { ids }),
     },
 };

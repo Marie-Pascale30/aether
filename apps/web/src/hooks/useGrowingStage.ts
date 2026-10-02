@@ -2,21 +2,21 @@
 
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "aether:garden-seen";
+const STORAGE_PREFIX = "aether:garden-seen:";
 const GROW_DELAY_MS = 700;
 
-function readSeen(): number | null {
+function readSeen(key: string): number | null {
     try {
-        const value = localStorage.getItem(STORAGE_KEY);
+        const value = localStorage.getItem(STORAGE_PREFIX + key);
         return value === null ? null : Number(value);
     } catch {
         return null;
     }
 }
 
-function writeSeen(stage: number) {
+function writeSeen(key: string, stage: number) {
     try {
-        localStorage.setItem(STORAGE_KEY, String(stage));
+        localStorage.setItem(STORAGE_PREFIX + key, String(stage));
     } catch {
         // stockage indisponible : le jardin s'affichera simplement sans animation de croissance
     }
@@ -24,28 +24,28 @@ function writeSeen(stage: number) {
 
 /**
  * Affiche d'abord le jardin tel que le joueur l'a vu la dernière fois, puis le fait croître
- * jusqu'à son stade réel : chaque progrès se voit pousser.
+ * jusqu'à son stade réel : chaque progrès se voit pousser. Mémorisé séparément pour chaque monde (`key`).
  */
-export function useGrowingStage(target: number | undefined): { stage: number; instant: boolean } {
+export function useGrowingStage(target: number | undefined, key: string): { stage: number; instant: boolean } {
     const [state, setState] = useState<{ stage: number; instant: boolean }>({ stage: 0, instant: true });
 
     useEffect(() => {
         if (target === undefined) return;
 
-        const seen = readSeen();
+        const seen = readSeen(key);
         if (seen === null || seen >= target) {
             setState({ stage: target, instant: true });
-            writeSeen(target);
+            writeSeen(key, target);
             return;
         }
 
         setState({ stage: seen, instant: true });
         const timer = setTimeout(() => {
             setState({ stage: target, instant: false });
-            writeSeen(target);
+            writeSeen(key, target);
         }, GROW_DELAY_MS);
         return () => clearTimeout(timer);
-    }, [target]);
+    }, [target, key]);
 
     return state;
 }

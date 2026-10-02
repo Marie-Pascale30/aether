@@ -20,6 +20,15 @@ export const LEVEL_LIMITS = {
     columnsMax: 6,
 } as const;
 
+/** Nombre de cases par lien, selon le genre d'énigme. */
+export const GROUP_SIZE: Record<"PAIRS" | "GROUPS" | "SEQUENCE", { min: number; max: number }> = {
+    PAIRS: { min: 2, max: 2 },
+    GROUPS: { min: 3, max: 4 },
+    SEQUENCE: { min: 3, max: 5 },
+};
+
+export const WORLD_THEMES = ["origines", "foret", "ocean", "cosmos"] as const;
+
 export const ACCOUNT_LIMITS = {
     displayNameMin: 2,
     displayNameMax: 24,

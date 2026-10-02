@@ -7,8 +7,7 @@ import { useSound } from "@/lib/sound/SoundProvider";
 import styles from "./AppHeader.module.css";
 
 const LINKS = [
-    { href: "/jardin", label: "Jardin" },
-    { href: "/niveaux", label: "Énigmes" },
+    { href: "/mondes", label: "Mondes" },
     { href: "/classement", label: "Classement" },
 ];
 

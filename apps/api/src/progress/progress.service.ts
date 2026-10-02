@@ -1,31 +1,44 @@
 import { Injectable } from "@nestjs/common";
-import { gardenStage, MAX_STARS_PER_LEVEL, type PlayerStats, type ProgressSummary } from "@aether/shared";
-import { LevelsService } from "../levels/levels.service";
+import { MAX_STARS_PER_LEVEL, type LevelStats, type PlayerStats, type ProgressSummary } from "@aether/shared";
+import { JourneyService, type Journey } from "../levels/journey.service";
+import { toWorldRef } from "../levels/level.mapper";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class ProgressService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly levels: LevelsService,
+        private readonly journeys: JourneyService,
     ) {}
 
-    async summary(userId: string): Promise<ProgressSummary> {
-        const { levels, statuses, progress } = await this.levels.journey(userId);
-        const completedLevels = progress.size;
-        const totalLevels = levels.length;
+    async summary(userId: string, journey?: Journey): Promise<ProgressSummary> {
+        const j = journey ?? (await this.journeys.load(userId));
+        const worlds = j.worlds.map((_, i) => this.journeys.worldSummary(j, i));
+        const totalLevels = j.worlds.reduce((sum, w) => sum + w.levels.length, 0);
+
+        const resumeIndex = worlds.findIndex((world) => world.status === "available");
+        const resume =
+            resumeIndex === -1
+                ? null
+                : {
+                      world: toWorldRef(j.worlds[resumeIndex]!.world),
+                      levelId: this.journeys.nextAvailableLevel(j, resumeIndex)?.id ?? null,
+                  };
 
         return {
-            garden: { stage: gardenStage(completedLevels, totalLevels), completedLevels, totalLevels },
-            totalStars: [...progress.values()].reduce((sum, row) => sum + row.bestStars, 0),
+            worlds,
+            totalStars: worlds.reduce((sum, world) => sum + world.stars, 0),
             maxStars: totalLevels * MAX_STARS_PER_LEVEL,
-            nextLevelId: levels.find((level) => statuses.get(level.id) === "available")?.id ?? null,
+            completedLevels: j.progress.size,
+            totalLevels,
+            resume,
         };
     }
 
     async stats(userId: string): Promise<PlayerStats> {
-        const { levels, progress } = await this.levels.journey(userId);
-        const levelIds = levels.map((level) => level.id);
+        const journey = await this.journeys.load(userId);
+        const levels = journey.worlds.flatMap(({ world, levels }) => levels.map((level, i) => ({ level, world, position: i + 1 })));
+        const levelIds = levels.map(({ level }) => level.id);
 
         const [allSessions, completedSessions] = await Promise.all([
             this.prisma.playSession.groupBy({
@@ -42,14 +55,15 @@ export class ProgressService {
         ]);
 
         const sessionsByLevel = new Map(allSessions.map((row) => [row.levelId, row]));
-        const playTimeByLevel = new Map(completedSessions.map((row) => [row.levelId, row._sum.durationMs ?? 0]));
+        const playTimeMs = completedSessions.reduce((sum, row) => sum + (row._sum.durationMs ?? 0), 0);
 
-        const levelStats = levels.map((level, i) => {
-            const best = progress.get(level.id);
+        const levelStats: LevelStats[] = levels.map(({ level, world, position }) => {
+            const best = journey.progress.get(level.id);
             const sessions = sessionsByLevel.get(level.id);
             return {
                 levelId: level.id,
-                position: i + 1,
+                worldTitle: world.title,
+                position,
                 title: level.title,
                 bestStars: best?.bestStars ?? null,
                 bestTimeMs: best?.bestTimeMs ?? null,
@@ -60,8 +74,7 @@ export class ProgressService {
             };
         });
 
-        const sum = (pick: (row: (typeof levelStats)[number]) => number) =>
-            levelStats.reduce((total, row) => total + pick(row), 0);
+        const sum = (pick: (row: LevelStats) => number) => levelStats.reduce((total, row) => total + pick(row), 0);
 
         return {
             levels: levelStats,
@@ -71,7 +84,7 @@ export class ProgressService {
                 mistakes: sum((row) => row.mistakes),
                 hintsUsed: sum((row) => row.hintsUsed),
                 totalStars: sum((row) => row.bestStars ?? 0),
-                playTimeMs: [...playTimeByLevel.values()].reduce((a, b) => a + b, 0),
+                playTimeMs,
             },
         };
     }

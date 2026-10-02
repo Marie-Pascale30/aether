@@ -2,8 +2,9 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MISMATCH_FEEDBACK_MS, type AttemptResult, type CompletionResult, type Pair, type SessionState } from "@aether/shared";
+import { MISMATCH_FEEDBACK_MS, type AttemptResult, type CompletionResult, type SessionState } from "@aether/shared";
 import { api, ApiError } from "@/lib/api";
+import { KIND_COPY } from "@/lib/kinds";
 import { useInvalidateProgress, useLevel } from "@/lib/queries";
 import { useSound } from "@/lib/sound/SoundProvider";
 
@@ -13,30 +14,32 @@ export interface PuzzleStatus {
 }
 
 const STATUS = {
-    idle: "Choisis deux éléments qui vont ensemble.",
     retry: "Essaie une autre relation.",
     mismatch: "Ce lien ne résonne pas. Observe encore.",
-    partial: (remaining: number) =>
-        remaining > 1 ? `Connexion trouvée. Il reste ${remaining} échos.` : "Connexion trouvée. Il reste un écho.",
+    mismatchOrder: "Ces éléments ne se suivent pas ainsi. Observe encore.",
     complete: "Le lien est juste. Le jardin respire à nouveau.",
     hint: "Un indice s'est révélé.",
 } as const;
 
 /**
  * État d'une partie côté client. Le serveur reste l'arbitre : ce hook ne connaît pas les réponses,
- * il gère la sélection, soumet les paires, puis traduit les réponses en retours visuels et sonores.
+ * il gère la sélection, soumet les groupes, puis traduit les réponses en retours visuels et sonores.
  */
 export function usePuzzle(levelId: string) {
     const { play } = useSound();
     const invalidateProgress = useInvalidateProgress();
     const level = useLevel(levelId);
+    const kind = level.data?.kind ?? "PAIRS";
+    const groupSize = level.data?.groupSize ?? 2;
+    const ordered = kind === "SEQUENCE";
+    const idle = KIND_COPY[kind].instruction(groupSize);
 
     const [session, setSession] = useState<SessionState | null>(null);
-    const [selected, setSelected] = useState<number | null>(null);
-    const [pending, setPending] = useState<Pair | null>(null);
-    const [rejected, setRejected] = useState<Pair | null>(null);
+    const [selected, setSelected] = useState<number[]>([]);
+    const [pending, setPending] = useState<number[] | null>(null);
+    const [rejected, setRejected] = useState<number[] | null>(null);
     const [completion, setCompletion] = useState<CompletionResult | null>(null);
-    const [status, setStatus] = useState<PuzzleStatus>({ text: STATUS.idle });
+    const [status, setStatus] = useState<PuzzleStatus | null>(null);
 
     const feedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const startRequested = useRef(false);
@@ -55,10 +58,10 @@ export function usePuzzle(levelId: string) {
         onSuccess: (state) => {
             clearFeedback();
             setSession(state);
-            setSelected(null);
+            setSelected([]);
             setPending(null);
             setCompletion(null);
-            setStatus({ text: STATUS.idle });
+            setStatus(null);
         },
     });
 
@@ -73,12 +76,12 @@ export function usePuzzle(levelId: string) {
 
     const handleResult = (result: AttemptResult) => {
         setPending(null);
-        setSession((current) => current && { ...current, foundPairs: result.foundPairs, mistakes: result.mistakes });
+        setSession((current) => current && { ...current, foundGroups: result.foundGroups, mistakes: result.mistakes });
 
         if (result.result === "mismatch") {
             play("mismatch");
-            setRejected(result.pair);
-            setStatus({ text: STATUS.mismatch, tone: "fail" });
+            setRejected(result.cells);
+            setStatus({ text: ordered ? STATUS.mismatchOrder : STATUS.mismatch, tone: "fail" });
             feedbackTimer.current = setTimeout(() => {
                 setRejected(null);
                 setStatus({ text: STATUS.retry });
@@ -96,11 +99,11 @@ export function usePuzzle(levelId: string) {
         }
 
         play("match");
-        setStatus({ text: STATUS.partial(result.remaining), tone: "success" });
+        setStatus({ text: KIND_COPY[kind].found(result.remaining), tone: "success" });
     };
 
     const attempt = useMutation({
-        mutationFn: ([a, b]: Pair) => api.play.attempt(session!.sessionId, a, b),
+        mutationFn: (cells: number[]) => api.play.attempt(session!.sessionId, cells),
         onSuccess: handleResult,
         onError: (error) => {
             setPending(null);
@@ -120,30 +123,33 @@ export function usePuzzle(levelId: string) {
         onError: (error) => setStatus({ text: error.message, tone: "fail" }),
     });
 
-    const linkedCells = useMemo(() => new Set(session?.foundPairs.flat() ?? []), [session?.foundPairs]);
+    const linkedCells = useMemo(() => new Set(session?.foundGroups.flat() ?? []), [session?.foundGroups]);
     const busy = !session || Boolean(completion) || Boolean(pending) || Boolean(rejected) || start.isPending;
 
     const pick = useCallback(
         (index: number) => {
             if (busy || linkedCells.has(index)) return;
 
-            if (selected === index) {
-                setSelected(null);
+            const rank = selected.indexOf(index);
+            if (rank !== -1) {
+                // Suite : re-cliquer une étape la retire avec toutes les suivantes (on reprend le chemin à cet endroit).
+                setSelected(ordered ? selected.slice(0, rank) : selected.filter((cell) => cell !== index));
                 play("deselect");
                 return;
             }
-            if (selected === null) {
-                setSelected(index);
+
+            const next = [...selected, index];
+            if (next.length < groupSize) {
+                setSelected(next);
                 play("select");
                 return;
             }
 
-            const pair: Pair = [selected, index];
-            setSelected(null);
-            setPending(pair);
-            attempt.mutate(pair);
+            setSelected([]);
+            setPending(next);
+            attempt.mutate(next);
         },
-        [busy, linkedCells, selected, play, attempt],
+        [busy, linkedCells, selected, ordered, groupSize, play, attempt],
     );
 
     const hintsRemaining = session ? session.hintCount - session.hints.length : 0;
@@ -152,10 +158,11 @@ export function usePuzzle(levelId: string) {
         level,
         session,
         completion,
-        status,
+        status: status ?? { text: idle },
         rejected,
-        /** Cases à afficher comme sélectionnées (la paire en vol compte). */
-        selected: pending ?? (selected === null ? [] : [selected]),
+        ordered,
+        /** Cases à afficher comme sélectionnées (le groupe en vol compte). */
+        selected: pending ?? selected,
         busy,
         pick,
         requestHint: () => {

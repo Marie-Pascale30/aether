@@ -82,3 +82,80 @@
 .rowActions > * {
     padding: 8px 14px;
 }
+
+/* ─── Mondes ──────────────────────────────────────────────────────────────── */
+
+.worldRow {
+    display: grid;
+    grid-template-columns: 180px 1fr auto;
+    align-items: center;
+    gap: 22px;
+    padding: 18px;
+}
+
+.worldThumb {
+    height: 110px;
+    border-radius: 14px;
+}
+
+.worldInfo h3 {
+    margin: 4px 0;
+}
+
+.worldInfo p {
+    margin: 0 0 8px;
+}
+
+.worldActions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: end;
+}
+
+.selectField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.selectField select {
+    padding: 11px 14px;
+    background: #0a1c22;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    padding-bottom: 12px;
+}
+
+.checkbox input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--gold);
+}
+
+.preview {
+    height: 180px;
+}
+
+@media (max-width: 760px) {
+    .worldRow,
+    .formGrid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -27,7 +27,7 @@ function toErrors(issues: Issue[]): Errors {
 
 /** N'accepte qu'une redirection interne (évite les redirections ouvertes vers un autre site). */
 function safeNext(next: string | null): string {
-    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/niveaux";
+    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/mondes";
 }
 
 export function AuthForm({ mode }: { mode: Mode }) {

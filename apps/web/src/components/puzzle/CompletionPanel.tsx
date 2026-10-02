@@ -9,14 +9,18 @@ import styles from "./Puzzle.module.css";
 
 interface Props {
     completion: CompletionResult;
+    /** Monde de l'énigme, pour y revenir. */
+    worldSlug: string;
     onReplay: () => void;
     onClose: () => void;
 }
 
-export function CompletionPanel({ completion, onReplay, onClose }: Props) {
+export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Props) {
     const titleId = useId();
     const primaryRef = useRef<HTMLAnchorElement>(null);
-    const { stars, durationMs, mistakes, hintsUsed, isNewBest, bestStars, bestTimeMs, nextLevelId, gameCompleted } = completion;
+    const { stars, durationMs, mistakes, hintsUsed, isNewBest, bestStars, bestTimeMs, nextLevelId, gameCompleted, worldCompleted, nextWorld } =
+        completion;
+    const worldJustDone = worldCompleted && !nextLevelId;
 
     useEffect(() => {
         primaryRef.current?.focus();
@@ -29,7 +33,9 @@ export function CompletionPanel({ completion, onReplay, onClose }: Props) {
         ? { href: `/niveaux/${nextLevelId}`, label: "Énigme suivante" }
         : gameCompleted
           ? { href: "/fin", label: "Découvrir la fin" }
-          : { href: "/niveaux", label: "Carte des énigmes" };
+          : nextWorld
+            ? { href: `/mondes/${nextWorld.slug}`, label: `Monde suivant : ${nextWorld.title}` }
+            : { href: `/mondes/${worldSlug}`, label: "Retour au monde" };
 
     return (
         <div className={styles.overlay} onClick={onClose}>
@@ -40,8 +46,8 @@ export function CompletionPanel({ completion, onReplay, onClose }: Props) {
                 aria-labelledby={titleId}
                 onClick={(event) => event.stopPropagation()}
             >
-                <div className="tag">Énigme restaurée</div>
-                <h2 id={titleId}>Le lien est juste</h2>
+                <div className="tag">{worldJustDone ? "Monde restauré" : "Énigme restaurée"}</div>
+                <h2 id={titleId}>{worldJustDone ? "Le monde se souvient" : "Le lien est juste"}</h2>
                 <Stars count={stars} size="lg" animate />
 
                 <dl className={styles.summary}>

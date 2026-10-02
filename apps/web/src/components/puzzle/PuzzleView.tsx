@@ -7,6 +7,7 @@ import { ErrorState, Loading } from "@/components/ui/States";
 import { useElapsed } from "@/hooks/useElapsed";
 import { usePuzzle } from "@/hooks/usePuzzle";
 import { formatDuration, pad2 } from "@/lib/format";
+import { KIND_COPY } from "@/lib/kinds";
 import { CompletionPanel } from "./CompletionPanel";
 import styles from "./Puzzle.module.css";
 
@@ -20,7 +21,8 @@ export function PuzzleView({ levelId }: { levelId: string }) {
     if (!level.data || !session) return <Loading label="L'énigme se dessine…" />;
 
     const detail = level.data;
-    const found = session.foundPairs.length;
+    const found = session.foundGroups.length;
+    const kindCopy = KIND_COPY[detail.kind];
 
     return (
         <>
@@ -28,9 +30,14 @@ export function PuzzleView({ levelId }: { levelId: string }) {
                 <header className={styles.head}>
                     <div>
                         <div className={styles.level}>
+                            {detail.world.title.toUpperCase()} ·{" "}
                             {detail.position > 0 ? `ÉNIGME ${pad2(detail.position)} / ${pad2(detail.total)}` : "APERÇU · BROUILLON"}
                         </div>
                         <h2>{detail.title}</h2>
+                        <span className={styles.kind}>
+                            <span aria-hidden>{kindCopy.glyph}</span> {kindCopy.label}
+                            {detail.kind !== "PAIRS" && ` · ${detail.groupSize} éléments`}
+                        </span>
                     </div>
                     <dl className={styles.meters}>
                         <div>
@@ -44,7 +51,7 @@ export function PuzzleView({ levelId }: { levelId: string }) {
                         <div>
                             <dt>Liens</dt>
                             <dd>
-                                {found} / {detail.pairCount}
+                                {found} / {detail.groupCount}
                             </dd>
                         </div>
                     </dl>
@@ -72,8 +79,9 @@ export function PuzzleView({ levelId }: { levelId: string }) {
                     symbols={detail.symbols}
                     columns={detail.columns}
                     selected={puzzle.selected}
-                    linked={session.foundPairs}
+                    linked={session.foundGroups}
                     rejected={puzzle.rejected}
+                    ordered={puzzle.ordered}
                     disabled={puzzle.busy}
                     onPick={puzzle.pick}
                 />
@@ -86,13 +94,20 @@ export function PuzzleView({ levelId }: { levelId: string }) {
                     <Button variant="ghost" onClick={puzzle.restart} disabled={puzzle.restarting}>
                         ↺ Recommencer
                     </Button>
-                    <ButtonLink href="/niveaux" variant="ghost">
-                        Carte des énigmes
+                    <ButtonLink href={`/mondes/${detail.world.slug}`} variant="ghost">
+                        {detail.world.title}
                     </ButtonLink>
                 </div>
             </Panel>
 
-            {completion && <CompletionPanel completion={completion} onReplay={puzzle.restart} onClose={puzzle.dismissCompletion} />}
+            {completion && (
+                <CompletionPanel
+                    completion={completion}
+                    worldSlug={detail.world.slug}
+                    onReplay={puzzle.restart}
+                    onClose={puzzle.dismissCompletion}
+                />
+            )}
         </>
     );
 }

@@ -41,6 +41,7 @@ export function ProfileView() {
                         <table className={styles.table}>
                             <thead>
                                 <tr>
+                                    <th scope="col">Monde</th>
                                     <th scope="col">Énigme</th>
                                     <th scope="col">Meilleur</th>
                                     <th scope="col">Temps</th>
@@ -53,6 +54,7 @@ export function ProfileView() {
                             <tbody>
                                 {stats.data.levels.map((level) => (
                                     <tr key={level.levelId}>
+                                        <td className={styles.world}>{level.worldTitle}</td>
                                         <td>
                                             <span className={styles.position}>{pad2(level.position)}</span> {level.title}
                                         </td>

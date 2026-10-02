@@ -77,3 +77,8 @@
     color: var(--gold);
     font-family: var(--font-serif);
 }
+
+.world {
+    color: var(--muted);
+    font-size: 13px;
+}

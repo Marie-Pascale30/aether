@@ -7,7 +7,8 @@ import styles from "./home.module.css";
 export default function HomePage() {
     const { data: me } = useMe();
     const { data: progress } = useProgress(Boolean(me));
-    const hasStarted = (progress?.garden.completedLevels ?? 0) > 0;
+    const hasStarted = (progress?.completedLevels ?? 0) > 0;
+    const resumeHref = progress?.resume?.levelId ? `/niveaux/${progress.resume.levelId}` : "/jardin";
 
     return (
         <section className={styles.hero}>
@@ -18,7 +19,7 @@ export default function HomePage() {
 
             <div className="row" style={{ justifyContent: "center" }}>
                 {hasStarted ? (
-                    <ButtonLink href="/niveaux" variant="primary">
+                    <ButtonLink href={resumeHref} variant="primary">
                         Reprendre
                     </ButtonLink>
                 ) : (

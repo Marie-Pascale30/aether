@@ -23,7 +23,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
             <p>{message}</p>
             <div className="row" style={{ justifyContent: "center" }}>
                 {onRetry && status >= 500 && <Button onClick={onRetry}>Réessayer</Button>}
-                <ButtonLink href="/niveaux" variant="primary">Retour aux énigmes</ButtonLink>
+                <ButtonLink href="/mondes" variant="primary">Retour aux mondes</ButtonLink>
             </div>
         </Panel>
     );

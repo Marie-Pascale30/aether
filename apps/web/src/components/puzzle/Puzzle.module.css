@@ -12,6 +12,14 @@
     letter-spacing: .15em;
 }
 
+.kind {
+    display: inline-flex;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--cyan);
+    letter-spacing: .06em;
+}
+
 .meters,
 .summary {
     display: flex;

@@ -33,7 +33,12 @@ export class AdminLevelsController {
     @Post("reorder")
     @HttpCode(200)
     reorder(@Body(new ZodPipe(reorderLevelsSchema)) body: ReorderLevelsInput): Promise<AdminLevel[]> {
-        return this.levels.reorder(body.ids);
+        return this.levels.reorder(body.worldId, body.ids);
+    }
+
+    @Post(":id/duplicate")
+    duplicate(@Param("id") id: string): Promise<AdminLevel> {
+        return this.levels.duplicate(id);
     }
 
     @Put(":id")

@@ -27,26 +27,58 @@ model User {
   sessions PlaySession[]
 }
 
-model Level {
+/// Genre d'énigme : paires, groupes (3–4 cases) ou suites ordonnées (3–5 cases).
+enum LevelKind {
+  PAIRS
+  GROUPS
+  SEQUENCE
+}
+
+/// Un monde regroupe des énigmes et possède son propre jardin.
+/// Il s'ouvre quand le monde précédent est entièrement restauré.
+model World {
   id          String   @id @default(cuid())
-  /// Position dans le parcours (tri croissant). Les trous sont permis.
+  /// Identifiant d'URL (`/mondes/<slug>`).
+  slug        String   @unique
+  order       Int
+  title       String
+  tagline     String
+  description String
+  /// Palette du jardin : origines | foret | ocean | cosmos.
+  theme       String   @default("origines")
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  levels Level[]
+
+  @@index([published, order])
+}
+
+model Level {
+  id          String    @id @default(cuid())
+  worldId     String
+  /// Position dans le monde (tri croissant). Les trous sont permis.
   order       Int
   title       String
   description String
   /// Révélés un par un, à la demande du joueur.
   hints       String[]
   symbols     String[]
-  columns     Int      @default(4)
-  /// Réponses : tableau de paires d'indices `[[a, b], …]`. Jamais envoyé au joueur.
-  pairs       Json
-  published   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  columns     Int       @default(4)
+  kind        LevelKind @default(PAIRS)
+  /// Réponses : tableau de groupes d'indices `[[a, b, …], …]` (ordonnés pour une suite).
+  /// Jamais envoyé au joueur.
+  groups      Json
+  published   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
+  world    World           @relation(fields: [worldId], references: [id], onDelete: Cascade)
   progress LevelProgress[]
   sessions PlaySession[]
 
-  @@index([published, order])
+  @@index([worldId, published, order])
 }
 
 /// Meilleur résultat d'un joueur sur une énigme.
@@ -73,8 +105,8 @@ model PlaySession {
   levelId     String
   startedAt   DateTime  @default(now())
   completedAt DateTime?
-  /// Indices (dans `Level.pairs`) des paires déjà trouvées.
-  foundPairs  Int[]
+  /// Indices (dans `Level.groups`) des groupes déjà trouvés.
+  foundGroups Int[]
   mistakes    Int       @default(0)
   hintsUsed   Int       @default(0)
   stars       Int?
