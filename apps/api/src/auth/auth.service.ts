@@ -14,6 +14,8 @@ import { hashPassword, verifyPassword } from "./password";
 
 export const SESSION_COOKIE = "aether_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** `lastSeenAt` n'est réécrit qu'au-delà de ce délai : pas d'écriture en base à chaque requête. */
+const LAST_SEEN_PRECISION_MS = 60 * 60 * 1000;
 
 interface SessionPayload {
     sub: string;
@@ -42,10 +44,20 @@ export class AuthService {
         try {
             const { sub, v } = await this.jwt.verifyAsync<SessionPayload>(token);
             const user = await this.prisma.user.findUnique({ where: { id: sub } });
-            return user && (v ?? 0) === user.sessionVersion ? toAuthUser(user) : null;
+            if (!user || (v ?? 0) !== user.sessionVersion) return null;
+            this.touch(user);
+            return toAuthUser(user);
         } catch {
             return null;
         }
+    }
+
+    /** Note l'activité du joueur (sans faire attendre la requête, ni la faire échouer). */
+    private touch(user: Pick<User, "id" | "lastSeenAt">) {
+        if (Date.now() - user.lastSeenAt.getTime() < LAST_SEEN_PRECISION_MS) return;
+        this.prisma.user
+            .update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
+            .catch((error: unknown) => this.logger.warn({ err: error, userId: user.id }, "Mise à jour de lastSeenAt impossible"));
     }
 
     async openSession(res: Response, user: Pick<User, "id" | "sessionVersion">): Promise<void> {

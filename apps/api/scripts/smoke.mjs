@@ -328,6 +328,13 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         assert.equal((await player("GET", "/me/progress")).body.totalLevels, 20);
     });
 
+    await check("maintenance : simulation du nettoyage réservée aux administrateurs", async () => {
+        assert.equal((await player("POST", "/admin/maintenance/cleanup?dryRun=true")).status, 403);
+        const report = (await admin("POST", "/admin/maintenance/cleanup?dryRun=true")).body;
+        assert.equal(report.dryRun, true);
+        for (const key of ["guests", "openSessions", "tokens"]) assert.equal(typeof report[key], "number");
+    });
+
     await check("trio : 3 cases dans n'importe quel ordre", async () => {
         // Seed : Forêt 1 = cases 0, 2, 4.
         const detail = (await admin("GET", `/levels/${foret.levels[0].id}`)).body;

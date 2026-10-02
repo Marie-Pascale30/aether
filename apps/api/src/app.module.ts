@@ -9,6 +9,7 @@ import { HealthController } from "./health.controller";
 import { LeaderboardModule } from "./leaderboard/leaderboard.module";
 import { LevelsModule } from "./levels/levels.module";
 import { MailModule } from "./mail/mail.module";
+import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { ObservabilityModule } from "./observability/observability.module";
 import { PlayModule } from "./play/play.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -27,6 +28,7 @@ import { ProgressModule } from "./progress/progress.module";
         ProgressModule,
         LeaderboardModule,
         AdminModule,
+        MaintenanceModule,
     ],
     controllers: [HealthController],
     providers: [
