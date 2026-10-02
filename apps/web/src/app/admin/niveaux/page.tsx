@@ -7,6 +7,7 @@ import type { AdminLevel, AdminWorld } from "@aether/shared";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { ErrorState, Loading } from "@/components/ui/States";
+import { useDragReorder } from "@/hooks/useDragReorder";
 import { pad2 } from "@/lib/format";
 import { countLabel, KIND_COPY } from "@/lib/kinds";
 import { useAdminLevels, useAdminWorlds, useDeleteLevel, useDuplicateLevel, useReorderLevels } from "@/lib/queries";
@@ -64,6 +65,10 @@ function WorldLevels({ world, levels, onError }: { world: AdminWorld; levels: Ad
     const duplicate = useDuplicateLevel();
     const busy = reorder.isPending || remove.isPending || duplicate.isPending;
     const fail = { onError: (err: Error) => onError(err.message) };
+    const drag = useDragReorder(
+        levels.map((level) => level.id),
+        (ids) => reorder.mutate({ worldId: world.id, ids }, fail),
+    );
 
     const move = (index: number, delta: -1 | 1) => {
         const ids = levels.map((level) => level.id);
@@ -106,6 +111,9 @@ function WorldLevels({ world, levels, onError }: { world: AdminWorld; levels: Ad
                     <table className={styles.table}>
                         <thead>
                             <tr>
+                                <th scope="col">
+                                    <span className="visually-hidden">Déplacer</span>
+                                </th>
                                 <th scope="col">N°</th>
                                 <th scope="col">Titre</th>
                                 <th scope="col">Genre</th>
@@ -121,7 +129,10 @@ function WorldLevels({ world, levels, onError }: { world: AdminWorld; levels: Ad
                             {levels.map((level, i) => {
                                 if (level.published) publishedPosition += 1;
                                 return (
-                                    <tr key={level.id} data-draft={!level.published || undefined}>
+                                    <tr key={level.id} className={styles.row} data-draft={!level.published || undefined} {...drag.rowProps(level.id)}>
+                                        <td className={styles.handle} title="Glisser pour déplacer" aria-hidden>
+                                            ⠿
+                                        </td>
                                         <td className={styles.position}>{level.published ? pad2(publishedPosition) : "—"}</td>
                                         <td>
                                             <Link href={`/admin/niveaux/${level.id}`}>{level.title}</Link>

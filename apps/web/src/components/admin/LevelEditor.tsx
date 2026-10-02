@@ -14,6 +14,7 @@ import {
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, TextArea } from "@/components/ui/Field";
 import { Panel } from "@/components/ui/Panel";
+import { SymbolPalette } from "./SymbolPalette";
 import { ApiError, type ApiIssue } from "@/lib/api";
 import { KIND_COPY } from "@/lib/kinds";
 import { useAdminWorlds, useCreateLevel, useUpdateLevel } from "@/lib/queries";
@@ -75,6 +76,8 @@ export function LevelEditor({ level, initialWorldId }: Props) {
     const [groupSize, setGroupSize] = useState(() => level?.groups[0]?.length ?? GROUP_SIZE[draft.kind].min);
     /** Lien en cours de construction (cases choisies, dans l'ordre). */
     const [building, setBuilding] = useState<number[]>([]);
+    /** Case que la palette remplit (la dernière cliquée), ou `null` pour ajouter une case. */
+    const [activeCell, setActiveCell] = useState<number | null>(null);
     const [issues, setIssues] = useState<ApiIssue[]>([]);
     const [saved, setSaved] = useState(false);
     /** Après une première tentative d'enregistrement, les erreurs suivent la saisie en direct. */
@@ -146,6 +149,16 @@ export function LevelEditor({ level, initialWorldId }: Props) {
         const rank = building.indexOf(cell);
         if (rank !== -1) return ordered ? `étape ${rank + 1}` : "choisie";
         return "relier";
+    };
+
+    /** La palette remplit la case active puis passe à la suivante, pour composer un plateau d'affilée. */
+    const onPaletteSymbol = (symbol: string) => {
+        if (activeCell !== null && activeCell < draft.symbols.length) {
+            set("symbols", draft.symbols.map((s, i) => (i === activeCell ? symbol : s)));
+            setActiveCell(activeCell + 1 < draft.symbols.length ? activeCell + 1 : null);
+        } else if (draft.symbols.length < L.symbolsMax) {
+            set("symbols", [...draft.symbols, symbol]);
+        }
     };
 
     // ─── Enregistrement ───────────────────────────────────────────────────
@@ -325,6 +338,7 @@ export function LevelEditor({ level, initialWorldId }: Props) {
                                         key={i}
                                         className={styles.cell}
                                         data-picking={building.includes(i) || undefined}
+                                        data-active={activeCell === i || undefined}
                                         data-invalid={Boolean(issueAt("symbols", i)) || undefined}
                                         style={color ? ({ "--pair": color } as CSSProperties) : undefined}
                                     >
@@ -332,6 +346,7 @@ export function LevelEditor({ level, initialWorldId }: Props) {
                                             aria-label={`Symbole de la case ${i + 1}`}
                                             value={symbol}
                                             maxLength={L.symbolMax}
+                                            onFocus={() => setActiveCell(i)}
                                             onChange={(e) => set("symbols", draft.symbols.map((s, j) => (j === i ? e.target.value : s)))}
                                         />
                                         <button type="button" className={styles.pairButton} onClick={() => onLinkCell(i)} aria-pressed={owner !== undefined}>
@@ -343,6 +358,7 @@ export function LevelEditor({ level, initialWorldId }: Props) {
                                             onClick={() => {
                                                 edit((current) => withoutSymbol(current, i));
                                                 setBuilding([]);
+                                                setActiveCell(null);
                                             }}
                                             disabled={draft.symbols.length <= L.symbolsMin}
                                             aria-label={`Retirer la case ${i + 1}`}
@@ -357,6 +373,12 @@ export function LevelEditor({ level, initialWorldId }: Props) {
                         <Button variant="ghost" onClick={() => set("symbols", [...draft.symbols, "✧"])} disabled={draft.symbols.length >= L.symbolsMax}>
                             + Ajouter une case ({draft.symbols.length} / {L.symbolsMax})
                         </Button>
+
+                        <SymbolPalette
+                            used={draft.symbols}
+                            targetLabel={activeCell !== null && activeCell < draft.symbols.length ? `case ${activeCell + 1}` : "nouvelle case"}
+                            onPick={onPaletteSymbol}
+                        />
 
                         <ol className={styles.pairList}>
                             {draft.groups.length === 0 && <li className={styles.help}>Aucun lien : le joueur n&apos;aurait rien à trouver.</li>}

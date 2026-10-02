@@ -7,6 +7,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, TextArea } from "@/components/ui/Field";
 import { Panel } from "@/components/ui/Panel";
 import { ErrorState, Loading } from "@/components/ui/States";
+import { useDragReorder } from "@/hooks/useDragReorder";
 import { ApiError } from "@/lib/api";
 import { useAdminWorlds, useCreateWorld, useDeleteWorld, useReorderWorlds, useUpdateWorld } from "@/lib/queries";
 import styles from "../admin.module.css";
@@ -26,6 +27,10 @@ export default function AdminWorldsPage() {
     const remove = useDeleteWorld();
     const [editing, setEditing] = useState<string | "new" | null>(null);
     const [error, setError] = useState<string>();
+    const drag = useDragReorder(
+        worlds.data?.map((world) => world.id) ?? [],
+        (ids) => reorder.mutate(ids, { onError: (err) => setError(err.message) }),
+    );
 
     if (worlds.error) return <ErrorState error={worlds.error} onRetry={() => void worlds.refetch()} />;
     if (!worlds.data) return <Loading />;
@@ -77,7 +82,7 @@ export default function AdminWorldsPage() {
                 editing === world.id ? (
                     <WorldForm key={world.id} world={world} onDone={() => setEditing(null)} />
                 ) : (
-                    <Panel key={world.id} className={styles.worldRow}>
+                    <Panel key={world.id} className={styles.worldRow} {...drag.rowProps(world.id)}>
                         <Garden stage={3} theme={world.theme} instant className={styles.worldThumb} />
                         <div className={styles.worldInfo}>
                             <div className="tag">

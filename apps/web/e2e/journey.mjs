@@ -277,6 +277,13 @@ try {
         if (await admin.getByText("Le titre est requis.").count()) throw new Error("erreur de titre toujours affichée après correction");
         await admin.getByRole("textbox", { name: "Description" }).fill("Brouillon de test");
         await admin.getByRole("textbox", { name: "Indice 1" }).fill("Regarde bien.");
+        // Palette : case 1 active, puis deux symboles placés d'affilée (cases 1 et 2).
+        await admin.getByRole("textbox", { name: "Symbole de la case 1" }).click();
+        await admin.getByRole("tab", { name: "Vivant" }).click();
+        await admin.getByRole("button", { name: /^Placer 🦊/ }).click();
+        await admin.getByRole("button", { name: /^Placer 🦉/ }).click();
+        if ((await admin.getByRole("textbox", { name: "Symbole de la case 1" }).inputValue()) !== "🦊") throw new Error("palette : case 1 non remplie");
+        if ((await admin.getByRole("textbox", { name: "Symbole de la case 2" }).inputValue()) !== "🦉") throw new Error("palette : passage à la case suivante raté");
         await admin.getByRole("radio", { name: /Familles/ }).click();
         // Cases 1, 4 et 5 : chaque case choisie quitte la liste des boutons « relier ».
         for (const nth of [0, 2, 2]) await admin.getByRole("button", { name: "relier" }).nth(nth).click();
@@ -285,6 +292,26 @@ try {
         await admin.getByRole("button", { name: "Enregistrer" }).click();
         await admin.waitForURL(/\/admin\/niveaux\/[a-z0-9]+$/);
         await admin.getByRole("heading", { name: "Modifier l'énigme" }).waitFor();
+    });
+
+    await step("admin : glisser-déposer pour réordonner (puis rétablir)", async () => {
+        await admin.goto(BASE + "/admin/niveaux");
+        const order = async () =>
+            (await (await admin.request.get(BASE + "/api/admin/levels")).json())
+                .filter((l) => l.title === "Les trois sœurs" || l.title === "Le voyage de l'eau")
+                .map((l) => l.title);
+        const before = await order();
+        const first = admin.getByRole("row", { name: /Les trois sœurs/ });
+        const second = admin.getByRole("row", { name: /Le voyage de l'eau/ });
+        const reordered = () => admin.waitForResponse((res) => res.url().endsWith("/api/admin/levels/reorder") && res.ok());
+        await Promise.all([reordered(), second.dragTo(first)]);
+        const after = await order();
+        if (after[0] !== "Le voyage de l'eau") throw new Error(`ordre inchangé : ${after.join(", ")}`);
+        await Promise.all([
+            reordered(),
+            admin.getByRole("row", { name: /Les trois sœurs/ }).dragTo(admin.getByRole("row", { name: /Le voyage de l'eau/ })),
+        ]);
+        if ((await order()).join() !== before.join()) throw new Error("ordre non rétabli");
     });
 
     await step("admin : suppression du brouillon", async () => {

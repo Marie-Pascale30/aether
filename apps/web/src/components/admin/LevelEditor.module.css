@@ -127,6 +127,10 @@
     transition: box-shadow .2s, border-color .2s;
 }
 
+.cell[data-active] {
+    border-color: #d9bd72aa;
+}
+
 .cell[data-picking] {
     border-color: var(--cyan);
     box-shadow: 0 0 0 2px #8ce5dc40;
