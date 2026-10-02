@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Un nouveau push annule l'exécution précédente de la même branche.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Types et tests unitaires
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @aether/shared
+      - run: npm run typecheck
+      - run: npm test
+
+  e2e:
+    name: Bout en bout (API + navigateur)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: aether
+          POSTGRES_PASSWORD: aether
+          POSTGRES_DB: aether
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aether -d aether"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://aether:aether@localhost:5432/aether?schema=public
+      # Secret propre à la CI (base jetable, jamais exposée).
+      JWT_SECRET: ci-uniquement-secret-de-test-0123456789abcdef
+      NODE_ENV: test
+      MAIL_TRANSPORT: log
+      ADMIN_EMAIL: admin@aether.local
+      ADMIN_PASSWORD: ci-admin-mot-de-passe
+      E2E_BROWSER: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @aether/shared
+      - name: Migrations et seed
+        working-directory: apps/api
+        run: npx prisma migrate deploy && npx prisma db seed
+      - run: npm run build -w @aether/api
+      - run: npm run build -w @aether/web
+      - name: Démarrer l'API et le front
+        run: |
+          npm run start -w @aether/api > api.log 2>&1 &
+          npm run start -w @aether/web > web.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:4100/api/health > /dev/null && curl -sf http://localhost:3100/ > /dev/null && exit 0
+            sleep 1
+          done
+          echo "Les serveurs n'ont pas démarré" && cat api.log web.log && exit 1
+      - name: Test de l'API
+        run: npm run smoke -w @aether/api
+      - name: Parcours navigateur
+        run: npm run e2e -w @aether/web
+      - name: Journaux des serveurs
+        if: failure()
+        run: cat api.log web.log
+      - name: Captures du parcours
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-captures
+          path: apps/web/e2e/.shots/
+          if-no-files-found: ignore
+
+  docker:
+    name: Images Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image de l'API
+        run: docker build -f apps/api/Dockerfile -t aether-api:ci .
+      - name: Image des migrations
+        run: docker build -f apps/api/Dockerfile --target migrate -t aether-migrate:ci .
+      - name: Image du front
+        run: docker build -f apps/web/Dockerfile --build-arg API_URL=http://api:4100 -t aether-web:ci .
