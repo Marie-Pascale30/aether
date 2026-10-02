@@ -295,6 +295,47 @@ try {
         await row.waitFor({ state: "detached" });
     });
 
+    const keyboard = await (await browser.newContext({ viewport: { width: 1200, height: 900 } })).newPage();
+    watch(keyboard, "clavier");
+
+    await step("clavier seul : lien d'évitement, flèches et Entrée sur le plateau", async () => {
+        await keyboard.goto(BASE + "/jardin");
+        await keyboard.getByRole("link", { name: "Entrer dans le monde" }).click();
+        await keyboard.getByRole("heading", { name: "Le premier lien" }).waitFor();
+        // Arrivée directe sur la page : le premier Tab doit atteindre le lien d'évitement.
+        await keyboard.reload();
+        await keyboard.getByRole("heading", { name: "Le premier lien" }).waitFor();
+        await keyboard.keyboard.press("Tab");
+        if (!(await keyboard.getByRole("link", { name: "Aller au contenu" }).evaluate((el) => el === document.activeElement))) {
+            throw new Error("le lien d'évitement n'est pas le premier élément focalisable");
+        }
+        // Une seule case dans l'ordre de tabulation, puis les flèches. Seed : énigme 1 = Écho 1 + Écho 4.
+        await keyboard.getByRole("button", { name: /^Écho 1 :/ }).focus();
+        for (let i = 0; i < 3; i++) await keyboard.keyboard.press("ArrowRight");
+        const focused = await keyboard.evaluate(() => document.activeElement?.getAttribute("aria-label"));
+        if (!focused?.startsWith("Écho 4")) throw new Error(`focus attendu sur Écho 4, obtenu : ${focused}`);
+        await keyboard.keyboard.press("Enter");
+        await keyboard.keyboard.press("Home");
+        await keyboard.keyboard.press(" ");
+        await keyboard.getByRole("dialog").waitFor();
+        await keyboard.keyboard.press("Escape");
+        await keyboard.getByRole("dialog").waitFor({ state: "detached" });
+    });
+
+    await step("réglages : animations réduites et grands symboles, conservés au rechargement", async () => {
+        await keyboard.goto(BASE + "/reglages");
+        await keyboard.getByRole("heading", { name: "Réglages" }).waitFor();
+        await keyboard.getByRole("radio", { name: /Réduire/ }).check();
+        await keyboard.getByRole("radio", { name: "Grande" }).check();
+        await keyboard.getByRole("switch", { name: "Nappe d'ambiance" }).uncheck({ force: true });
+        await keyboard.screenshot({ path: OUT + "17-reglages.png", fullPage: true });
+        await keyboard.reload();
+        await keyboard.getByRole("radio", { name: "Grande" }).waitFor();
+        const html = await keyboard.evaluate(() => ({ ...document.documentElement.dataset }));
+        if (html.motion !== "reduce" || html.symbols !== "large") throw new Error(`réglages non appliqués : ${JSON.stringify(html)}`);
+        if (await keyboard.getByRole("switch", { name: "Nappe d'ambiance" }).isChecked()) throw new Error("ambiance réactivée au rechargement");
+    });
+
     await step("mobile : énigme lisible à 390 px", async () => {
         const mobile = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true })).newPage();
         watch(mobile, "mobile");

@@ -41,6 +41,13 @@ export class SoundEngine {
     private ctx: AudioContext | null = null;
     private master: GainNode | null = null;
     private ambient: { gain: GainNode; sources: AudioScheduledSourceNode[] } | null = null;
+    private volume = 0.6;
+
+    /** Volume général (0–1), appliqué en douceur pour éviter les claquements. */
+    setVolume(volume: number): void {
+        this.volume = Math.min(1, Math.max(0, volume));
+        if (this.ctx && this.master) this.master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.05);
+    }
 
     play(cue: Cue): void {
         const ctx = this.context();
@@ -96,7 +103,7 @@ export class SoundEngine {
         if (!this.ctx) {
             this.ctx = new AudioContext();
             this.master = this.ctx.createGain();
-            this.master.gain.value = 0.6;
+            this.master.gain.value = this.volume;
             this.master.connect(this.ctx.destination);
         }
         if (this.ctx.state === "suspended") void this.ctx.resume();

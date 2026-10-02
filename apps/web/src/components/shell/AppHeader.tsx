@@ -49,6 +49,16 @@ export function AppHeader() {
                     <span className="visually-hidden">Son</span>
                 </button>
 
+                <Link
+                    href="/reglages"
+                    className={styles.sound}
+                    aria-current={isActive("/reglages") ? "page" : undefined}
+                    title="Réglages"
+                >
+                    <span aria-hidden>⚙</span>
+                    <span className="visually-hidden">Réglages</span>
+                </Link>
+
                 {me && !me.isGuest ? (
                     <Link href="/profil" className={styles.account} aria-current={isActive("/profil") ? "page" : undefined}>
                         {me.displayName}

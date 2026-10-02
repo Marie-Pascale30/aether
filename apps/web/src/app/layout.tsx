@@ -19,9 +19,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <html lang="fr">
             <body>
                 <Providers>
+                    <a href="#contenu" className="skip-link">
+                        Aller au contenu
+                    </a>
                     <div className={styles.app}>
                         <AppHeader />
-                        <main>{children}</main>
+                        <main id="contenu" tabIndex={-1} className={styles.main}>
+                            {children}
+                        </main>
                         <footer className={styles.footer}>Jardin des Origines · Prototype 0.2</footer>
                     </div>
                 </Providers>

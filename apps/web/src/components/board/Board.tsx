@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import type { Group } from "@aether/shared";
 import styles from "./Board.module.css";
 
@@ -27,6 +27,9 @@ export function Board({ symbols, columns, selected, linked, rejected, ordered = 
     const boardRef = useRef<HTMLDivElement>(null);
     const nodeRefs = useRef<(HTMLButtonElement | null)[]>([]);
     const [centers, setCenters] = useState<Point[]>([]);
+    /** Case qui porte le focus clavier (une seule case dans l'ordre de tabulation). */
+    const [focusIndex, setFocusIndex] = useState(0);
+    const helpId = useId();
 
     // Les liens relient les centres des cases : on les mesure, et on remesure quand le plateau change de taille.
     useLayoutEffect(() => {
@@ -56,8 +59,39 @@ export function Board({ symbols, columns, selected, linked, rejected, ordered = 
     linked.forEach((group, g) => group.forEach((cell, rank) => linkedAt.set(cell, [g, rank])));
     const rejectedCells = new Set(rejected ?? []);
 
+    // Flèches : déplacement en grille ; Début / Fin : première et dernière case. Entrée et Espace
+    // activent la case comme un clic (comportement natif des boutons).
+    const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        const last = symbols.length - 1;
+        const moves: Record<string, number> = {
+            ArrowRight: focusIndex + 1,
+            ArrowLeft: focusIndex - 1,
+            ArrowDown: focusIndex + columns,
+            ArrowUp: focusIndex - columns,
+            Home: 0,
+            End: last,
+        };
+        const target = moves[event.key];
+        if (target === undefined) return;
+        event.preventDefault();
+        const next = Math.min(last, Math.max(0, target));
+        setFocusIndex(next);
+        nodeRefs.current[next]?.focus();
+    };
+
     return (
-        <div ref={boardRef} className={styles.board} style={{ "--columns": columns } as CSSProperties}>
+        <div
+            ref={boardRef}
+            className={styles.board}
+            style={{ "--columns": columns } as CSSProperties}
+            role="group"
+            aria-label="Plateau"
+            aria-describedby={helpId}
+            onKeyDown={onKeyDown}
+        >
+            <p id={helpId} className="visually-hidden">
+                Flèches pour se déplacer entre les cases, Entrée ou Espace pour choisir.
+            </p>
             {symbols.map((symbol, i) => {
                 const link = linkedAt.get(i);
                 const rank = selected.indexOf(i);
@@ -69,6 +103,8 @@ export function Board({ symbols, columns, selected, linked, rejected, ordered = 
                             nodeRefs.current[i] = node;
                         }}
                         type="button"
+                        tabIndex={i === focusIndex ? 0 : -1}
+                        onFocus={() => setFocusIndex(i)}
                         className={styles.node}
                         data-selected={rank !== -1 || undefined}
                         data-linked={link !== undefined || undefined}

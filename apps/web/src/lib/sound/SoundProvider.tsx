@@ -1,9 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSettings } from "@/lib/settings";
 import { SoundEngine, type Cue } from "./engine";
-
-const STORAGE_KEY = "aether:muted";
 
 interface SoundContextValue {
     muted: boolean;
@@ -13,22 +12,15 @@ interface SoundContextValue {
 
 const SoundContext = createContext<SoundContextValue | null>(null);
 
-function readMuted(): boolean {
-    try {
-        return localStorage.getItem(STORAGE_KEY) === "1";
-    } catch {
-        return false;
-    }
-}
-
+/** Sons du jeu, pilotés par les réglages (volume, effets, ambiance, son coupé). */
 export function SoundProvider({ children }: { children: ReactNode }) {
+    const { settings, hydrated, update } = useSettings();
     const engine = useRef<SoundEngine | null>(null);
-    const [muted, setMuted] = useState(true); // muet tant que la préférence n'est pas lue (rendu serveur)
     const [unlocked, setUnlocked] = useState(false);
 
     const getEngine = () => (engine.current ??= new SoundEngine());
-
-    useEffect(() => setMuted(readMuted()), []);
+    // Muet tant que les préférences ne sont pas lues : rien ne doit jouer contre l'avis du joueur.
+    const muted = !hydrated || settings.muted;
 
     // Les navigateurs n'autorisent le son qu'après un geste : on attend le premier clic / touche.
     useEffect(() => {
@@ -43,27 +35,26 @@ export function SoundProvider({ children }: { children: ReactNode }) {
     }, [unlocked]);
 
     useEffect(() => {
+        if (engine.current || unlocked) getEngine().setVolume(settings.volume);
+    }, [settings.volume, unlocked]);
+
+    useEffect(() => {
         if (!unlocked) return;
-        if (muted) getEngine().stopAmbient();
+        if (muted || !settings.ambient) getEngine().stopAmbient();
         else getEngine().startAmbient();
-    }, [muted, unlocked]);
+    }, [muted, settings.ambient, unlocked]);
 
     const toggleMuted = useCallback(() => {
         setUnlocked(true);
-        setMuted((current) => {
-            const next = !current;
-            try {
-                localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-            } catch {
-                // stockage indisponible (navigation privée) : la préférence vaut pour la session
-            }
-            return next;
-        });
-    }, []);
+        update({ muted: !settings.muted });
+    }, [settings.muted, update]);
 
-    const play = useCallback((cue: Cue) => {
-        if (!muted) getEngine().play(cue);
-    }, [muted]);
+    const play = useCallback(
+        (cue: Cue) => {
+            if (!muted && settings.effects) getEngine().play(cue);
+        },
+        [muted, settings.effects],
+    );
 
     const value = useMemo(() => ({ muted, toggleMuted, play }), [muted, toggleMuted, play]);
     return <SoundContext.Provider value={value}>{children}</SoundContext.Provider>;

@@ -133,12 +133,43 @@ p {
     text-align: center;
 }
 
-/* ─── Accessibilité : respect de la préférence « moins d'animations » ─────── */
+/* ─── Accessibilité ───────────────────────────────────────────────────────── */
+
+/* Lien d'évitement : invisible jusqu'à ce qu'il reçoive le focus clavier. */
+.skip-link {
+    position: absolute;
+    left: 16px;
+    top: -60px;
+    z-index: 100;
+    padding: 10px 18px;
+    border-radius: var(--radius-pill);
+    background: var(--gold);
+    color: #132019;
+    font-weight: 700;
+    text-decoration: none;
+    transition: top .2s;
+}
+
+.skip-link:focus {
+    top: 12px;
+}
+
+/*
+ * Moins d'animations : réglage « Réduire » du jeu, ou préférence du système quand le joueur
+ * a laissé « Suivre le système » (data-motion="full" force les animations).
+ */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+}
 
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    :root:not([data-motion="full"]) *,
+    :root:not([data-motion="full"]) *::before,
+    :root:not([data-motion="full"]) *::after {
         animation-duration: .01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: .01ms !important;
