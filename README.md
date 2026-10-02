@@ -9,7 +9,6 @@ Monorepo **npm workspaces** :
 | `apps/web` | Le jeu (front) | Next.js 16 (App Router), React 19, TanStack Query, CSS Modules |
 | `apps/api` | Règles, comptes, progression, classement, éditeur | NestJS 11, Prisma 6, PostgreSQL 17, pino |
 | `packages/shared` | Contrat commun : types d'API, schémas Zod, règles de jeu pures | TypeScript, Zod 4, Vitest |
-| `legacy/` | Ancienne version HTML/JS, conservée pour référence | — |
 
 ## Démarrer en local
 

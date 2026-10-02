@@ -10,4 +10,3 @@
 .env.production
 **/.mail-outbox
 apps/web/e2e/.shots
-legacy
