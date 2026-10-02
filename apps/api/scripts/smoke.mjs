@@ -19,7 +19,7 @@ function client() {
         const setCookie = res.headers.get("set-cookie");
         if (setCookie) cookie = setCookie.split(";")[0];
         const text = await res.text();
-        return { status: res.status, body: text ? JSON.parse(text) : null };
+        return { status: res.status, body: text ? JSON.parse(text) : null, headers: res.headers };
     };
 }
 
@@ -37,6 +37,17 @@ console.log(`Smoke test sur ${API}`);
 
 await check("santé", async () => {
     assert.equal((await player("GET", "/health")).status, 200);
+});
+
+await check("observabilité : identifiant de requête, erreurs en français, rapport navigateur", async () => {
+    const res = await player("GET", "/route-inexistante");
+    assert.equal(res.status, 404);
+    assert.equal(res.body.message, "Cette route n'existe pas.");
+    assert.match(res.headers.get("x-request-id") ?? "", /^[\w-]{8,}$/);
+    assert.equal(res.body.requestId, res.headers.get("x-request-id"));
+    const report = { kind: "error", message: "smoke: erreur simulée", url: "http://localhost/smoke" };
+    assert.equal((await player("POST", "/client-errors", report)).status, 204);
+    assert.equal((await player("POST", "/client-errors", { kind: "autre" })).status, 400);
 });
 
 await check("sans session : /auth/me vaut null, routes de jeu → 401", async () => {

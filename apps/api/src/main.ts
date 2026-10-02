@@ -1,11 +1,15 @@
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import cookieParser from "cookie-parser";
+import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
 import { ENV, type Env } from "./config/env";
 
 async function bootstrap() {
-    const app = await NestFactory.create<NestExpressApplication>(AppModule);
+    // Journaux mis en tampon jusqu'à ce que pino soit prêt : rien n'est perdu au démarrage.
+    const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+    const logger = app.get(Logger);
+    app.useLogger(logger);
     const env = app.get<Env>(ENV);
 
     // Le front relaie les appels via son proxy local : on lui fait confiance pour l'IP cliente
@@ -13,11 +17,11 @@ async function bootstrap() {
     app.set("trust proxy", "loopback");
     app.setGlobalPrefix("api");
     app.use(cookieParser());
-    app.enableCors({ origin: env.WEB_ORIGIN, credentials: true });
+    app.enableCors({ origin: env.WEB_ORIGIN, credentials: true, exposedHeaders: ["x-request-id"] });
     app.enableShutdownHooks();
 
     await app.listen(env.PORT);
-    console.log(`API AETHER prête sur http://localhost:${env.PORT}/api`);
+    logger.log(`API AETHER prête sur http://localhost:${env.PORT}/api`, "Bootstrap");
 }
 
 void bootstrap();

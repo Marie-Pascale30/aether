@@ -82,6 +82,17 @@ export const reorderLevelsSchema = z.object({
     ids: z.array(z.string().min(1)).min(1),
 });
 
+// ─── Observabilité ──────────────────────────────────────────────────────────
+
+/** Erreur JavaScript remontée par le navigateur (tailles bornées : la route est publique). */
+export const clientErrorSchema = z.object({
+    kind: z.enum(["error", "unhandledrejection", "boundary"]),
+    message: z.string().max(2000),
+    stack: z.string().max(8000).optional(),
+    url: z.string().max(2000),
+    digest: z.string().max(200).optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
@@ -90,3 +101,4 @@ export type AttemptInput = z.infer<typeof attemptSchema>;
 export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;
 export type LevelInput = z.infer<typeof levelInputSchema>;
 export type ReorderLevelsInput = z.infer<typeof reorderLevelsSchema>;
+export type ClientErrorInput = z.infer<typeof clientErrorSchema>;

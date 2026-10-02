@@ -8,6 +8,7 @@ import { ConfigModule } from "./config/config.module";
 import { HealthController } from "./health.controller";
 import { LeaderboardModule } from "./leaderboard/leaderboard.module";
 import { LevelsModule } from "./levels/levels.module";
+import { ObservabilityModule } from "./observability/observability.module";
 import { PlayModule } from "./play/play.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ProgressModule } from "./progress/progress.module";
@@ -15,6 +16,7 @@ import { ProgressModule } from "./progress/progress.module";
 @Module({
     imports: [
         ConfigModule,
+        ObservabilityModule,
         PrismaModule,
         ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 240 }]),
         AuthModule,
