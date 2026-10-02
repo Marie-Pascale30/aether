@@ -13,19 +13,44 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id              String    @id @default(cuid())
   /// `null` tant que le joueur est invité.
-  email        String?  @unique
-  passwordHash String?
-  displayName  String
-  role         Role     @default(PLAYER)
-  isGuest      Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  email           String?   @unique
+  passwordHash    String?
+  displayName     String
+  role            Role      @default(PLAYER)
+  isGuest         Boolean   @default(true)
+  /// Adresse confirmée par le lien reçu par e-mail.
+  emailVerifiedAt DateTime?
+  /// Incrémenté à chaque changement de mot de passe : invalide les sessions ouvertes ailleurs.
+  sessionVersion  Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   progress LevelProgress[]
   sessions PlaySession[]
   daily    DailyResult[]
+  tokens   AuthToken[]
+}
+
+enum AuthTokenKind {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+/// Jeton à usage unique envoyé par e-mail. Seule son empreinte SHA-256 est stockée.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  kind      AuthTokenKind
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind])
 }
 
 /// Genre d'énigme : paires, groupes (3–4 cases) ou suites ordonnées (3–5 cases).
@@ -77,7 +102,7 @@ model Level {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  world    World           @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  world    World            @relation(fields: [worldId], references: [id], onDelete: Cascade)
   progress LevelProgress[]
   sessions PlaySession[]
   attempts Attempt[]
@@ -157,7 +182,7 @@ model DailyChallenge {
 /// Première victoire d'un joueur sur l'énigme du jour : la seule qui compte pour la série.
 model DailyResult {
   userId     String
-  date       DateTime @db.Date
+  date       DateTime  @db.Date
   sessionId  String
   stars      Int
   durationMs Int
@@ -165,7 +190,7 @@ model DailyResult {
   hintsUsed  Int
   /// Coups joués dans l'ordre (true = juste), pour le résumé à partager.
   pattern    Boolean[]
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   challenge DailyChallenge @relation(fields: [date], references: [date], onDelete: Cascade)

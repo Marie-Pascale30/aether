@@ -4,18 +4,23 @@
 // → classement → fusion de progression → admin (groupes, suites, mondes, éditeur).
 // Les réponses vérifiées sont celles du seed (prisma/seed.ts).
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 const API = process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 4100}/api`;
 
-/** Client minimal qui conserve le cookie de session, comme un navigateur. */
+/**
+ * Client minimal qui conserve le cookie de session, comme un navigateur. Chaque client a sa
+ * propre IP (X-Forwarded-For, que l'API accepte du proxy local) : la limitation de débit
+ * le traite comme un joueur distinct, comme en vrai.
+ */
 function client() {
     let cookie = "";
+    const ip = `10.${[0, 0, 0].map(() => Math.floor(Math.random() * 254) + 1).join(".")}`;
     return async function call(method, path, body) {
         const res = await fetch(API + path, {
             method,
-            headers: { "content-type": "application/json", ...(cookie && { cookie }) },
+            headers: { "content-type": "application/json", "x-forwarded-for": ip, ...(cookie && { cookie }) },
             body: body === undefined ? undefined : JSON.stringify(body),
         });
         const setCookie = res.headers.get("set-cookie");
@@ -186,6 +191,64 @@ await check("connexion depuis un nouvel invité : progression fusionnée", async
     });
     assert.equal(status, 200);
     assert.equal((await other("GET", `/worlds/${worlds[0].slug}`)).body.levels[0].status, "completed");
+});
+
+/** Dernier lien reçu par e-mail à cette adresse (MAIL_TRANSPORT=log : boîte d'envoi locale). */
+function lastMailToken(email, kind) {
+    const dir = ".mail-outbox";
+    const slug = email.replace(/[^a-z0-9]+/gi, "_");
+    const files = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(`-${slug}.json`)).sort() : [];
+    const mails = files.map((f) => JSON.parse(readFileSync(`${dir}/${f}`, "utf8"))).filter((m) => m.text.includes(kind));
+    return mails.at(-1)?.text.match(/token=([\w-]+)/)?.[1] ?? null;
+}
+
+await check("adresse e-mail : lien de vérification envoyé, à usage unique", async () => {
+    const email = `smoke-${unique}@aether.local`;
+    assert.equal((await player("GET", "/auth/me")).body.me.emailVerified, false);
+    const token = lastMailToken(email, "/verifier-email");
+    assert.ok(token, "aucun e-mail de vérification dans .mail-outbox");
+    const verified = await player("POST", "/auth/email/verify", { token });
+    assert.equal(verified.status, 200);
+    assert.equal(verified.body.emailVerified, true);
+    assert.equal((await player("POST", "/auth/email/verify", { token })).status, 400);
+});
+
+await check("mot de passe oublié : réponse muette, lien à usage unique, autres sessions fermées", async () => {
+    const email = `smoke-${unique}@aether.local`;
+    const other = client();
+    await other("POST", "/auth/login", { email, password: "motdepasse-solide" });
+    assert.ok((await other("GET", "/auth/me")).body.me);
+
+    assert.equal((await client()("POST", "/auth/password/forgot", { email: `inconnu-${unique}@aether.local` })).status, 204);
+    assert.equal((await client()("POST", "/auth/password/forgot", { email })).status, 204);
+    const token = lastMailToken(email, "/reinitialiser");
+    assert.ok(token, "aucun e-mail de réinitialisation");
+
+    const visitor = client();
+    assert.equal((await visitor("POST", "/auth/password/reset", { token, password: "court" })).status, 400);
+    const reset = await visitor("POST", "/auth/password/reset", { token, password: "nouveau-mot-de-passe" });
+    assert.equal(reset.status, 200);
+    assert.equal((await visitor("POST", "/auth/password/reset", { token, password: "encore-un-autre" })).status, 400);
+
+    assert.equal((await other("GET", "/auth/me")).body.me, null, "l'ancienne session devait être fermée");
+    assert.equal((await client()("POST", "/auth/login", { email, password: "motdepasse-solide" })).status, 401);
+    assert.equal((await client()("POST", "/auth/login", { email, password: "nouveau-mot-de-passe" })).status, 200);
+});
+
+await check("changer de mot de passe depuis le profil", async () => {
+    const email = `smoke-${unique}@aether.local`;
+    const me = client();
+    await me("POST", "/auth/login", { email, password: "nouveau-mot-de-passe" });
+    const wrong = await me("PATCH", "/auth/password", { currentPassword: "faux", newPassword: "troisieme-mot-de-passe" });
+    assert.equal(wrong.status, 400);
+    assert.deepEqual(wrong.body.issues[0].path, ["currentPassword"]);
+    const ok = await me("PATCH", "/auth/password", { currentPassword: "nouveau-mot-de-passe", newPassword: "troisieme-mot-de-passe" });
+    assert.equal(ok.status, 200);
+    assert.ok((await me("GET", "/auth/me")).body.me, "la session courante doit survivre au changement");
+
+    // La réinitialisation a fermé la session du joueur principal de ce test : il se reconnecte.
+    assert.equal((await player("GET", "/auth/me")).body.me, null);
+    assert.equal((await player("POST", "/auth/login", { email, password: "troisieme-mot-de-passe" })).status, 200);
 });
 
 await check("éditeur réservé aux administrateurs", async () => {

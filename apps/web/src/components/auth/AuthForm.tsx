@@ -100,6 +100,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
                     error={errors.password}
                     hint={isRegister ? "8 caractères minimum." : undefined}
                 />
+                {!isRegister && (
+                    <Link href="/mot-de-passe-oublie" className={styles.forgot}>
+                        Mot de passe oublié ?
+                    </Link>
+                )}
 
                 {errors.form && (
                     <p className={styles.formError} role="alert">

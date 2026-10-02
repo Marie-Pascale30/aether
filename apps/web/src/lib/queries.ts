@@ -74,6 +74,40 @@ export function useUpdateDisplayName() {
     });
 }
 
+export function useVerifyEmail() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (token: string) => api.auth.verifyEmail(token),
+        // Le lien peut être ouvert sur un autre appareil : on ne met à jour que si c'est le même joueur.
+        onSuccess: (me) => {
+            const current = qc.getQueryData<Me | null>(keys.me);
+            if (current?.id === me.id) qc.setQueryData(keys.me, me);
+        },
+    });
+}
+
+export const useResendVerification = () => useMutation({ mutationFn: api.auth.resendVerification });
+
+export const useForgotPassword = () => useMutation({ mutationFn: (email: string) => api.auth.forgotPassword(email) });
+
+/** La réinitialisation ouvre une session sur ce compte : comme une connexion. */
+export function useResetPassword() {
+    const switchIdentity = useSwitchIdentity();
+    return useMutation({
+        mutationFn: ({ token, password }: { token: string; password: string }) => api.auth.resetPassword(token, password),
+        onSuccess: switchIdentity,
+    });
+}
+
+export function useChangePassword() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+            api.auth.changePassword(currentPassword, newPassword),
+        onSuccess: (me) => qc.setQueryData(keys.me, me),
+    });
+}
+
 // ─── Jeu ────────────────────────────────────────────────────────────────────
 
 export function useWorlds() {

@@ -23,6 +23,8 @@ export interface Me {
     id: string;
     displayName: string;
     email: string | null;
+    /** Adresse confirmée par le lien reçu par e-mail. */
+    emailVerified: boolean;
     role: Role;
     /** Joueur anonyme : sa progression est sauvegardée, mais il n'apparaît pas au classement. */
     isGuest: boolean;

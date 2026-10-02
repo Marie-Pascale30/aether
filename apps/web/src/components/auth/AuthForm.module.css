@@ -17,3 +17,9 @@
     margin: 20px 0 0;
     font-size: 14px;
 }
+
+.forgot {
+    align-self: flex-end;
+    margin-top: -8px;
+    font-size: 13px;
+}

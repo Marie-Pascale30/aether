@@ -6,6 +6,7 @@ export interface AuthUser {
     id: string;
     displayName: string;
     email: string | null;
+    emailVerified: boolean;
     role: Role;
     isGuest: boolean;
 }

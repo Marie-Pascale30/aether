@@ -12,13 +12,15 @@ export const displayNameSchema = z
     .min(ACCOUNT_LIMITS.displayNameMin, `Le pseudo doit contenir au moins ${ACCOUNT_LIMITS.displayNameMin} caractères.`)
     .max(ACCOUNT_LIMITS.displayNameMax, `Le pseudo ne peut pas dépasser ${ACCOUNT_LIMITS.displayNameMax} caractères.`);
 
+const passwordSchema = z
+    .string()
+    .min(ACCOUNT_LIMITS.passwordMin, `Le mot de passe doit contenir au moins ${ACCOUNT_LIMITS.passwordMin} caractères.`)
+    .max(ACCOUNT_LIMITS.passwordMax, "Mot de passe trop long.");
+
 export const registerSchema = z.object({
     displayName: displayNameSchema,
     email: emailSchema,
-    password: z
-        .string()
-        .min(ACCOUNT_LIMITS.passwordMin, `Le mot de passe doit contenir au moins ${ACCOUNT_LIMITS.passwordMin} caractères.`)
-        .max(ACCOUNT_LIMITS.passwordMax, "Mot de passe trop long."),
+    password: passwordSchema,
 });
 
 export const loginSchema = z.object({
@@ -29,6 +31,25 @@ export const loginSchema = z.object({
 export const updateProfileSchema = z.object({
     displayName: displayNameSchema,
 });
+
+/** Jeton reçu par e-mail (vérification d'adresse ou réinitialisation). */
+const tokenSchema = z.string().min(20, "Lien invalide.").max(200, "Lien invalide.");
+
+export const verifyEmailSchema = z.object({ token: tokenSchema });
+
+export const forgotPasswordSchema = z.object({ email: emailSchema });
+
+export const resetPasswordSchema = z.object({ token: tokenSchema, password: passwordSchema });
+
+export const changePasswordSchema = z
+    .object({
+        currentPassword: z.string().min(1, "Mot de passe actuel requis."),
+        newPassword: passwordSchema,
+    })
+    .refine((input) => input.currentPassword !== input.newPassword, {
+        path: ["newPassword"],
+        message: "Le nouveau mot de passe doit différer de l'actuel.",
+    });
 
 // ─── Partie ─────────────────────────────────────────────────────────────────
 
@@ -122,6 +143,10 @@ export const clientErrorSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type StartSessionInput = z.infer<typeof startSessionSchema>;
 export type AttemptInput = z.infer<typeof attemptSchema>;
 export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;

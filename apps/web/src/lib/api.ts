@@ -66,6 +66,12 @@ export const api = {
         login: (input: LoginInput) => request<Me>("POST", "/auth/login", input),
         logout: () => request<void>("POST", "/auth/logout"),
         updateMe: (displayName: string) => request<Me>("PATCH", "/auth/me", { displayName }),
+        verifyEmail: (token: string) => request<Me>("POST", "/auth/email/verify", { token }),
+        resendVerification: () => request<void>("POST", "/auth/email/resend"),
+        forgotPassword: (email: string) => request<void>("POST", "/auth/password/forgot", { email }),
+        resetPassword: (token: string, password: string) => request<Me>("POST", "/auth/password/reset", { token, password }),
+        changePassword: (currentPassword: string, newPassword: string) =>
+            request<Me>("PATCH", "/auth/password", { currentPassword, newPassword }),
     },
     worlds: {
         list: () => request<WorldSummary[]>("GET", "/worlds"),

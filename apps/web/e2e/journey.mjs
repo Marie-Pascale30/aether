@@ -4,7 +4,7 @@
 // Variables : E2E_BASE_URL (défaut http://localhost:3100), E2E_BROWSER (chemin de l'exécutable),
 //             ADMIN_EMAIL / ADMIN_PASSWORD (défaut : valeurs de apps/api/.env.example).
 import { chromium } from "playwright-core";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3100";
@@ -24,6 +24,16 @@ const BROWSERS = [
 const executablePath = BROWSERS.find((path) => existsSync(path));
 if (!executablePath) throw new Error("Aucun navigateur trouvé : définis E2E_BROWSER.");
 const errors = [];
+/** Boîte d'envoi locale de l'API (MAIL_TRANSPORT=log). */
+const OUTBOX = fileURLToPath(new URL("../../api/.mail-outbox/", import.meta.url));
+
+function lastMailLink(email, path) {
+    const slug = email.replace(/[^a-z0-9]+/gi, "_");
+    const files = existsSync(OUTBOX) ? readdirSync(OUTBOX).filter((f) => f.endsWith(`-${slug}.json`)).sort() : [];
+    const mail = files.map((f) => JSON.parse(readFileSync(OUTBOX + f, "utf8"))).filter((m) => m.text.includes(path)).at(-1);
+    return mail?.text.match(/https?:\/\/\S+/)?.[0] ?? null;
+}
+let playerEmail = "";
 
 const browser = await chromium.launch({ executablePath });
 
@@ -133,7 +143,8 @@ try {
         await page.screenshot({ path: OUT + "08-register-errors.png" });
         const id = Date.now().toString(36);
         await page.getByLabel("Pseudo").fill(`Flore ${id.slice(-4)}`);
-        await page.getByLabel("Adresse e-mail").fill(`e2e-${id}@aether.local`);
+        playerEmail = `e2e-${id}@aether.local`;
+        await page.getByLabel("Adresse e-mail").fill(playerEmail);
         await page.getByLabel("Mot de passe").fill("motdepasse-solide");
         await page.getByRole("button", { name: "Créer mon compte" }).click();
         await page.waitForURL("**/mondes");
@@ -152,11 +163,38 @@ try {
         await page.screenshot({ path: OUT + "10-profile.png", fullPage: true });
     });
 
+    await step("adresse confirmée par le lien reçu par e-mail", async () => {
+        await page.getByText("Ton adresse n'est pas encore confirmée").waitFor();
+        const link = lastMailLink(playerEmail, "/verifier-email");
+        if (!link) throw new Error("aucun e-mail de vérification dans la boîte d'envoi locale");
+        await page.goto(link.replace(/^https?:\/\/[^/]+/, BASE));
+        await page.getByRole("heading", { name: /Merci/ }).waitFor();
+        await page.goto(BASE + "/profil");
+        await page.getByText("adresse confirmée ✓").waitFor();
+    });
+
     await step("déconnexion → pas de nouvel invité automatique", async () => {
         await page.getByRole("button", { name: "Se déconnecter" }).click();
         await page.waitForURL(BASE + "/");
         await page.goto(BASE + "/mondes");
         await page.getByRole("heading", { name: "Session fermée" }).waitFor();
+    });
+
+    await step("mot de passe oublié → nouveau mot de passe → connecté", async () => {
+        await page.goto(BASE + "/connexion");
+        await page.getByRole("link", { name: "Mot de passe oublié ?" }).click();
+        await page.waitForURL("**/mot-de-passe-oublie");
+        await page.getByLabel("Adresse e-mail").fill(playerEmail);
+        await page.getByRole("button", { name: "Recevoir le lien" }).click();
+        await page.getByText("un lien pour choisir un nouveau mot de passe vient").waitFor();
+        const link = lastMailLink(playerEmail, "/reinitialiser");
+        if (!link) throw new Error("aucun e-mail de réinitialisation");
+        await page.goto(link.replace(/^https?:\/\/[^/]+/, BASE));
+        await page.getByLabel("Nouveau mot de passe").fill("nouveau-secret-e2e");
+        await page.getByLabel("Confirmation").fill("nouveau-secret-e2e");
+        await page.getByRole("button", { name: "Enregistrer et me connecter" }).click();
+        await page.waitForURL("**/mondes");
+        await page.getByRole("link", { name: /Flore/ }).waitFor();
     });
 
     const admin = await (await browser.newContext({ viewport: { width: 1280, height: 1000 } })).newPage();

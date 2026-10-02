@@ -2,14 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { displayNameSchema } from "@aether/shared";
+import { changePasswordSchema, displayNameSchema } from "@aether/shared";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Panel } from "@/components/ui/Panel";
 import { Stars } from "@/components/ui/Stars";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { formatDuration, pad2 } from "@/lib/format";
-import { useLogout, useMe, useStats, useUpdateDisplayName } from "@/lib/queries";
+import { ApiError } from "@/lib/api";
+import { useChangePassword, useLogout, useMe, useResendVerification, useStats, useUpdateDisplayName } from "@/lib/queries";
 import styles from "./profil.module.css";
 
 export function ProfileView() {
@@ -141,7 +142,11 @@ function AccountCard() {
         <Panel>
             <div className="tag">Gardien</div>
             <h2>{me.displayName}</h2>
-            <p className={styles.email}>{me.email}</p>
+            <p className={styles.email}>
+                {me.email}
+                {me.emailVerified && <span className={styles.verified}> · adresse confirmée ✓</span>}
+            </p>
+            {!me.emailVerified && <VerifyReminder />}
 
             <form className={styles.nameForm} onSubmit={onSubmit}>
                 <Field
@@ -156,9 +161,93 @@ function AccountCard() {
                 </Button>
             </form>
 
+            <ChangePasswordForm />
+
             <Button variant="ghost" onClick={onLogout} disabled={logout.isPending}>
                 Se déconnecter
             </Button>
         </Panel>
+    );
+}
+
+function VerifyReminder() {
+    const resend = useResendVerification();
+    return (
+        <div className={styles.reminder} role="status">
+            <span>Ton adresse n&apos;est pas encore confirmée : sans elle, impossible de récupérer ton mot de passe.</span>
+            {resend.isSuccess ? (
+                <span className={styles.verified}>Lien envoyé ✓</span>
+            ) : (
+                <Button variant="ghost" onClick={() => resend.mutate()} disabled={resend.isPending}>
+                    Renvoyer le lien
+                </Button>
+            )}
+            {resend.error && <small className={styles.formError}>{resend.error.message}</small>}
+        </div>
+    );
+}
+
+type PasswordErrors = Partial<Record<"currentPassword" | "newPassword" | "form", string>>;
+
+function ChangePasswordForm() {
+    const change = useChangePassword();
+    const [open, setOpen] = useState(false);
+    const [errors, setErrors] = useState<PasswordErrors>({});
+    const [done, setDone] = useState(false);
+
+    async function onSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const parsed = changePasswordSchema.safeParse(Object.fromEntries(new FormData(form)));
+        if (!parsed.success) {
+            const next: PasswordErrors = {};
+            for (const issue of parsed.error.issues) next[issue.path[0] as keyof PasswordErrors] ??= issue.message;
+            setErrors(next);
+            return;
+        }
+        setErrors({});
+        try {
+            await change.mutateAsync(parsed.data);
+            form.reset();
+            setDone(true);
+            setOpen(false);
+        } catch (err) {
+            const issue = err instanceof ApiError ? err.issues[0] : undefined;
+            setErrors(issue ? { [issue.path[0] as keyof PasswordErrors]: issue.message } : { form: err instanceof Error ? err.message : "Échec." });
+        }
+    }
+
+    if (!open) {
+        return (
+            <p className={styles.passwordRow}>
+                {done && <span className={styles.verified}>Mot de passe changé ✓ Tes autres appareils ont été déconnectés. </span>}
+                <Button variant="ghost" onClick={() => setOpen(true)}>
+                    Changer de mot de passe
+                </Button>
+            </p>
+        );
+    }
+
+    return (
+        <form className={styles.passwordForm} onSubmit={onSubmit} noValidate>
+            <Field label="Mot de passe actuel" name="currentPassword" type="password" autoComplete="current-password" error={errors.currentPassword} />
+            <Field
+                label="Nouveau mot de passe"
+                name="newPassword"
+                type="password"
+                autoComplete="new-password"
+                error={errors.newPassword}
+                hint="8 caractères minimum. Tes autres appareils seront déconnectés."
+            />
+            {errors.form && <small className={styles.formError}>{errors.form}</small>}
+            <div className="row">
+                <Button type="submit" variant="primary" disabled={change.isPending}>
+                    Enregistrer
+                </Button>
+                <Button variant="ghost" onClick={() => setOpen(false)}>
+                    Annuler
+                </Button>
+            </div>
+        </form>
     );
 }

@@ -361,8 +361,8 @@ async function seedAdmin() {
     const passwordHash = await hashPassword(password);
     await prisma.user.upsert({
         where: { email },
-        update: { role: "ADMIN", passwordHash, isGuest: false },
-        create: { email, passwordHash, displayName: "Gardien", role: "ADMIN", isGuest: false },
+        update: { role: "ADMIN", passwordHash, isGuest: false, emailVerifiedAt: new Date() },
+        create: { email, passwordHash, displayName: "Gardien", role: "ADMIN", isGuest: false, emailVerifiedAt: new Date() },
     });
     console.log(`Administrateur prêt : ${email}`);
 }
