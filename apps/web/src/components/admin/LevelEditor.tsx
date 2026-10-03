@@ -3,28 +3,39 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import {
+    generatePuzzle,
     GROUP_SIZE,
+    MECHANICS,
     LEVEL_LIMITS as L,
     levelInputSchema,
     type AdminLevel,
     type Group,
     type LevelInput,
     type LevelKind,
+    type Mechanic,
 } from "@aether/shared";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, TextArea } from "@/components/ui/Field";
 import { Panel } from "@/components/ui/Panel";
+import { LocalPuzzleEditor } from "./LocalPuzzleEditor";
 import { SymbolPalette } from "./SymbolPalette";
 import { ApiError, type ApiIssue } from "@/lib/api";
-import { KIND_COPY } from "@/lib/kinds";
+import { KIND_COPY, MECHANIC_COPY } from "@/lib/kinds";
 import { useAdminWorlds, useCreateLevel, useUpdateLevel } from "@/lib/queries";
 import styles from "./LevelEditor.module.css";
 
 const GROUP_COLORS = ["#d9bd72", "#8ce5dc", "#75b78a", "#e59ab5", "#b49cf0", "#f0a860", "#9fd3f0", "#e6e38a"];
 const KINDS: LevelKind[] = ["PAIRS", "GROUPS", "SEQUENCE"];
 
+const MECHANIC_LABELS: Record<Mechanic, string> = {
+    LINKS: "Liens (paires, familles, suites)",
+    ...Object.fromEntries(Object.entries(MECHANIC_COPY).map(([mechanic, copy]) => [mechanic, copy.label])),
+} as Record<Mechanic, string>;
+
 const emptyDraft = (worldId: string): LevelInput => ({
     worldId,
+    mechanic: "LINKS",
+    puzzle: null,
     kind: "PAIRS",
     title: "",
     description: "",
@@ -36,8 +47,8 @@ const emptyDraft = (worldId: string): LevelInput => ({
 });
 
 function toInput(level: AdminLevel): LevelInput {
-    const { worldId, kind, title, description, hints, symbols, columns, groups, published } = level;
-    return { worldId, kind, title, description, hints, symbols, columns, groups, published };
+    const { worldId, mechanic, puzzle, kind, title, description, hints, symbols, columns, groups, published } = level;
+    return { worldId, mechanic, puzzle, kind, title, description, hints, symbols, columns, groups, published };
 }
 
 /** Mêmes règles que l'API (schéma partagé), au format des erreurs de l'API. */
@@ -117,6 +128,18 @@ export function LevelEditor({ level, initialWorldId }: Props) {
         if (draft.groups.length > 0 && !window.confirm("Ce changement efface les liens déjà définis. Continuer ?")) return;
         edit((current) => ({ ...current, ...next, groups: [] }));
         setGroupSize(size);
+        setBuilding([]);
+    };
+
+    const changeMechanic = (mechanic: Mechanic) => {
+        if (mechanic === draft.mechanic) return;
+        const hasContent = draft.mechanic === "LINKS" ? draft.groups.length > 0 : Boolean(draft.puzzle);
+        if (hasContent && !window.confirm("Changer de mécanique remplace le plateau actuel. Continuer ?")) return;
+        edit((current) => ({
+            ...current,
+            mechanic,
+            puzzle: mechanic === "LINKS" ? null : generatePuzzle(mechanic, Math.random().toString(36).slice(2, 8), 3),
+        }));
         setBuilding([]);
     };
 
@@ -236,6 +259,16 @@ export function LevelEditor({ level, initialWorldId }: Props) {
                                 ))}
                             </select>
                         </label>
+                        <label className={styles.select}>
+                            Mécanique
+                            <select value={draft.mechanic} onChange={(e) => changeMechanic(e.target.value as Mechanic)}>
+                                {MECHANICS.map((mechanic) => (
+                                    <option key={mechanic} value={mechanic}>
+                                        {MECHANIC_LABELS[mechanic]}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
                         <Field label="Titre" value={draft.title} maxLength={L.titleMax} onChange={(e) => set("title", e.target.value)} error={issueAt("title")} />
                         <TextArea
                             label="Description"
@@ -280,6 +313,14 @@ export function LevelEditor({ level, initialWorldId }: Props) {
                     </div>
 
                     {/* ─── Plateau ─── */}
+                    {draft.mechanic !== "LINKS" ? (
+                        <LocalPuzzleEditor
+                            mechanic={draft.mechanic}
+                            puzzle={draft.puzzle}
+                            issues={issues}
+                            onChange={(puzzle) => set("puzzle", puzzle)}
+                        />
+                    ) : (
                     <div className="stack">
                         <div className={styles.boardHead}>
                             <h3>Plateau</h3>
@@ -395,6 +436,7 @@ export function LevelEditor({ level, initialWorldId }: Props) {
                             ))}
                         </ol>
                     </div>
+                    )}
                 </div>
             </Panel>
         </form>

@@ -2,20 +2,21 @@ import Link from "next/link";
 import type { LevelSummary } from "@aether/shared";
 import { Stars } from "@/components/ui/Stars";
 import { formatDuration, pad2 } from "@/lib/format";
-import { countLabel, KIND_COPY } from "@/lib/kinds";
+import { goalLabel, levelLabel } from "@/lib/kinds";
 import styles from "./levels.module.css";
 
 export function LevelCard({ level }: { level: LevelSummary }) {
+    const label = levelLabel(level.mechanic, level.kind);
     const content = (
         <>
             <span className={styles.number}>{pad2(level.position)}</span>
             <span className={styles.title}>{level.title}</span>
             <span className={styles.kind}>
-                <span aria-hidden>{KIND_COPY[level.kind].glyph}</span> {KIND_COPY[level.kind].label}
+                <span aria-hidden>{label.glyph}</span> {label.label}
             </span>
             <span className={styles.meta}>
                 {level.status === "locked" && "Scellée"}
-                {level.status === "available" && `${countLabel(level.kind, level.groupCount)} à trouver`}
+                {level.status === "available" && goalLabel(level.mechanic, level.kind, level.groupCount)}
                 {level.status === "completed" && (
                     <>
                         <Stars count={level.bestStars} size="sm" />

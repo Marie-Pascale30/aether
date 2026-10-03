@@ -1,3 +1,4 @@
+import { WORLD_UNLOCK_AFTER } from "../constants";
 import type { LevelStatus } from "../types";
 
 export interface JourneyWorld {
@@ -34,25 +35,27 @@ export function computeLevelStatuses(
 }
 
 /**
- * Statuts d'un parcours en mondes : le premier monde est ouvert ; chaque monde entièrement
- * restauré ouvre le suivant. Dans un monde scellé, seules les énigmes déjà résolues
+ * Statuts d'un parcours en mondes : le premier monde est ouvert ; un monde où l'on a résolu
+ * WORLD_UNLOCK_AFTER énigmes (ou toutes, s'il en compte moins) ouvre le suivant — chaque
+ * monde apporte vite sa nouvelle mécanique, sans obliger à tout finir. Dans un monde scellé, seules les énigmes déjà résolues
  * (par exemple avant l'ajout d'une énigme) gardent leur statut « résolue ».
  * Les mondes sans énigme publiée sont ignorés par l'appelant.
  */
 export function computeJourney(worlds: readonly JourneyWorld[], completedLevelIds: ReadonlySet<string>): JourneyStatuses {
     const worldStatuses = new Map<string, LevelStatus>();
     const levelStatuses = new Map<string, LevelStatus>();
-    let previousCompleted = true;
+    let opensNext: boolean = true;
 
     for (const world of worlds) {
-        const completed = world.levelIds.length > 0 && world.levelIds.every((id) => completedLevelIds.has(id));
-        const open = previousCompleted;
+        const done = world.levelIds.filter((id) => completedLevelIds.has(id)).length;
+        const completed = world.levelIds.length > 0 && done === world.levelIds.length;
+        const open: boolean = opensNext;
 
         worldStatuses.set(world.id, completed ? "completed" : open ? "available" : "locked");
         for (const [id, status] of computeLevelStatuses(world.levelIds, completedLevelIds, { open })) {
             levelStatuses.set(id, status);
         }
-        previousCompleted = completed;
+        opensNext = open && done >= Math.min(WORLD_UNLOCK_AFTER, world.levelIds.length);
     }
 
     return { worlds: worldStatuses, levels: levelStatuses };

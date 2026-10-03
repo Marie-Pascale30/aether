@@ -16,6 +16,8 @@ export type LevelKind = "PAIRS" | "GROUPS" | "SEQUENCE";
 /** Indices de cases (dans `symbols`) qui forment ensemble un lien. Pour une suite, l'ordre compte. */
 export type Group = number[];
 
+import type { LocalPuzzle, Mechanic } from "./mechanics";
+
 /** Palette du jardin d'un monde. */
 export type WorldTheme = "origines" | "foret" | "ocean" | "cosmos";
 
@@ -59,6 +61,8 @@ export interface LevelSummary {
     /** Position 1-based dans son monde. */
     position: number;
     title: string;
+    mechanic: Mechanic;
+    /** Genre de Liens (ignoré pour les autres mécaniques). */
     kind: LevelKind;
     groupCount: number;
     status: LevelStatus;
@@ -90,6 +94,14 @@ export interface LevelDetail {
     description: string;
     symbols: string[];
     columns: number;
+    mechanic: Mechanic;
+    /**
+     * Plateau complet des mécaniques jouées sur l'appareil (Mémoires, Rouages, Flux, Échos),
+     * solution comprise ; `null` pour les Liens, validés par le serveur.
+     */
+    puzzle: LocalPuzzle | null;
+    /** Indices des mécaniques jouées sur l'appareil ; vide pour les Liens (révélés par le serveur). */
+    hints: string[];
     kind: LevelKind;
     /** Nombre de cases à choisir pour former un lien. */
     groupSize: number;
@@ -258,6 +270,8 @@ export interface AdminLevel {
     hints: string[];
     symbols: string[];
     columns: number;
+    mechanic: Mechanic;
+    puzzle: LocalPuzzle | null;
     kind: LevelKind;
     groups: Group[];
     published: boolean;

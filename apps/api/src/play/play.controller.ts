@@ -1,10 +1,13 @@
 import { Body, Controller, HttpCode, Param, Post } from "@nestjs/common";
 import {
     attemptSchema,
+    levelResultSchema,
     startSessionSchema,
     type AttemptInput,
     type AttemptResult,
+    type CompletionResult,
     type HintResult,
+    type LevelResultInput,
     type SessionState,
     type StartSessionInput,
 } from "@aether/shared";
@@ -23,6 +26,17 @@ export class PlayController {
         @Body(new ZodPipe(startSessionSchema)) body: StartSessionInput,
     ): Promise<SessionState> {
         return this.play.start(user, levelId, body.restart);
+    }
+
+    /** Fin d'une énigme jouée sur l'appareil (toutes les mécaniques sauf les Liens). */
+    @Post("levels/:levelId/results")
+    @HttpCode(200)
+    result(
+        @CurrentUser() user: AuthUser,
+        @Param("levelId") levelId: string,
+        @Body(new ZodPipe(levelResultSchema)) body: LevelResultInput,
+    ): Promise<CompletionResult> {
+        return this.play.submitResult(user, levelId, body);
     }
 
     @Post("sessions/:sessionId/attempts")

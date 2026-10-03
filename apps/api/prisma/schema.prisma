@@ -59,7 +59,17 @@ model AuthToken {
   @@index([userId, kind])
 }
 
-/// Genre d'énigme : paires, groupes (3–4 cases) ou suites ordonnées (3–5 cases).
+/// Mécanique de jeu. LINKS est validée par le serveur coup par coup ; les autres se jouent
+/// sur l'appareil à partir de `Level.puzzle` (prêtes pour le hors ligne).
+enum Mechanic {
+  LINKS
+  MEMORY
+  GEARS
+  FLOW
+  ECHOES
+}
+
+/// Genre de Liens : paires, groupes (3–4 cases) ou suites ordonnées (3–5 cases).
 enum LevelKind {
   PAIRS
   GROUPS
@@ -100,6 +110,9 @@ model Level {
   hints       String[]
   symbols     String[]
   columns     Int       @default(4)
+  mechanic    Mechanic  @default(LINKS)
+  /// Plateau complet (solution comprise) des mécaniques jouées sur l'appareil ; null pour LINKS.
+  puzzle      Json?
   kind        LevelKind @default(PAIRS)
   /// Réponses : tableau de groupes d'indices `[[a, b, …], …]` (ordonnés pour une suite).
   /// Jamais envoyé au joueur.

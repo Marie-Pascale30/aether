@@ -27,6 +27,9 @@ export const GROUP_SIZE: Record<"PAIRS" | "GROUPS" | "SEQUENCE", { min: number; 
     SEQUENCE: { min: 3, max: 5 },
 };
 
+/** Énigmes à résoudre dans un monde pour ouvrir le suivant (ou toutes, s'il en a moins). */
+export const WORLD_UNLOCK_AFTER = 3;
+
 export const WORLD_THEMES = ["origines", "foret", "ocean", "cosmos"] as const;
 
 export const ACCOUNT_LIMITS = {

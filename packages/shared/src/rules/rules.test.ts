@@ -110,16 +110,26 @@ describe("computeJourney", () => {
         { id: "w3", levelIds: ["e"] },
     ];
 
-    it("scelle les mondes suivants tant que le premier n'est pas restauré", () => {
+    it("scelle les mondes suivants tant que le premier n'est pas assez avancé", () => {
         const { worlds: w, levels } = computeJourney(worlds, new Set(["a"]));
         expect([...w.values()]).toEqual(["available", "locked", "locked"]);
         expect(levels.get("b")).toBe("available");
         expect(levels.get("c")).toBe("locked");
     });
-    it("ouvre le monde suivant quand le précédent est entièrement restauré", () => {
+    it("ouvre le monde suivant quand le précédent est restauré (moins de 3 énigmes)", () => {
         const { worlds: w, levels } = computeJourney(worlds, new Set(["a", "b"]));
         expect([...w.values()]).toEqual(["completed", "available", "locked"]);
         expect(levels.get("c")).toBe("available");
         expect(levels.get("d")).toBe("locked");
+    });
+    it("ouvre le monde suivant après 3 énigmes, sans attendre la fin du monde", () => {
+        const big = [{ id: "w1", levelIds: ["a", "b", "c", "d", "e"] }, { id: "w2", levelIds: ["f"] }];
+        expect(computeJourney(big, new Set(["a", "b"])).worlds.get("w2")).toBe("locked");
+        const { worlds: w } = computeJourney(big, new Set(["a", "b", "c"]));
+        expect([...w.values()]).toEqual(["available", "available"]);
+    });
+    it("ne saute pas un monde scellé, même avec des énigmes résolues plus loin", () => {
+        const big = [{ id: "w1", levelIds: ["a", "b", "c"] }, { id: "w2", levelIds: ["d", "e", "f"] }, { id: "w3", levelIds: ["g"] }];
+        expect(computeJourney(big, new Set(["d", "e", "f"])).worlds.get("w3")).toBe("locked");
     });
 });

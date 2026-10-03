@@ -47,10 +47,21 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
 ## Le jeu
 
 - **Mondes** : chaque monde a son jardin (6 stades, qui ne font que croître) et son ambiance. Le premier
-  est ouvert ; chaque monde entièrement restauré ouvre le suivant. Seed : Jardin des Origines (paires),
-  Forêt des Échos (familles), Rivage des Suites (chemins).
-- **Genres d'énigmes** : *paires* (2 cases), *familles* (3–4 cases, ordre indifférent), *suites*
-  (3–5 cases dans l'ordre exact, numérotées à la sélection).
+  est ouvert ; **3 énigmes résolues** dans un monde ouvrent le suivant (chaque monde apporte vite sa
+  mécanique). Seed : Jardin des Origines, Bibliothèque Vivante, Atelier des Inventeurs, Canaux d'Éther,
+  Salle des Échos, Forêt des Échos, Rivage des Suites.
+- **Mécaniques** :
+  - *Liens* — paires (2 cases), familles (3–4 cases), suites (3–5 cases dans l'ordre) ; validés par le
+    serveur coup par coup ;
+  - *Mémoires* — observer un plateau sans limite de temps, puis retrouver où était chaque symbole
+    (variante : les symboles s'effacent un à un) ;
+  - *Rouages* — faire pivoter les conduits pour éclairer tout le réseau depuis la source, sans fuite ;
+  - *Flux* — relier chaque paire de sources de même symbole sans croisement, en remplissant la grille ;
+  - *Échos* — deviner la règle cachée derrière quelques exemples, puis l'appliquer.
+
+  Mémoires, Rouages, Flux et Échos se jouent **entièrement sur l'appareil** (base du hors ligne) : leurs
+  moteurs et générateurs procéduraux vivent dans `packages/shared/src/mechanics/`, et seul le résultat
+  est envoyé (`POST /levels/:id/results`). Une même graine donne le même plateau partout.
 - **Étoiles** : ★★★ sans erreur ni indice · ★★ avec ≤ 2 erreurs et ≤ 1 indice · ★ sinon. Record :
   plus d'étoiles, puis le temps le plus court. Indices révélés un par un, à la demande.
 - **Énigme du jour** (`/quotidien`) : la même pour tous, tirée chaque nuit (fuseau `DAILY_TIMEZONE`)
@@ -66,9 +77,10 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
 ## L'éditeur (`/admin`)
 
 - **Mondes** : création, ordre (glisser-déposer ou ↑ ↓), thème du jardin, publication, réserve du jour.
-- **Énigmes** : monde, genre et taille des liens, symboles (palette par famille), liens construits case
+- **Énigmes** : monde et mécanique ; pour les Liens, genre et taille des liens, symboles (palette par famille), liens construits case
   par case, indices, brouillon/publication, duplication, test en un clic. Validation en direct, avec les
-  mêmes règles que l'API.
+  mêmes règles que l'API. Pour les autres mécaniques : génération par difficulté et graine, retouche en
+  JSON, et **aperçu jouable** du plateau avant d'enregistrer.
 - **Statistiques de conception** sous chaque énigme : joueurs, taux de réussite, temps médian, erreurs et
   indices moyens, étoiles, et **fausses pistes** les plus tentées (une ambiguïté se voit tout de suite).
   Les parties des administrateurs sont exclues.
@@ -137,7 +149,8 @@ session est `Secure`. L'API n'est pas exposée hors du réseau Docker ; ne l'exp
 | `GET /worlds` · `GET /worlds/:slug` | Mondes avec statut, étoiles, jardin · énigmes d'un monde |
 | `GET /levels/:id` | Détail d'une énigme, sans les réponses |
 | `POST /levels/:id/sessions` | Démarrer ou reprendre une partie (`{ restart: true }`) |
-| `POST /sessions/:id/attempts` (`{ cells }`) · `/sessions/:id/hints` | Jouer un lien · indice suivant |
+| `POST /sessions/:id/attempts` (`{ cells }`) · `/sessions/:id/hints` | Liens : jouer un lien · indice suivant |
+| `POST /levels/:id/results` | Autres mécaniques : résultat d'une partie jouée sur l'appareil |
 | `GET /daily` | Énigme du jour, résultat, série, résumé à partager |
 | `GET /me/progress` · `GET /me/stats` | Progression par monde · statistiques par énigme |
 | `GET /leaderboard?limit=20` | Classement (SQL) et rang du joueur |

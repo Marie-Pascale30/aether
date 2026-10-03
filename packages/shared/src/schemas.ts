@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { ACCOUNT_LIMITS, GROUP_SIZE, LEVEL_LIMITS as L, WORLD_THEMES } from "./constants";
+import { MECHANICS, validatePuzzle, type LocalMechanic } from "./mechanics";
+import { PUZZLE_SCHEMAS } from "./mechanics/schemas";
 import { validateLevelDefinition } from "./rules/levels";
 
 // ─── Comptes ────────────────────────────────────────────────────────────────
@@ -78,7 +80,10 @@ const groupSchema = z.array(z.number().int().min(0)).min(GROUP_SIZE.PAIRS.min).m
 export const levelInputSchema = z
     .object({
         worldId: z.string().min(1, "Choisis un monde."),
-        kind: z.enum(["PAIRS", "GROUPS", "SEQUENCE"]),
+        mechanic: z.enum(MECHANICS).default("LINKS"),
+        /** Plateau des mécaniques jouées sur l'appareil ; `null` pour les Liens. */
+        puzzle: z.unknown().nullable().default(null),
+        kind: z.enum(["PAIRS", "GROUPS", "SEQUENCE"]).default("PAIRS"),
         title: z.string().trim().min(1, "Le titre est requis.").max(L.titleMax, `${L.titleMax} caractères maximum.`),
         description: z
             .string()
@@ -89,19 +94,41 @@ export const levelInputSchema = z
             .array(z.string().trim().min(1, "Un indice ne peut pas être vide.").max(L.hintMax))
             .min(L.hintsMin, "Ajoute au moins un indice.")
             .max(L.hintsMax, `${L.hintsMax} indices maximum.`),
+        // Plateau des Liens (vides pour les autres mécaniques).
         symbols: z
             .array(z.string().trim().min(1, "Un symbole ne peut pas être vide.").max(L.symbolMax))
-            .min(L.symbolsMin, `Au moins ${L.symbolsMin} symboles.`)
-            .max(L.symbolsMax, `${L.symbolsMax} symboles maximum.`),
-        columns: z.number().int().min(L.columnsMin).max(L.columnsMax),
-        groups: z.array(groupSchema).min(1, "Définis au moins un lien à trouver."),
+            .max(L.symbolsMax, `${L.symbolsMax} symboles maximum.`)
+            .default([]),
+        columns: z.number().int().min(L.columnsMin).max(L.columnsMax).default(4),
+        groups: z.array(groupSchema).default([]),
         published: z.boolean(),
     })
     .superRefine((level, ctx) => {
-        for (const issue of validateLevelDefinition(level)) {
-            ctx.addIssue({ code: "custom", path: issue.path, message: issue.message });
+        const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: "custom", path, message });
+
+        if (level.mechanic === "LINKS") {
+            if (level.symbols.length < L.symbolsMin) issue(["symbols"], `Au moins ${L.symbolsMin} symboles.`);
+            if (level.groups.length === 0) issue(["groups"], "Définis au moins un lien à trouver.");
+            for (const found of validateLevelDefinition(level)) issue(found.path, found.message);
+            return;
         }
+
+        const mechanic = level.mechanic as LocalMechanic;
+        const shape = PUZZLE_SCHEMAS[mechanic].safeParse(level.puzzle);
+        if (!shape.success) {
+            for (const found of shape.error.issues) issue(["puzzle", ...found.path.filter((k): k is string | number => typeof k !== "symbol")], `Plateau : ${found.message}`);
+            return;
+        }
+        for (const found of validatePuzzle(mechanic, shape.data as never)) issue(["puzzle", ...found.path], found.message);
     });
+
+/** Résultat d'une énigme jouée sur l'appareil (Mémoires, Rouages, Flux, Échos). */
+export const levelResultSchema = z.object({
+    /** Durée réelle de la partie ; plafonnée à 6 h. */
+    durationMs: z.number().int().min(0).max(6 * 60 * 60 * 1000),
+    mistakes: z.number().int().min(0).max(999),
+    hintsUsed: z.number().int().min(0).max(L.hintsMax),
+});
 
 /** Nouvel ordre des énigmes d'un monde : `ids` liste exactement toutes ses énigmes. */
 export const reorderLevelsSchema = z.object({
@@ -151,6 +178,7 @@ export type StartSessionInput = z.infer<typeof startSessionSchema>;
 export type AttemptInput = z.infer<typeof attemptSchema>;
 export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;
 export type LevelInput = z.infer<typeof levelInputSchema>;
+export type LevelResultInput = z.infer<typeof levelResultSchema>;
 export type ReorderLevelsInput = z.infer<typeof reorderLevelsSchema>;
 export type WorldInput = z.infer<typeof worldInputSchema>;
 export type ReorderWorldsInput = z.infer<typeof reorderWorldsSchema>;

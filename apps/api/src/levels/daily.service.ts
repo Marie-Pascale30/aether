@@ -115,7 +115,10 @@ export class DailyService {
                     durationMs: session.durationMs,
                     mistakes: session.mistakes,
                     hintsUsed: session.hintsUsed,
-                    pattern: attempts.map((attempt) => attempt.correct),
+                    // Mécaniques jouées sur l'appareil : pas de coups enregistrés, on résume par les essais.
+                    pattern: attempts.length
+                        ? attempts.map((attempt) => attempt.correct)
+                        : [...Array<boolean>(session.mistakes).fill(false), true],
                 },
             });
         }

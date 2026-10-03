@@ -116,7 +116,7 @@ try {
     await step("mondes : le premier entamé, les suivants scellés", async () => {
         await page.goto(BASE + "/mondes");
         await page.getByRole("heading", { name: "Les mondes" }).waitFor();
-        await page.getByText("1 / 20 énigmes").waitFor();
+        await page.getByText(/^1 \/ \d+ énigmes/).first().waitFor();
         await page.getByText("Restaure le monde précédent pour l'ouvrir.").first().waitFor();
         await page.waitForTimeout(400);
         await page.screenshot({ path: OUT + "06-mondes.png", fullPage: true });
@@ -259,6 +259,60 @@ try {
         await admin.getByText("Série en cours").waitFor();
         await admin.getByText(/AETHER · Énigme du jour/).waitFor();
         await admin.screenshot({ path: OUT + "13c-daily.png", fullPage: true });
+    });
+
+    await step("les 4 mécaniques locales se jouent jusqu'au bout (souris)", async () => {
+        const api = async (path) => (await admin.request.get(BASE + "/api" + path)).json();
+        const firstLevel = async (slug) => (await api(`/worlds/${slug}`)).levels[0].id;
+        const open = async (slug) => {
+            const id = await firstLevel(slug);
+            await admin.goto(`${BASE}/niveaux/${id}`);
+            return (await api(`/admin/levels/${id}`)).puzzle;
+        };
+        const finish = async (name) => {
+            await admin.getByRole("dialog").waitFor();
+            await admin.waitForTimeout(900);
+            await admin.screenshot({ path: OUT + `18-${name}.png` });
+            await admin.getByRole("button", { name: "Voir le plateau" }).click();
+        };
+
+        // Mémoires : observer, puis retrouver chaque case demandée.
+        let puzzle = await open("bibliotheque-vivante");
+        await admin.getByRole("button", { name: "J'ai mémorisé" }).click();
+        for (const cell of puzzle.targets) await admin.getByRole("button", { name: new RegExp(`^Case ${cell + 1}( :|$)`) }).click();
+        await finish("memoires");
+
+        // Rouages : chaque pièce mobile revient à sa rotation d'origine (quarts de tour horaires).
+        puzzle = await open("atelier-des-inventeurs");
+        for (const [i, tile] of puzzle.tiles.entries()) {
+            if (tile.fixed || tile.mask === 0) continue;
+            const piece = admin.getByRole("button", { name: new RegExp(`^Pièce ${i + 1}(,|$)`) });
+            for (let n = 0; n < (4 - tile.rotation) % 4; n++) await piece.click();
+        }
+        await finish("rouages");
+
+        // Flux : chaque chemin de la solution est tracé en glissant d'une case à l'autre.
+        puzzle = await open("canaux-d-ether");
+        const box = await admin.getByRole("application").boundingBox();
+        const at = (cell) => ({
+            x: box.x + ((cell % puzzle.columns) + 0.5) * (box.width / puzzle.columns),
+            y: box.y + (Math.floor(cell / puzzle.columns) + 0.5) * (box.height / puzzle.rows),
+        });
+        for (const path of puzzle.solution) {
+            await admin.mouse.move(at(path[0]).x, at(path[0]).y);
+            await admin.mouse.down();
+            for (const cell of path.slice(1)) await admin.mouse.move(at(cell).x, at(cell).y, { steps: 3 });
+            await admin.mouse.up();
+        }
+        await finish("flux");
+
+        // Échos : une mauvaise proposition s'efface, puis la bonne.
+        puzzle = await open("salle-des-echos");
+        const wrong = puzzle.options.findIndex((_, i) => i !== puzzle.answer);
+        await admin.getByRole("button", { name: puzzle.options[wrong], exact: true }).click();
+        await admin.getByText("Cet écho ne répond pas à la règle").waitFor();
+        await admin.getByRole("button", { name: puzzle.options[puzzle.answer], exact: true }).click();
+        await finish("echos");
     });
 
     await step("admin : mondes", async () => {

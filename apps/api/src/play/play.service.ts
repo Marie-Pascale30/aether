@@ -11,6 +11,7 @@ import {
     type AttemptResult,
     type CompletionResult,
     type HintResult,
+    type LevelResultInput,
     type SessionState,
 } from "@aether/shared";
 import type { AuthUser } from "../common/auth.decorators";
@@ -105,6 +106,29 @@ export class PlayService {
             mistakes: session.mistakes,
             completion,
         };
+    }
+
+    /**
+     * Résultat d'une énigme jouée sur l'appareil (Mémoires, Rouages, Flux, Échos). Le serveur ne
+     * rejoue pas la partie (c'est le prix du hors ligne) : il l'enregistre comme une partie terminée,
+     * ce qui alimente progression, records, série du jour et statistiques par le même chemin.
+     */
+    async submitResult(user: AuthUser, levelId: string, input: LevelResultInput): Promise<CompletionResult> {
+        const { level } = await this.levels.playable(user, levelId);
+        if (level.mechanic === "LINKS") {
+            throw new BadRequestException("Les Liens se jouent coup par coup : ouvre une partie sur cette énigme.");
+        }
+        const session = await this.prisma.playSession.create({
+            data: {
+                userId: user.id,
+                levelId,
+                foundGroups: [],
+                mistakes: input.mistakes,
+                hintsUsed: Math.min(input.hintsUsed, level.hints.length),
+                startedAt: new Date(Date.now() - input.durationMs),
+            },
+        });
+        return this.complete(user, { ...session, level }, []);
     }
 
     async hint(user: AuthUser, sessionId: string): Promise<HintResult> {

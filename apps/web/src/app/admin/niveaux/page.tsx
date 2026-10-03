@@ -9,7 +9,7 @@ import { Panel } from "@/components/ui/Panel";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { useDragReorder } from "@/hooks/useDragReorder";
 import { pad2 } from "@/lib/format";
-import { countLabel, KIND_COPY } from "@/lib/kinds";
+import { countLabel, levelLabel } from "@/lib/kinds";
 import { useAdminLevels, useAdminWorlds, useDeleteLevel, useDuplicateLevel, useReorderLevels } from "@/lib/queries";
 import styles from "../admin.module.css";
 
@@ -116,7 +116,7 @@ function WorldLevels({ world, levels, onError }: { world: AdminWorld; levels: Ad
                                 </th>
                                 <th scope="col">N°</th>
                                 <th scope="col">Titre</th>
-                                <th scope="col">Genre</th>
+                                <th scope="col">Mécanique</th>
                                 <th scope="col">État</th>
                                 <th scope="col">Plateau</th>
                                 <th scope="col">Ordre</th>
@@ -138,7 +138,7 @@ function WorldLevels({ world, levels, onError }: { world: AdminWorld; levels: Ad
                                             <Link href={`/admin/niveaux/${level.id}`}>{level.title}</Link>
                                         </td>
                                         <td className={styles.muted}>
-                                            {KIND_COPY[level.kind].glyph} {KIND_COPY[level.kind].label}
+                                            {levelLabel(level.mechanic, level.kind).glyph} {levelLabel(level.mechanic, level.kind).label}
                                         </td>
                                         <td>
                                             <span className={styles.badge} data-published={level.published}>
@@ -146,7 +146,9 @@ function WorldLevels({ world, levels, onError }: { world: AdminWorld; levels: Ad
                                             </span>
                                         </td>
                                         <td className={styles.muted}>
-                                            {level.symbols.length} cases · {countLabel(level.kind, level.groups.length)}
+                                            {level.mechanic === "LINKS"
+                                                ? `${level.symbols.length} cases · ${countLabel(level.kind, level.groups.length)}`
+                                                : "Plateau généré"}
                                         </td>
                                         <td>
                                             <div className={styles.orderButtons}>

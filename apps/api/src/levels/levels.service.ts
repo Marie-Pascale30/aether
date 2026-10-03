@@ -5,7 +5,7 @@ import type { AuthUser } from "../common/auth.decorators";
 import { PrismaService } from "../prisma/prisma.service";
 import { DailyService } from "./daily.service";
 import { JourneyService, type Journey, type LevelLocation } from "./journey.service";
-import { parseGroups, toWorldRef } from "./level.mapper";
+import { goalCount, parseGroups, parsePuzzle, toWorldRef } from "./level.mapper";
 
 export interface Playable {
     level: Level;
@@ -81,9 +81,13 @@ export class LevelsService {
             description: level.description,
             symbols: level.symbols,
             columns: level.columns,
+            mechanic: level.mechanic,
+            puzzle: parsePuzzle(level),
+            // Hors ligne : les mécaniques locales emportent leurs indices ; ceux des Liens sont révélés par le serveur.
+            hints: level.mechanic === "LINKS" ? [] : level.hints,
             kind: level.kind,
             groupSize: groupSizeOf({ groups }),
-            groupCount: groups.length,
+            groupCount: goalCount(level),
             hintCount: level.hints.length,
             previousLevelId: location ? (siblings[location.levelIndex - 1]?.id ?? null) : null,
             nextLevelId: location ? (siblings[location.levelIndex + 1]?.id ?? null) : null,
@@ -97,8 +101,9 @@ export class LevelsService {
             id: level.id,
             position: index + 1,
             title: level.title,
+            mechanic: level.mechanic,
             kind: level.kind,
-            groupCount: parseGroups(level.groups).length,
+            groupCount: goalCount(level),
             status: journey.levelStatuses.get(level.id) ?? "locked",
             bestStars: best?.bestStars ?? null,
             bestTimeMs: best?.bestTimeMs ?? null,

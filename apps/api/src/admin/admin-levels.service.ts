@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import type { AdminLevel, LevelInput } from "@aether/shared";
 import { BY_ORDER, toAdminLevel } from "../levels/level.mapper";
 import { PrismaService } from "../prisma/prisma.service";
@@ -19,11 +20,25 @@ export class AdminLevelsService {
         return toAdminLevel(level);
     }
 
+    /**
+     * Données d'écriture : le plateau va dans `puzzle` pour les mécaniques locales, et les champs
+     * propres aux Liens (symboles, groupes) sont vidés pour elles.
+     */
+    private toData(input: LevelInput) {
+        const local = input.mechanic !== "LINKS";
+        return {
+            ...input,
+            puzzle: local ? (input.puzzle as Prisma.InputJsonValue) : Prisma.JsonNull,
+            symbols: local ? [] : input.symbols,
+            groups: local ? [] : input.groups,
+        };
+    }
+
     /** Ajoute l'énigme à la fin de son monde. */
     async create(input: LevelInput): Promise<AdminLevel> {
         await this.assertWorld(input.worldId);
         const { _max } = await this.prisma.level.aggregate({ where: { worldId: input.worldId }, _max: { order: true } });
-        const level = await this.prisma.level.create({ data: { ...input, order: (_max.order ?? -1) + 1 } });
+        const level = await this.prisma.level.create({ data: { ...this.toData(input), order: (_max.order ?? -1) + 1 } });
         return toAdminLevel(level);
     }
 
@@ -43,7 +58,7 @@ export class AdminLevelsService {
         }
 
         const [level] = await this.prisma.$transaction([
-            this.prisma.level.update({ where: { id }, data: { ...input, order } }),
+            this.prisma.level.update({ where: { id }, data: { ...this.toData(input), order } }),
             this.prisma.playSession.deleteMany({ where: { levelId: id, completedAt: null } }),
         ]);
         return toAdminLevel(level);
@@ -66,6 +81,8 @@ export class AdminLevelsService {
                     symbols: source.symbols,
                     columns: source.columns,
                     kind: source.kind,
+                    mechanic: source.mechanic,
+                    puzzle: source.puzzle ?? Prisma.JsonNull,
                     groups: source.groups ?? [],
                     published: false,
                 },

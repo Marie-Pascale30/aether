@@ -87,7 +87,7 @@ await check("énigmes : réponses jamais exposées, énigme scellée → 403 (y 
     assert.equal(detail.groupSize, 2);
     assert.equal(detail.world.slug, worlds[0].slug);
     assert.equal((await player("GET", `/levels/${origines.levels[1].id}`)).status, 403);
-    const foret = (await player("GET", `/worlds/${worlds[1].slug}`)).body;
+    const foret = (await player("GET", `/worlds/${worlds[1].slug}`)).body; // 2e monde, scellé au départ
     assert.equal(foret.levels[0].status, "locked");
     assert.equal((await player("GET", `/levels/${foret.levels[0].id}`)).status, 403);
 });
@@ -154,6 +154,37 @@ await check("énigme 2 débloquée, progression et stats à jour", async () => {
     assert.equal(stats.totals.mistakes, 1);
 });
 
+await check("monde suivant ouvert après 3 énigmes ; mécanique jouée sur l'appareil", async () => {
+    // Seed : énigme 2 = cases 1 et 2 ; énigme 3 = cases 0 et 1.
+    for (const [i, cells] of [[1, [1, 2]], [2, [0, 1]]]) {
+        const s = (await player("POST", `/levels/${origines.levels[i].id}/sessions`, {})).body;
+        assert.ok((await attempt(player, s.sessionId, cells)).body.completion);
+    }
+    const after = (await player("GET", "/worlds")).body;
+    assert.equal(after[0].status, "available"); // pas encore restauré en entier…
+    assert.equal(after[1].status, "available"); // …mais le monde suivant est ouvert
+    assert.equal(after[2].status, "locked");
+
+    const second = (await player("GET", `/worlds/${after[1].slug}`)).body;
+    const local = (await player("GET", `/levels/${second.levels[0].id}`)).body;
+    assert.notEqual(local.mechanic, "LINKS");
+    assert.ok(local.puzzle, "le plateau doit être livré pour jouer sur l'appareil");
+    assert.ok(local.hints.length > 0);
+
+    assert.equal((await player("POST", `/levels/${local.id}/results`, { durationMs: -1, mistakes: 0, hintsUsed: 0 })).status, 400);
+    const done = await player("POST", `/levels/${local.id}/results`, { durationMs: 42_000, mistakes: 1, hintsUsed: 0 });
+    assert.equal(done.status, 200);
+    assert.equal(done.body.stars, 2);
+    assert.equal(done.body.nextLevelId, second.levels[1].id);
+    assert.equal((await player("GET", `/worlds/${after[1].slug}`)).body.levels[0].status, "completed");
+
+    // Les Liens restent validés coup par coup par le serveur.
+    assert.equal((await player("POST", `/levels/${origines.levels[0].id}/results`, { durationMs: 1000, mistakes: 0, hintsUsed: 0 })).status, 400);
+    // Une énigme locale d'un monde scellé reste inaccessible.
+    const sealed = (await player("GET", `/worlds/${after[2].slug}`)).body;
+    assert.equal((await player("POST", `/levels/${sealed.levels[0].id}/results`, { durationMs: 1000, mistakes: 0, hintsUsed: 0 })).status, 403);
+});
+
 await check("invité absent du classement", async () => {
     const board = (await player("GET", "/leaderboard")).body;
     assert.equal(board.me, null);
@@ -177,7 +208,7 @@ await check("inscription : l'invité garde sa progression", async () => {
 await check("apparaît au classement une fois inscrit", async () => {
     const board = (await player("GET", "/leaderboard?limit=5")).body;
     assert.ok(board.me);
-    assert.equal(board.me.totalStars, 3);
+    assert.equal(board.me.totalStars, (await player("GET", "/me/progress")).body.totalStars);
 });
 
 await check("connexion depuis un nouvel invité : progression fusionnée", async () => {
@@ -263,8 +294,8 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     await check("admin : connexion, aperçu d'énigmes scellées", async () => {
         const login = await admin("POST", "/auth/login", { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD });
         assert.equal(login.status, 200);
-        foret = (await admin("GET", `/worlds/${worlds[1].slug}`)).body;
-        rivage = (await admin("GET", `/worlds/${worlds[2].slug}`)).body;
+        foret = (await admin("GET", "/worlds/foret-des-echos")).body;
+        rivage = (await admin("GET", "/worlds/rivage-des-suites")).body;
         assert.equal((await admin("GET", `/levels/${foret.levels[0].id}`)).status, 200);
     });
 
@@ -325,7 +356,10 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         const after = (await player("GET", "/daily")).body;
         assert.equal(after.result.mistakes, 1);
         assert.ok(after.solvedToday >= 1);
-        assert.equal((await player("GET", "/me/progress")).body.totalLevels, 20);
+        // La réserve du jour ne compte pas dans le parcours.
+        const progress = (await player("GET", "/me/progress")).body;
+        assert.equal(progress.totalLevels, progress.worlds.reduce((sum, w) => sum + w.garden.totalLevels, 0));
+        assert.ok(!progress.worlds.some((w) => w.slug === "quotidien"));
     });
 
     await check("maintenance : simulation du nettoyage réservée aux administrateurs", async () => {

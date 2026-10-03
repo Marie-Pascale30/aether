@@ -3,7 +3,9 @@ import type {
     AdminWorld,
     ApiErrorBody,
     AttemptResult,
+    CompletionResult,
     DailyState,
+    LevelResultInput,
     HintResult,
     Leaderboard,
     LevelDetail,
@@ -86,6 +88,8 @@ export const api = {
         attempt: (sessionId: string, cells: number[]) =>
             request<AttemptResult>("POST", `/sessions/${sessionId}/attempts`, { cells }),
         hint: (sessionId: string) => request<HintResult>("POST", `/sessions/${sessionId}/hints`),
+        /** Fin d'une énigme jouée sur l'appareil (toutes les mécaniques sauf les Liens). */
+        result: (levelId: string, input: LevelResultInput) => request<CompletionResult>("POST", `/levels/${levelId}/results`, input),
     },
     me: {
         progress: () => request<ProgressSummary>("GET", "/me/progress"),

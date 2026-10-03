@@ -1,4 +1,4 @@
-import type { LevelKind } from "@aether/shared";
+import type { LevelKind, LocalMechanic, Mechanic } from "@aether/shared";
 
 interface KindCopy {
     /** Nom court affiché sur les cartes et dans l'éditeur. */
@@ -45,3 +45,31 @@ export const countLabel = (kind: LevelKind, count: number) => {
     const [one, many] = KIND_COPY[kind].noun;
     return `${count} ${count > 1 ? many : one}`;
 };
+
+interface MechanicCopy {
+    label: string;
+    glyph: string;
+    /** Ce qu'on cherche, au singulier et au pluriel (« 3 flux à relier »). */
+    goal: [string, string];
+    verb: string;
+}
+
+/** Libellés des mécaniques jouées sur l'appareil (les Liens utilisent KIND_COPY, par genre). */
+export const MECHANIC_COPY: Record<LocalMechanic, MechanicCopy> = {
+    MEMORY: { label: "Mémoires", glyph: "❖", goal: ["souvenir", "souvenirs"], verb: "à retrouver" },
+    GEARS: { label: "Rouages", glyph: "⚙", goal: ["réseau", "réseaux"], verb: "à éclairer" },
+    FLOW: { label: "Flux", glyph: "≈", goal: ["flux", "flux"], verb: "à relier" },
+    ECHOES: { label: "Échos", glyph: "◎", goal: ["règle", "règles"], verb: "à deviner" },
+};
+
+/** Libellé court d'une énigme sur sa carte : genre de Liens, ou mécanique. */
+export function levelLabel(mechanic: Mechanic, kind: LevelKind): { glyph: string; label: string } {
+    return mechanic === "LINKS" ? KIND_COPY[kind] : MECHANIC_COPY[mechanic];
+}
+
+/** « 3 flux à relier », « 2 familles à trouver »… */
+export function goalLabel(mechanic: Mechanic, kind: LevelKind, count: number): string {
+    if (mechanic === "LINKS") return `${countLabel(kind, count)} à trouver`;
+    const { goal, verb } = MECHANIC_COPY[mechanic];
+    return `${count} ${count > 1 ? goal[1] : goal[0]} ${verb}`;
+}

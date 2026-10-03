@@ -1,11 +1,132 @@
-import { PrismaClient } from "@prisma/client";
-import { levelInputSchema, worldInputSchema, type LevelInput, type WorldInput } from "@aether/shared";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { generatePuzzle, levelInputSchema, worldInputSchema, type LevelInput, type LocalMechanic, type WorldInput } from "@aether/shared";
 import { hashPassword } from "../src/auth/password";
 
 const prisma = new PrismaClient();
 
 type SeedLevel = Omit<LevelInput, "worldId" | "published">;
-type SeedWorld = WorldInput & { levels: SeedLevel[] };
+/** `isDaily` est facultatif à la saisie (faux par défaut). */
+type SeedWorld = Omit<WorldInput, "isDaily"> & { isDaily?: boolean; levels: SeedLevel[] };
+
+/**
+ * Énigme d'une mécanique jouée sur l'appareil, générée depuis une graine fixe : le contenu est
+ * identique à chaque installation, et la difficulté monte régulièrement dans le monde.
+ */
+function generated(mechanic: LocalMechanic, seed: string, difficulty: number, text: { title: string; description: string; hints: string[] }): SeedLevel {
+    return {
+        ...text,
+        mechanic,
+        puzzle: generatePuzzle(mechanic, seed, difficulty),
+        kind: "PAIRS",
+        symbols: [],
+        columns: 4,
+        groups: [],
+    };
+}
+
+/**
+ * Échos variés : pour chaque niveau, la première graine (dans un ordre fixe) dont la règle
+ * n'a pas encore servi dans le monde. Déterministe, donc identique à chaque installation.
+ */
+function variedEchoes(levels: [string, string, number][]): SeedLevel[] {
+    const used = new Set<string>();
+    return levels.map(([title, description, difficulty], i) => {
+        for (let attempt = 0; ; attempt++) {
+            const seed = `echos-${i}-${attempt}`;
+            const { explanation } = generatePuzzle("ECHOES", seed, difficulty);
+            if (!used.has(explanation) || attempt >= 50) {
+                used.add(explanation);
+                return generated("ECHOES", seed, difficulty, { title, description, hints: ECHOES_HINTS });
+            }
+        }
+    });
+}
+
+const MEMORY_HINTS = ["Associe chaque symbole à sa rangée, puis à sa colonne.", "Raconte-toi une petite histoire qui relie les symboles dans l'ordre."];
+const GEARS_HINTS = ["Pars de la source : chaque conduit doit mener quelque part.", "Les coins et les bords ne laissent que peu d'orientations possibles."];
+const FLOW_HINTS = ["Commence par les flux dont les sources sont proches.", "Le long des bords, il n'y a souvent qu'un seul chemin possible."];
+const ECHOES_HINTS = ["Compare chaque point de départ à ce qu'il devient.", "Une seule transformation explique tous les exemples à la fois."];
+
+const MECHANIC_WORLDS: SeedWorld[] = [
+    {
+        slug: "bibliotheque-vivante",
+        title: "La Bibliothèque Vivante",
+        tagline: "Les livres se souviennent de ce qu'on leur confie.",
+        description:
+            "Dans les allées de la Bibliothèque, chaque rayon garde la trace d'un savoir. Observe les symboles aussi longtemps qu'il te plaît, puis retrouve leur place : la mémoire revient aux étagères.",
+        theme: "cosmos",
+        published: true,
+        isDaily: false,
+        levels: [
+            ["Le premier rayon", "Quelques symboles posés sur une étagère.", 1],
+            ["Les registres", "Un peu plus de livres, un peu plus de souvenirs.", 2],
+            ["La salle de lecture", "Les symboles s'estompent pendant que tu les regardes.", 4],
+            ["Les archives", "Des places restent vides : elles comptent aussi.", 6],
+            ["Le scriptorium", "Une grande étagère, de nombreux souvenirs.", 8],
+            ["La mémoire du monde", "Tout ce que la Bibliothèque a retenu.", 10],
+        ].map(([title, description, d], i) =>
+            generated("MEMORY", `memoire-${i}`, d as number, { title: title as string, description: description as string, hints: MEMORY_HINTS }),
+        ),
+    },
+    {
+        slug: "atelier-des-inventeurs",
+        title: "L'Atelier des Inventeurs",
+        tagline: "Chaque rouage attend sa juste place.",
+        description:
+            "Les machines de l'Atelier se sont arrêtées. Fais pivoter les conduits pour que la lumière parte de la source et atteigne chaque pièce, sans qu'aucune ouverture ne se perde dans le vide.",
+        theme: "origines",
+        published: true,
+        isDaily: false,
+        levels: [
+            ["La première manivelle", "Quelques conduits à remettre dans le bon sens.", 1],
+            ["L'établi", "Les pièces scellées montrent la voie.", 2],
+            ["La forge", "Le réseau s'étend.", 4],
+            ["Les engrenages", "Moins de repères, plus de pièces.", 6],
+            ["La grande horloge", "Chaque rouage dépend de ses voisins.", 8],
+            ["Le cœur de la machine", "Toute la lumière de l'Atelier.", 10],
+        ].map(([title, description, d], i) =>
+            generated("GEARS", `rouages-${i}`, d as number, { title: title as string, description: description as string, hints: GEARS_HINTS }),
+        ),
+    },
+    {
+        slug: "canaux-d-ether",
+        title: "Les Canaux d'Éther",
+        tagline: "L'énergie cherche son chemin.",
+        description:
+            "Sous le monde coulent des canaux d'éther. Relie chaque paire de sources de même signe sans croiser les autres flux, et remplis tout le réseau : aucune case ne doit rester à sec.",
+        theme: "ocean",
+        published: true,
+        isDaily: false,
+        levels: [
+            ["La source", "Deux flux, un petit bassin.", 1],
+            ["Les rigoles", "Les chemins se partagent l'espace.", 2],
+            ["Le lavoir", "Plus de flux, plus de détours.", 4],
+            ["Les aqueducs", "Une grande grille à irriguer.", 6],
+            ["Le delta", "Les flux s'entrelacent.", 8],
+            ["La mer d'éther", "Tout le réseau, d'un seul tenant.", 10],
+        ].map(([title, description, d], i) =>
+            generated("FLOW", `flux-${i}`, d as number, { title: title as string, description: description as string, hints: FLOW_HINTS }),
+        ),
+    },
+    {
+        slug: "salle-des-echos",
+        title: "La Salle des Échos",
+        tagline: "Chaque chose répond à une règle.",
+        description:
+            "Dans la Salle des Échos, les choses se transforment toujours de la même façon. Observe les exemples, devine la règle, puis applique-la : l'écho juste résonne dans toute la salle.",
+        theme: "foret",
+        published: true,
+        isDaily: false,
+        levels: variedEchoes([
+            ["Le premier écho", "Trois exemples pour deviner.", 1],
+            ["La résonance", "Une transformation à reconnaître.", 2],
+            ["Le chœur", "Moins d'exemples, même logique.", 4],
+            ["La voûte", "Une règle plus discrète.", 6],
+            ["Le double écho", "Deux transformations se combinent.", 8],
+            ["Le silence", "Deux transformations, deux exemples seulement.", 10],
+        ]),
+    },
+];
 
 /** Formes neutres servant de leurres, sans lien entre elles. */
 const DECOYS = ["○", "△", "□", "◇", "✦", "⬡", "☾", "✧"];
@@ -31,6 +152,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Observe les formes, pas leur position.", "Relie les deux symboles identiques."],
                 symbols: ["○", "✦", "△", "○", "□", "◇", "☾", "✧"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[0, 3]],
             },
@@ -40,6 +163,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Une même forme, deux intensités.", "Le cercle sombre répond au cercle clair."],
                 symbols: ["☀", "○", "●", "☾", "△", "◇", "✦", "□"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[1, 2]],
             },
@@ -49,6 +174,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Ce qui est petit deviendra grand.", "Trouve le symbole qui représente la croissance."],
                 symbols: ["🌱", "🌳", "☁", "💧", "🔥", "🪨", "🌙", "⭐"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[0, 1]],
             },
@@ -58,6 +185,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["L'un tire, l'autre monte et descend.", "Le croissant et la marée se répondent."],
                 symbols: ["☾", "☁", "☀", "✦", "◇", "≈", "○", "△"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[0, 5]],
             },
@@ -67,6 +196,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Un symbole n'est pas unique.", "Retrouve la forme apparue deux fois."],
                 symbols: ["✧", "◇", "✦", "◇", "○", "△", "□", "☾"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[1, 3]],
             },
@@ -76,6 +207,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Ce qui pousse revient chaque printemps.", "Associe les deux symboles végétaux."],
                 symbols: ["❄", "🌱", "☀", "🌈", "🌿", "🌧", "🌙", "🔥"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[1, 4]],
             },
@@ -85,6 +218,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Regarde les pointes.", "Même géométrie, orientation différente."],
                 symbols: ["△", "▽", "○", "□", "◇", "✦", "✧", "☾"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[0, 1]],
             },
@@ -94,6 +229,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Lève les yeux.", "Associe les deux étoiles jumelles."],
                 symbols: ["✦", "○", "☁", "◇", "✦", "△", "□", "☾"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[0, 4]],
             },
@@ -103,6 +240,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Certains signes montrent où aller.", "Deux signes indiquent un chemin à suivre."],
                 symbols: ["◉", "⌂", "➜", "◇", "↗", "○", "△", "□"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[2, 4]],
             },
@@ -115,11 +254,14 @@ const WORLDS: SeedWorld[] = [
                 ],
                 symbols: ["🌳", "☀", "△", "✦", "□", "🌿", "◇", "○"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[0, 5], [1, 3]],
             },
         ],
     },
+    ...MECHANIC_WORLDS,
     {
         slug: "foret-des-echos",
         title: "Forêt des Échos",
@@ -135,6 +277,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Cherche ce qui se répète.", "Réunis les trois arbres."],
                 symbols: ["🌲", "○", "🌲", "△", "🌲", "□", "◇", "☾", "✦"],
                 columns: 3,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "GROUPS",
                 groups: [[0, 2, 4]],
             },
@@ -144,6 +288,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Elle tombe, elle flotte, elle perle.", "La goutte, le nuage et la pluie."],
                 symbols: ["🔥", "💧", "△", "☁", "🪨", "⭐", "🌧", "○", "✦"],
                 columns: 3,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "GROUPS",
                 groups: [[1, 3, 6]],
             },
@@ -153,6 +299,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Une seule veilleuse, plusieurs formes.", "Réunis les trois phases de la lune."],
                 symbols: ["🌑", "☀", "⭐", "🌓", "○", "△", "□", "🌕", "✦"],
                 columns: 3,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "GROUPS",
                 groups: [[0, 3, 7]],
             },
@@ -162,6 +310,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Ceux qui vivent ici, et ce qui tombe du ciel.", "Les habitants de la forêt ; le temps qu'il fait."],
                 symbols: ["🦊", "○", "☀", "△", "🦉", "☁", "□", "◇", "🦌", "✦", "❄", "⬡"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "GROUPS",
                 groups: [[0, 4, 8], [2, 5, 10]],
             },
@@ -171,6 +321,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Elles se suivent et reviennent.", "Réunis les quatre saisons."],
                 symbols: ["🌱", ...DECOYS.slice(0, 3), "☀", ...DECOYS.slice(3, 6), "🍂", "☾", "❄", "✧"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "GROUPS",
                 groups: [[0, 4, 8, 10]],
             },
@@ -191,6 +343,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Commence par le plus froid.", "La glace fond, puis l'eau s'évapore en nuage."],
                 symbols: ["🔥", "💧", "△", "☁", "🪨", "❄", "○", "☀", "✦"],
                 columns: 3,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "SEQUENCE",
                 groups: [[5, 1, 3]],
             },
@@ -200,6 +354,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Commence par le plus petit.", "Graine, pousse, plante, arbre."],
                 symbols: ["🌳", "○", "🌰", "△", "□", "🌿", "◇", "✦", "🌱", "☾", "⬡", "✧"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "SEQUENCE",
                 groups: [[2, 8, 5, 0]],
             },
@@ -209,6 +365,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Du plus petit au plus grand.", "Un, deux, trois, quatre points."],
                 symbols: ["⚂", "○", "△", "⚀", "□", "◇", "⚃", "✦", "☾", "⚁", "⬡", "✧"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "SEQUENCE",
                 groups: [[3, 9, 0, 6]],
             },
@@ -218,6 +376,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Pars de la nuit la plus noire.", "De la nouvelle lune à la pleine lune."],
                 symbols: ["🌓", "○", "🌑", "☀", "🌕", "✦", "🌒", "△", "✧", "🌔", "□", "◇"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "SEQUENCE",
                 groups: [[2, 6, 0, 9, 4]],
             },
@@ -227,6 +387,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["L'une monte, l'autre se remplit.", "Les barres du plus bas au plus haut ; le cercle du plus vide au plus plein."],
                 symbols: ["▅", "◑", "○", "▁", "△", "◕", "□", "▃", "◇", "◔", "✦", "☾"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "SEQUENCE",
                 groups: [[3, 7, 0], [9, 1, 5]],
             },
@@ -248,6 +410,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Regarde de quel côté tombe l'ombre.", "Relie les deux cercles à moitié noirs du même côté."],
                 symbols: ["◐", "◑", "◒", "◐", "◓", "○", "●", "◇"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[0, 3]],
             },
@@ -257,6 +421,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Ce qui se mange.", "Réunis les trois fruits."],
                 symbols: ["🍎", "○", "🍐", "△", "□", "🍒", "◇", "✦", "☾"],
                 columns: 3,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "GROUPS",
                 groups: [[0, 2, 5]],
             },
@@ -266,6 +432,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Commence au lever du jour.", "L'aube, le plein soleil, puis la nuit."],
                 symbols: ["🌙", "○", "🌅", "△", "☀", "□", "◇", "✦", "⬡"],
                 columns: 3,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "SEQUENCE",
                 groups: [[2, 4, 0]],
             },
@@ -275,6 +443,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Le miroir inverse la gauche et la droite.", "Relie la flèche et son reflet."],
                 symbols: ["◀", "▶", "▲", "○", "□", "◇", "✦", "☾"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[0, 1]],
             },
@@ -284,6 +454,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Ce qui brûle, coule, souffle et porte.", "Le feu, l'eau, l'air et la terre."],
                 symbols: ["🔥", "○", "△", "💧", "□", "◇", "🌬", "✦", "☾", "⬡", "🪨", "✧"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "GROUPS",
                 groups: [[0, 3, 6, 10]],
             },
@@ -293,6 +465,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Suis les aiguilles.", "Une heure, deux heures, trois heures, quatre heures."],
                 symbols: ["🕒", "○", "△", "🕐", "□", "◇", "🕓", "✦", "☾", "🕑", "⬡", "✧"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "SEQUENCE",
                 groups: [[3, 9, 0, 6]],
             },
@@ -302,6 +476,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Le moment de la journée ; la température.", "Le soleil et la lune ; le feu et la glace."],
                 symbols: ["☀", "△", "🔥", "□", "☾", "◇", "❄", "⬡", "⌂", "◉", "✧", "▽"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "PAIRS",
                 groups: [[0, 4], [2, 6]],
             },
@@ -311,6 +487,8 @@ const WORLDS: SeedWorld[] = [
                 hints: ["Ce qui est au-dessus, ce qui est en dessous.", "Nuage, étoile et lune ; poisson, coquillage et vague."],
                 symbols: ["☁", "🐟", "△", "⭐", "□", "🐚", "◇", "🌙", "⬡", "🌊", "⌂", "◉"],
                 columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
                 kind: "GROUPS",
                 groups: [[0, 3, 7], [1, 5, 9]],
             },
@@ -330,7 +508,8 @@ async function seedWorlds() {
         }
         for (const [levelOrder, level] of levels.entries()) {
             const parsed = levelInputSchema.parse({ ...level, worldId: world.id, published: true });
-            await prisma.level.create({ data: { ...parsed, order: levelOrder } });
+            const puzzle = parsed.puzzle === null ? Prisma.JsonNull : (parsed.puzzle as Prisma.InputJsonValue);
+            await prisma.level.create({ data: { ...parsed, puzzle, order: levelOrder } });
         }
         console.log(`« ${world.title} » : ${levels.length} énigmes créées.`);
     }
