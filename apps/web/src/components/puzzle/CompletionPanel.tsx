@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
-import type { CompletionResult } from "@aether/shared";
+import { hasPetal, PETAL_COPY, PETAL_KEYS, type CompletionResult } from "@aether/shared";
 import { ShareButton } from "@/components/daily/ShareButton";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { Stars } from "@/components/ui/Stars";
+import { Harmony } from "@/components/ui/Harmony";
 import { formatDuration } from "@/lib/format";
+import { useSettings } from "@/lib/settings";
 import styles from "./Puzzle.module.css";
 
 interface Props {
@@ -19,8 +20,8 @@ interface Props {
 export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Props) {
     const titleId = useId();
     const primaryRef = useRef<HTMLAnchorElement>(null);
-    const { stars, durationMs, mistakes, hintsUsed, isNewBest, bestStars, bestTimeMs, nextLevelId, gameCompleted, worldCompleted, nextWorld, daily } =
-        completion;
+    const { settings } = useSettings();
+    const { levelPetals, newPetals, durationMs, bestTimeMs, nextLevelId, gameCompleted, worldCompleted, nextWorld, daily, milestones } = completion;
     const worldJustDone = worldCompleted && !nextLevelId;
 
     useEffect(() => {
@@ -33,12 +34,12 @@ export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Pr
     const primary = daily
         ? { href: "/quotidien", label: "Résumé du jour" }
         : nextLevelId
-        ? { href: `/niveaux/${nextLevelId}`, label: "Énigme suivante" }
-        : gameCompleted
-          ? { href: "/fin", label: "Découvrir la fin" }
-          : nextWorld
-            ? { href: `/mondes/${nextWorld.slug}`, label: `Monde suivant : ${nextWorld.title}` }
-            : { href: `/mondes/${worldSlug}`, label: "Retour au monde" };
+          ? { href: `/niveaux/${nextLevelId}`, label: "Énigme suivante" }
+          : gameCompleted
+            ? { href: "/fin", label: "Découvrir la fin" }
+            : nextWorld
+              ? { href: `/mondes/${nextWorld.slug}`, label: `Monde suivant : ${nextWorld.title}` }
+              : { href: `/mondes/${worldSlug}`, label: "Retour au monde" };
 
     return (
         <div className={styles.overlay} onClick={onClose}>
@@ -51,42 +52,51 @@ export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Pr
             >
                 <div className="tag">{daily ? "Énigme du jour" : worldJustDone ? "Monde restauré" : "Énigme restaurée"}</div>
                 <h2 id={titleId}>{worldJustDone ? "Le monde se souvient" : "Le lien est juste"}</h2>
-                <Stars count={stars} size="lg" animate />
+                <Harmony petals={levelPetals} size="lg" animate />
 
-                <dl className={styles.summary}>
-                    <div>
-                        <dt>Temps</dt>
-                        <dd>{formatDuration(durationMs)}</dd>
-                    </div>
-                    <div>
-                        <dt>Erreurs</dt>
-                        <dd>{mistakes}</dd>
-                    </div>
-                    <div>
-                        <dt>Indices</dt>
-                        <dd>{hintsUsed}</dd>
-                    </div>
-                </dl>
+                <ul className={styles.petals} aria-label="Pétales d'harmonie">
+                    {PETAL_KEYS.map((key) => {
+                        const earned = hasPetal(levelPetals, key);
+                        return (
+                            <li key={key} data-open={!earned || undefined}>
+                                <span className={styles.petalGlyph} aria-hidden>
+                                    {earned ? "✿" : "○"}
+                                </span>
+                                <span>
+                                    {PETAL_COPY[key].name} <small>· {earned ? PETAL_COPY[key].earned : `${PETAL_COPY[key].open} Il t'attendra.`}</small>
+                                </span>
+                                {hasPetal(newPetals, key) && <span className={styles.fresh}>Cueilli</span>}
+                            </li>
+                        );
+                    })}
+                </ul>
+
+                {settings.showTimer && (
+                    <p className={styles.time}>
+                        {formatDuration(durationMs)}
+                        {bestTimeMs < durationMs && ` · ton meilleur temps : ${formatDuration(bestTimeMs)}`}
+                    </p>
+                )}
+
+                {milestones.length > 0 && (
+                    <ul className={styles.milestones} aria-label="Nouveaux repères">
+                        {milestones.map((milestone) => (
+                            <li key={milestone.key}>
+                                <strong>✦ {milestone.title}</strong> · {milestone.description}
+                            </li>
+                        ))}
+                    </ul>
+                )}
 
                 {daily && (
                     <p className={styles.record}>
                         {daily.firstToday ? (
-                            <strong>✦ Série : {daily.streak.current} jour{daily.streak.current > 1 ? "s" : ""}</strong>
+                            <strong>☾ Série : {daily.streak.current} jour{daily.streak.current > 1 ? "s" : ""}</strong>
                         ) : (
                             "Ta première victoire du jour reste celle qui compte pour la série."
                         )}
                     </p>
                 )}
-
-                <p className={styles.record}>
-                    {isNewBest ? (
-                        <strong>✦ Nouveau record</strong>
-                    ) : (
-                        <>
-                            Ton record : <Stars count={bestStars} size="sm" /> en {formatDuration(bestTimeMs)}
-                        </>
-                    )}
-                </p>
 
                 <div className={styles.completionActions}>
                     <ButtonLink ref={primaryRef} href={primary.href} variant="primary">

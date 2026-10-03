@@ -17,6 +17,7 @@ export type LevelKind = "PAIRS" | "GROUPS" | "SEQUENCE";
 export type Group = number[];
 
 import type { LocalPuzzle, Mechanic } from "./mechanics";
+import type { MilestoneFacts, MilestoneValue } from "./rules/milestones";
 
 /** Palette du jardin d'un monde. */
 export type WorldTheme = "origines" | "foret" | "ocean" | "cosmos";
@@ -28,7 +29,7 @@ export interface Me {
     /** Adresse confirmée par le lien reçu par e-mail. */
     emailVerified: boolean;
     role: Role;
-    /** Joueur anonyme : sa progression est sauvegardée, mais il n'apparaît pas au classement. */
+    /** Joueur anonyme : sa progression est sauvegardée sur cet appareil jusqu'à la création d'un compte. */
     isGuest: boolean;
 }
 
@@ -51,8 +52,9 @@ export interface WorldSummary {
     tagline: string;
     theme: WorldTheme;
     status: LevelStatus;
-    stars: number;
-    maxStars: number;
+    /** Pétales d'harmonie cueillis dans ce monde, sur `maxHarmony`. */
+    harmony: number;
+    maxHarmony: number;
     garden: GardenState;
 }
 
@@ -66,7 +68,8 @@ export interface LevelSummary {
     kind: LevelKind;
     groupCount: number;
     status: LevelStatus;
-    bestStars: number | null;
+    /** Pétales cueillis (masque `PETALS`), 0 si l'énigme n'est pas encore résolue. */
+    petals: number;
     bestTimeMs: number | null;
 }
 
@@ -128,12 +131,15 @@ export interface SessionState {
 }
 
 export interface CompletionResult {
-    stars: number;
+    /** Pétales cueillis par cette partie (masque `PETALS`). */
+    petals: number;
+    /** Pétales de l'énigme, toutes parties confondues. */
+    levelPetals: number;
+    /** Pétales cueillis pour la première fois par cette partie. */
+    newPetals: number;
     durationMs: number;
-    mistakes: number;
     hintsUsed: number;
-    isNewBest: boolean;
-    bestStars: number;
+    /** Meilleur temps (affiché seulement si le joueur a choisi de voir le temps). */
     bestTimeMs: number;
     /** Énigme suivante dans le même monde. */
     nextLevelId: string | null;
@@ -147,6 +153,8 @@ export interface CompletionResult {
     garden: GardenState;
     /** Renseigné quand l'énigme résolue est celle du jour. */
     daily: DailyOutcome | null;
+    /** Repères atteints grâce à cette partie. */
+    milestones: MilestoneState[];
 }
 
 // ─── Énigme du jour ─────────────────────────────────────────────────────────
@@ -169,7 +177,7 @@ export interface DailyState {
     /** Jour « AAAA-MM-JJ » dans le fuseau du jeu. */
     date: string;
     level: { id: string; title: string; kind: LevelKind; groupCount: number };
-    result: { stars: number; durationMs: number; mistakes: number; hintsUsed: number } | null;
+    result: { petals: number; durationMs: number; hintsUsed: number } | null;
     streak: StreakSummary;
     share: string | null;
     /** Joueurs ayant déjà résolu l'énigme du jour. */
@@ -196,8 +204,8 @@ export interface HintResult {
 
 export interface ProgressSummary {
     worlds: WorldSummary[];
-    totalStars: number;
-    maxStars: number;
+    harmony: number;
+    maxHarmony: number;
     completedLevels: number;
     totalLevels: number;
     /** Où reprendre : premier monde ouvert non terminé et son énigme suivante. */
@@ -209,11 +217,11 @@ export interface LevelStats {
     worldTitle: string;
     position: number;
     title: string;
-    bestStars: number | null;
+    /** Pétales cueillis (masque `PETALS`), 0 si l'énigme n'est pas encore résolue. */
+    petals: number;
     bestTimeMs: number | null;
     completions: number;
     sessions: number;
-    mistakes: number;
     hintsUsed: number;
 }
 
@@ -222,28 +230,30 @@ export interface PlayerStats {
     totals: {
         sessions: number;
         completions: number;
-        mistakes: number;
         hintsUsed: number;
-        totalStars: number;
+        harmony: number;
         /** Somme des durées des parties terminées. */
         playTimeMs: number;
     };
 }
 
-export interface LeaderboardEntry {
-    rank: number;
-    userId: string;
-    displayName: string;
-    totalStars: number;
-    completedLevels: number;
-    /** Somme des meilleurs temps, départage à égalité d'étoiles. */
-    totalTimeMs: number;
+/** Un repère personnel : on ne se mesure qu'à son propre chemin. */
+export interface MilestoneState {
+    key: string;
+    value: MilestoneValue;
+    title: string;
+    description: string;
+    current: number;
+    target: number;
+    /** Date à laquelle le repère a été atteint, `null` s'il reste à venir. */
+    reachedAt: string | null;
 }
 
-export interface Leaderboard {
-    entries: LeaderboardEntry[];
-    /** Rang du joueur connecté, même s'il est hors du top affiché. */
-    me: LeaderboardEntry | null;
+export interface MilestonesView {
+    milestones: MilestoneState[];
+    facts: MilestoneFacts;
+    /** Série de l'énigme du jour en cours. */
+    currentStreak: number;
 }
 
 // ─── Administration ─────────────────────────────────────────────────────────
@@ -303,8 +313,8 @@ export interface LevelDesignStats {
     /** Moyenne sur les parties terminées. */
     averageMistakes: number | null;
     averageHints: number | null;
-    /** Répartition des étoiles des parties terminées. */
-    stars: { stars: number; count: number }[];
+    /** Répartition de l'harmonie (nombre de pétales) des parties terminées. */
+    harmony: { petals: number; count: number }[];
     /** Pour chaque indice (1, 2…), nombre de parties qui l'ont révélé. */
     hints: { hint: number; sessions: number }[];
     attempts: number;

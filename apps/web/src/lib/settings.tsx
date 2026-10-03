@@ -15,6 +15,10 @@ export interface Settings {
     /** « system » suit la préférence du système d'exploitation. */
     motion: MotionPreference;
     symbols: SymbolSize;
+    /** Afficher le temps pendant et après une énigme (masqué par défaut : aucun chrono imposé). */
+    showTimer: boolean;
+    /** Équilibre Mental : un souffle d'aide discret quand une énigme résiste. */
+    equilibre: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,6 +28,8 @@ export const DEFAULT_SETTINGS: Settings = {
     ambient: true,
     motion: "system",
     symbols: "normal",
+    showTimer: false,
+    equilibre: true,
 };
 
 const STORAGE_KEY = "aether:settings";

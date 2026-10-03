@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { isOrdered, MAX_STARS_PER_LEVEL, type LevelDesignStats } from "@aether/shared";
+import { isOrdered, MAX_HARMONY_PER_LEVEL, type LevelDesignStats } from "@aether/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 const FALSE_LEADS_SHOWN = 8;
@@ -27,7 +27,7 @@ export class AdminLevelStatsService {
         if (!level) throw new NotFoundException("Niveau introuvable.");
         const ordered = isOrdered(level.kind);
 
-        const [[totals], stars, hintRows, [attempts], falseLeads] = await Promise.all([
+        const [[totals], harmony, hintRows, [attempts], falseLeads] = await Promise.all([
             this.prisma.$queryRaw<Totals[]>`
                 SELECT
                     (SELECT min(a."createdAt") FROM "Attempt" a WHERE a."levelId" = ${levelId}) AS since,
@@ -40,12 +40,13 @@ export class AdminLevelStatsService {
                 FROM "PlaySession" s
                 JOIN "User" u ON u.id = s."userId"
                 WHERE s."levelId" = ${levelId} AND u.role <> 'ADMIN'`,
-            this.prisma.$queryRaw<{ stars: number; count: number }[]>`
-                SELECT s.stars, count(*)::int AS count
+            // Nombre de pétales de chaque partie terminée (bits du masque additionnés).
+            this.prisma.$queryRaw<{ petals: number; count: number }[]>`
+                SELECT (s.petals & 1) + ((s.petals >> 1) & 1) + ((s.petals >> 2) & 1) AS petals, count(*)::int AS count
                 FROM "PlaySession" s
                 JOIN "User" u ON u.id = s."userId"
                 WHERE s."levelId" = ${levelId} AND s."completedAt" IS NOT NULL AND u.role <> 'ADMIN'
-                GROUP BY s.stars`,
+                GROUP BY 1`,
             this.prisma.$queryRaw<{ hint: number; sessions: number }[]>`
                 SELECT n AS hint, count(s.id)::int AS sessions
                 FROM generate_series(1, ${level.hints.length}::int) AS n
@@ -77,7 +78,7 @@ export class AdminLevelStatsService {
         ]);
 
         const t = totals!;
-        const starCount = (n: number) => stars.find((row) => row.stars === n)?.count ?? 0;
+        const harmonyCount = (n: number) => harmony.find((row) => row.petals === n)?.count ?? 0;
 
         return {
             since: t.since?.toISOString() ?? null,
@@ -88,7 +89,10 @@ export class AdminLevelStatsService {
             medianDurationMs: t.median_duration === null ? null : Math.round(t.median_duration),
             averageMistakes: t.avg_mistakes,
             averageHints: t.avg_hints,
-            stars: Array.from({ length: MAX_STARS_PER_LEVEL }, (_, i) => ({ stars: MAX_STARS_PER_LEVEL - i, count: starCount(MAX_STARS_PER_LEVEL - i) })),
+            harmony: Array.from({ length: MAX_HARMONY_PER_LEVEL }, (_, i) => {
+                const petals = MAX_HARMONY_PER_LEVEL - i;
+                return { petals, count: harmonyCount(petals) };
+            }),
             hints: hintRows,
             attempts: attempts?.count ?? 0,
             falseLeads: falseLeads.map((row) => ({

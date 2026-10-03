@@ -33,8 +33,9 @@ model User {
 
   progress LevelProgress[]
   sessions PlaySession[]
-  daily    DailyResult[]
-  tokens   AuthToken[]
+  daily      DailyResult[]
+  tokens     AuthToken[]
+  milestones Milestone[]
 
   @@index([isGuest, lastSeenAt])
 }
@@ -89,7 +90,7 @@ model World {
   /// Palette du jardin : origines | foret | ocean | cosmos.
   theme       String   @default("origines")
   published   Boolean  @default(true)
-  /// Réserve de l'énigme du jour : hors du parcours, du classement et de la progression.
+  /// Réserve de l'énigme du jour : hors du parcours et de la progression des mondes.
   isDaily     Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -130,11 +131,12 @@ model Level {
   @@index([worldId, published, order])
 }
 
-/// Meilleur résultat d'un joueur sur une énigme.
+/// Ce qu'un joueur a accompli sur une énigme : les pétales s'additionnent d'une partie à l'autre.
 model LevelProgress {
   userId           String
   levelId          String
-  bestStars        Int
+  /// Pétales d'harmonie cueillis (masque : 1 résolue, 2 sans indice, 4 sans fausse piste).
+  petals           Int
   bestTimeMs       Int
   completions      Int      @default(1)
   firstCompletedAt DateTime @default(now())
@@ -158,7 +160,8 @@ model PlaySession {
   foundGroups Int[]
   mistakes    Int       @default(0)
   hintsUsed   Int       @default(0)
-  stars       Int?
+  /// Pétales cueillis par cette partie, une fois terminée.
+  petals      Int?
   durationMs  Int?
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -203,12 +206,10 @@ model DailyResult {
   userId     String
   date       DateTime  @db.Date
   sessionId  String
-  stars      Int
+  petals     Int
   durationMs Int
   mistakes   Int
   hintsUsed  Int
-  /// Coups joués dans l'ordre (true = juste), pour le résumé à partager.
-  pattern    Boolean[]
   createdAt  DateTime  @default(now())
 
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -216,4 +217,15 @@ model DailyResult {
 
   @@id([userId, date])
   @@index([date])
+}
+
+/// Repère personnel atteint (voir `MILESTONES` dans @aether/shared) : jamais comparé aux autres joueurs.
+model Milestone {
+  userId    String
+  key       String
+  reachedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
 }

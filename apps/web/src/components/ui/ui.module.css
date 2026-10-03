@@ -81,45 +81,45 @@
     color: #cbd8d3;
 }
 
-/* ─── Étoiles ─────────────────────────────────────────────────────────────── */
+/* ─── Harmonie ─────────────────────────────────────────────────────────────── */
 
-.stars {
+.harmony {
     display: inline-flex;
     gap: 2px;
     line-height: 1;
 }
 
-.stars_sm {
+.harmony_sm {
     font-size: 13px;
 }
 
-.stars_md {
+.harmony_md {
     font-size: 18px;
 }
 
-.stars_lg {
+.harmony_lg {
     font-size: 44px;
     gap: 10px;
 }
 
-.starOn {
+.petalOn {
     color: var(--gold);
     text-shadow: 0 0 12px #d9bd7266;
 }
 
-.starOff {
+.petalOff {
     color: #dcebdc26;
 }
 
-.starOn[data-animate],
-.starOff[data-animate] {
-    animation: starPop .6s var(--ease) both;
+.petalOn[data-animate],
+.petalOff[data-animate] {
+    animation: petalOpen .6s var(--ease) both;
 }
 
-@keyframes starPop {
+@keyframes petalOpen {
     from {
         opacity: 0;
-        transform: scale(.3) rotate(-30deg);
+        transform: scale(.3) rotate(-60deg);
     }
 
     to {

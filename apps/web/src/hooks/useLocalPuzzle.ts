@@ -24,6 +24,8 @@ export function useLocalPuzzle(detail: LevelDetail) {
     const startedAt = useRef(Date.now());
     const [round, setRound] = useState(0); // change à chaque « Recommencer » : remonte le plateau
     const [mistakes, setMistakes] = useState(0);
+    /** Avancées de la partie (signal de l'Équilibre Mental : on n'est pas bloqué). */
+    const [advances, setAdvances] = useState(0);
     const [hintsShown, setHintsShown] = useState(0);
     const [status, setStatus] = useState<LocalStatus | null>(null);
     const [completion, setCompletion] = useState<CompletionResult | null>(null);
@@ -51,6 +53,7 @@ export function useLocalPuzzle(detail: LevelDetail) {
         (text: string, cue: "select" | "match" = "match") => {
             play(cue);
             setStatus({ text, tone: cue === "match" ? "success" : undefined });
+            if (cue === "match") setAdvances((n) => n + 1);
         },
         [play],
     );
@@ -68,6 +71,7 @@ export function useLocalPuzzle(detail: LevelDetail) {
         startedAt.current = Date.now();
         setRound((n) => n + 1);
         setMistakes(0);
+        setAdvances(0);
         setStatus(null);
         setCompletion(null);
         submit.reset();
@@ -76,6 +80,7 @@ export function useLocalPuzzle(detail: LevelDetail) {
     return {
         round,
         mistakes,
+        advances,
         status,
         completion,
         submitting: submit.isPending,
@@ -86,7 +91,14 @@ export function useLocalPuzzle(detail: LevelDetail) {
             play("hint");
             setHintsShown((n) => n + 1);
         },
-        report: { mistake, progress, solved, select: () => play("select") },
+        report: {
+            mistake,
+            progress,
+            solved,
+            select: () => play("select"),
+            /** Avancée silencieuse (ex. une pièce de plus éclairée). */
+            advance: () => setAdvances((n) => n + 1),
+        },
         restart,
         dismissCompletion: () => setCompletion(null),
     };

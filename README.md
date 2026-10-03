@@ -7,7 +7,7 @@ Monorepo **npm workspaces** :
 | Dossier | Rôle | Stack |
 |---|---|---|
 | `apps/web` | Le jeu (front) | Next.js 16 (App Router), React 19, TanStack Query, CSS Modules |
-| `apps/api` | Règles, comptes, progression, classement, éditeur | NestJS 11, Prisma 6, PostgreSQL 17, pino |
+| `apps/api` | Règles, comptes, progression, repères, éditeur | NestJS 11, Prisma 6, PostgreSQL 17, pino |
 | `packages/shared` | Contrat commun : types d'API, schémas Zod, règles de jeu pures | TypeScript, Zod 4, Vitest |
 
 ## Démarrer en local
@@ -62,17 +62,26 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
   Mémoires, Rouages, Flux et Échos se jouent **entièrement sur l'appareil** (base du hors ligne) : leurs
   moteurs et générateurs procéduraux vivent dans `packages/shared/src/mechanics/`, et seul le résultat
   est envoyé (`POST /levels/:id/results`). Une même graine donne le même plateau partout.
-- **Étoiles** : ★★★ sans erreur ni indice · ★★ avec ≤ 2 erreurs et ≤ 1 indice · ★ sinon. Record :
-  plus d'étoiles, puis le temps le plus court. Indices révélés un par un, à la demande.
+- **Sérénité** : aucun chrono ni compteur de fausses pistes à l'écran (le temps peut s'afficher sur
+  demande, dans les réglages). Chaque énigme porte trois **pétales d'harmonie** : *Éclosion* (résolue),
+  *Autonomie* (sans indice), *Clarté* (sans fausse piste). Ils s'additionnent d'une partie à l'autre :
+  rien ne se perd, un pétale manqué « attendra ». Indices révélés un par un, à la demande.
+- **Équilibre Mental** : après plusieurs fausses pistes d'affilée ou une longue réflexion sans avancer
+  (onglet visible), un souffle d'aide propose un murmure (l'indice suivant) ou une pause au jardin.
+  « Je continue » double la patience avant le souffle suivant. Désactivable dans les réglages.
+- **Repères** (`/reperes`) : 14 repères personnels répartis entre les quatre valeurs du jeu
+  (progression, satisfaction, curiosité, sérénité), datés quand ils sont atteints et annoncés en fin
+  d'énigme. On ne se mesure qu'à son propre chemin : il n'y a plus de classement.
 - **Énigme du jour** (`/quotidien`) : la même pour tous, tirée chaque nuit (fuseau `DAILY_TIMEZONE`)
   dans une réserve hors parcours, en privilégiant les moins récemment jouées. Seule la première victoire
-  du jour compte ; elle alimente une série de jours consécutifs et un résumé à partager (🟥🟩).
+  du jour compte ; elle alimente une série de jours consécutifs et un résumé à partager (pétales et
+  série, sans temps ni fausses pistes).
 - **Comptes** : on joue tout de suite en invité ; créer un compte garde la progression, se connecter
   depuis un invité la fusionne. Vérification d'adresse, mot de passe oublié (lien 1 h, réponse muette),
-  changement de mot de passe (déconnecte les autres appareils). Les invités ne sont pas classés.
+  changement de mot de passe (déconnecte les autres appareils). Pétales et repères suivent la fusion.
 - **Accessibilité** : plateau jouable au clavier (flèches, Entrée/Espace, Début/Fin), lien d'évitement,
   annonces pour lecteurs d'écran. **Réglages** (`/reglages`) : volume, effets, ambiance, animations
-  (suivre le système / réduire / toujours), grands symboles.
+  (suivre le système / réduire / toujours), grands symboles, Équilibre, affichage du temps.
 
 ## L'éditeur (`/admin`)
 
@@ -81,19 +90,19 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
   par case, indices, brouillon/publication, duplication, test en un clic. Validation en direct, avec les
   mêmes règles que l'API. Pour les autres mécaniques : génération par difficulté et graine, retouche en
   JSON, et **aperçu jouable** du plateau avant d'enregistrer.
-- **Statistiques de conception** sous chaque énigme : joueurs, taux de réussite, temps médian, erreurs et
-  indices moyens, étoiles, et **fausses pistes** les plus tentées (une ambiguïté se voit tout de suite).
+- **Statistiques de conception** sous chaque énigme : joueurs, taux de réussite, temps médian, fausses
+  pistes et indices moyens, harmonie des victoires, et **fausses pistes** les plus tentées (une ambiguïté se voit tout de suite).
   Les parties des administrateurs sont exclues.
 
 ## Architecture
 
 **Le serveur est l'arbitre.** Le navigateur ne reçoit jamais les réponses : il ouvre une partie, soumet
-des groupes de cases, et l'API tient le compte (liens, erreurs, indices, temps, étoiles, records). Les
+des groupes de cases, et l'API tient le compte (liens, fausses pistes, indices, temps, pétales). Les
 mises à jour sont conditionnelles (doubles clics, onglets concurrents). Chaque coup est enregistré
 (`Attempt`) pour les statistiques.
 
-**Règles partagées.** Validation des énigmes, correspondance des groupes, étoiles, jardin, déblocage par
-mondes, série du jour et résumé à partager vivent dans `packages/shared`, testés, et sont utilisés à
+**Règles partagées.** Validation des énigmes, correspondance des groupes, pétales d'harmonie, repères,
+jardin, déblocage par mondes, série du jour et résumé à partager vivent dans `packages/shared`, testés, et sont utilisés à
 l'identique par l'API et l'éditeur.
 
 **Observabilité.** Journaux JSON (pino), un identifiant par requête (`x-request-id`, repris dans les
@@ -146,14 +155,14 @@ session est `Secure`. L'API n'est pas exposée hors du réseau Docker ; ne l'exp
 | `GET` · `PATCH /auth/me` | Joueur courant (`{ me: null }` sans session) · pseudo |
 | `POST /auth/email/verify` · `email/resend` | Vérification d'adresse |
 | `POST /auth/password/forgot` · `password/reset` · `PATCH /auth/password` | Mot de passe |
-| `GET /worlds` · `GET /worlds/:slug` | Mondes avec statut, étoiles, jardin · énigmes d'un monde |
+| `GET /worlds` · `GET /worlds/:slug` | Mondes avec statut, harmonie, jardin · énigmes d'un monde |
 | `GET /levels/:id` | Détail d'une énigme, sans les réponses |
 | `POST /levels/:id/sessions` | Démarrer ou reprendre une partie (`{ restart: true }`) |
 | `POST /sessions/:id/attempts` (`{ cells }`) · `/sessions/:id/hints` | Liens : jouer un lien · indice suivant |
 | `POST /levels/:id/results` | Autres mécaniques : résultat d'une partie jouée sur l'appareil |
 | `GET /daily` | Énigme du jour, résultat, série, résumé à partager |
 | `GET /me/progress` · `GET /me/stats` | Progression par monde · statistiques par énigme |
-| `GET /leaderboard?limit=20` | Classement (SQL) et rang du joueur |
+| `GET /me/milestones` | Repères personnels (atteints, avancée) et chemin parcouru |
 | `/admin/worlds` · `/admin/levels` (+ `reorder`, `:id/duplicate`, `:id/stats`) | Éditeur (`ADMIN`) |
 | `POST /admin/maintenance/cleanup` | Nettoyage à la demande |
 | `POST /client-errors` · `GET /health` | Erreurs navigateur · santé (base comprise) |

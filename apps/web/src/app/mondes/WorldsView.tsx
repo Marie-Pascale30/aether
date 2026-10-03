@@ -26,7 +26,7 @@ export function WorldsView() {
                     <div className={styles.total}>
                         <ProgressBar value={progress.completedLevels} max={progress.totalLevels} label="Énigmes restaurées" />
                         <span>
-                            {progress.completedLevels} / {progress.totalLevels} énigmes · {progress.totalStars} / {progress.maxStars} ★
+                            {progress.completedLevels} / {progress.totalLevels} énigmes · {progress.harmony} / {progress.maxHarmony} ✿
                         </span>
                     </div>
                 )}
@@ -65,7 +65,7 @@ function WorldCard({ world }: { world: WorldSummary }) {
                 <div className={styles.cardProgress}>
                     <ProgressBar value={completedLevels} max={totalLevels} label={`Progression : ${world.title}`} />
                     <span>
-                        {completedLevels} / {totalLevels} · {world.stars} ★
+                        {completedLevels} / {totalLevels} · {world.harmony} ✿
                     </span>
                 </div>
             </div>

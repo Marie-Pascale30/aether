@@ -45,7 +45,7 @@ export function WorldView({ slug }: { slug: string }) {
                             . Chaque énigme résolue fait pousser ce jardin.
                         </Callout>
                         <p className={styles.count}>
-                            {completedLevels} / {totalLevels} énigmes restaurées · {w.stars} / {w.maxStars} ★
+                            {completedLevels} / {totalLevels} énigmes restaurées · {w.harmony} / {w.maxHarmony} ✿
                         </p>
                         <div className="row">
                             {w.status === "locked" ? (

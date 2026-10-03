@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { Level, LevelProgress, World } from "@prisma/client";
-import { computeJourney, gardenStage, MAX_STARS_PER_LEVEL, type LevelStatus, type WorldSummary } from "@aether/shared";
+import { computeJourney, gardenStage, MAX_HARMONY_PER_LEVEL, petalCount, type LevelStatus, type WorldSummary } from "@aether/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { BY_ORDER, toTheme } from "./level.mapper";
 
@@ -16,7 +16,7 @@ export interface Journey {
     worlds: JourneyWorld[];
     worldStatuses: Map<string, LevelStatus>;
     levelStatuses: Map<string, LevelStatus>;
-    /** Meilleur résultat par énigme publiée résolue (clé : id du niveau). */
+    /** Pétales et meilleur temps par énigme publiée résolue (clé : id du niveau). */
     progress: Map<string, LevelProgress>;
 }
 
@@ -70,8 +70,8 @@ export class JourneyService {
             tagline: world.tagline,
             theme: toTheme(world.theme),
             status: journey.worldStatuses.get(world.id) ?? "locked",
-            stars: results.reduce((sum, row) => sum + row.bestStars, 0),
-            maxStars: levels.length * MAX_STARS_PER_LEVEL,
+            harmony: results.reduce((sum, row) => sum + petalCount(row.petals), 0),
+            maxHarmony: levels.length * MAX_HARMONY_PER_LEVEL,
             garden: {
                 stage: gardenStage(results.length, levels.length),
                 completedLevels: results.length,

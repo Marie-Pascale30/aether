@@ -20,28 +20,24 @@
     letter-spacing: .06em;
 }
 
-.meters,
-.summary {
+.meters {
     display: flex;
     gap: 22px;
     margin: 0;
 }
 
-.meters div,
-.summary div {
+.meters div {
     text-align: center;
 }
 
-.meters dt,
-.summary dt {
+.meters dt {
     font-size: 11px;
     letter-spacing: .12em;
     text-transform: uppercase;
     color: var(--faint);
 }
 
-.meters dd,
-.summary dd {
+.meters dd {
     margin: 2px 0 0;
     font-variant-numeric: tabular-nums;
     font-size: 18px;
@@ -125,13 +121,8 @@
     margin: 6px 0 18px;
 }
 
-.summary {
-    justify-content: center;
-    margin: 24px 0 8px;
-}
-
 .record {
-    margin: 8px auto 22px;
+    margin: 14px auto 0;
     color: var(--muted);
 }
 
@@ -142,6 +133,7 @@
 }
 
 .completionActions {
+    margin-top: 22px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -158,4 +150,115 @@
         opacity: 0;
         transform: translateY(24px) scale(.97);
     }
+}
+
+/* ─── Souffle d'Équilibre ─────────────────────────────────────────────────── */
+
+.nudge {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin: 14px auto 4px;
+    padding: 14px 18px;
+    max-width: 560px;
+    border: 1px solid #8ce5dc33;
+    border-radius: 18px;
+    background: #8ce5dc0a;
+    color: #cbd8d3;
+    animation: reveal .8s var(--ease);
+}
+
+.nudge p {
+    margin: 0 0 6px;
+}
+
+.nudgeGlyph {
+    font-size: 22px;
+    line-height: 1.2;
+    color: var(--cyan);
+}
+
+.nudgeSoft {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.nudgeActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-left: -12px;
+}
+
+/* ─── Pétales et repères (fin d'énigme) ───────────────────────────────────── */
+
+.petals {
+    list-style: none;
+    margin: 20px 0 6px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.petals li {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--text);
+}
+
+.petals li[data-open] {
+    color: var(--faint);
+}
+
+.petals small {
+    color: var(--muted);
+}
+
+.petals li[data-open] small {
+    color: var(--faint);
+}
+
+.petalGlyph {
+    color: var(--gold);
+    text-align: center;
+}
+
+.petals li[data-open] .petalGlyph {
+    color: var(--faint);
+}
+
+.fresh {
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+.milestones {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 12px 14px;
+    border: 1px solid #d9bd7240;
+    border-radius: 14px;
+    background: #d9bd720d;
+    text-align: left;
+}
+
+.milestones li + li {
+    margin-top: 6px;
+}
+
+.milestones strong {
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.time {
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
 }

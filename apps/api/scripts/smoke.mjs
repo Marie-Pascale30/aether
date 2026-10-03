@@ -1,7 +1,7 @@
 // Test de bout en bout contre une API démarrée (et une base seedée) :
 //   npm run smoke -w @aether/api            (API_URL=http://localhost:4100/api par défaut)
 // Parcourt : invité → mondes et verrous → énigme 1 (erreur, indice, résolution) → inscription
-// → classement → fusion de progression → admin (groupes, suites, mondes, éditeur).
+// → harmonie et repères → fusion de progression → admin (groupes, suites, mondes, éditeur).
 // Les réponses vérifiées sont celles du seed (prisma/seed.ts).
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -104,7 +104,7 @@ await check("validations : même case, case hors plateau, mauvais nombre de case
     assert.equal((await attempt(player, session.sessionId, [0, 1, 2])).status, 400);
 });
 
-await check("mauvaise paire → erreur comptée", async () => {
+await check("mauvaise paire → fausse piste comptée", async () => {
     const { body } = await attempt(player, session.sessionId, [0, 1]);
     assert.equal(body.result, "mismatch");
     assert.equal(body.mistakes, 1);
@@ -118,40 +118,53 @@ await check("indices révélés un par un, puis épuisés", async () => {
     assert.equal((await player("POST", `/sessions/${session.sessionId}/hints`)).status, 400);
 });
 
-await check("bonne paire (dans l'ordre inverse) → énigme résolue, 1 étoile", async () => {
+await check("bonne paire (dans l'ordre inverse) → énigme résolue, pétale d'éclosion et premier repère", async () => {
     // Seed : énigme 1 = cases 0 et 3.
     const { body } = await attempt(player, session.sessionId, [3, 0]);
     assert.equal(body.result, "match");
     assert.ok(body.completion);
-    assert.equal(body.completion.stars, 1);
-    assert.equal(body.completion.isNewBest, true);
+    assert.equal(body.completion.petals, 1); // une fausse piste et deux indices : ni autonomie ni clarté
+    assert.equal(body.completion.newPetals, 1);
+    assert.equal(body.completion.mistakes, undefined, "les fausses pistes ne sont plus renvoyées");
+    assert.deepEqual(body.completion.milestones.map((m) => m.key), ["premiers-pas"]);
     assert.equal(body.completion.nextLevelId, origines.levels[1].id);
     assert.equal(body.completion.worldCompleted, false);
     assert.equal(body.completion.garden.completedLevels, 1);
     assert.equal((await attempt(player, session.sessionId, [0, 3])).status, 409);
 });
 
-await check("rejouer parfaitement → 3 étoiles, nouveau record", async () => {
+await check("rejouer sans indice ni fausse piste → les deux autres pétales s'ajoutent", async () => {
     const replay = (await player("POST", `/levels/${origines.levels[0].id}/sessions`, {})).body;
     const { body } = await attempt(player, replay.sessionId, [0, 3]);
-    assert.equal(body.completion.stars, 3);
-    assert.equal(body.completion.isNewBest, true);
+    assert.equal(body.completion.petals, 7);
+    assert.equal(body.completion.newPetals, 6);
+    assert.equal(body.completion.levelPetals, 7);
+    assert.deepEqual(body.completion.milestones, []);
+
+    // Une partie moins harmonieuse ne retire rien.
+    const third = (await player("POST", `/levels/${origines.levels[0].id}/sessions`, {})).body;
+    await attempt(player, third.sessionId, [0, 1]);
+    const { body: again } = await attempt(player, third.sessionId, [0, 3]);
+    assert.equal(again.completion.petals, 3);
+    assert.equal(again.completion.levelPetals, 7);
+    assert.equal(again.completion.newPetals, 0);
 });
 
 await check("énigme 2 débloquée, progression et stats à jour", async () => {
     const after = (await player("GET", `/worlds/${worlds[0].slug}`)).body;
     assert.equal(after.levels[0].status, "completed");
-    assert.equal(after.levels[0].bestStars, 3);
+    assert.equal(after.levels[0].petals, 7);
     assert.equal(after.levels[1].status, "available");
-    assert.equal(after.stars, 3);
+    assert.equal(after.harmony, 3);
     const progress = (await player("GET", "/me/progress")).body;
     assert.equal(progress.completedLevels, 1);
     assert.equal(progress.resume.world.slug, worlds[0].slug);
     assert.equal(progress.resume.levelId, origines.levels[1].id);
     const stats = (await player("GET", "/me/stats")).body;
-    assert.equal(stats.levels[0].completions, 2);
+    assert.equal(stats.levels[0].completions, 3);
     assert.equal(stats.levels[0].worldTitle, worlds[0].title);
-    assert.equal(stats.totals.mistakes, 1);
+    assert.equal(stats.totals.hintsUsed, 2);
+    assert.equal(stats.totals.mistakes, undefined);
 });
 
 await check("monde suivant ouvert après 3 énigmes ; mécanique jouée sur l'appareil", async () => {
@@ -174,7 +187,7 @@ await check("monde suivant ouvert après 3 énigmes ; mécanique jouée sur l'ap
     assert.equal((await player("POST", `/levels/${local.id}/results`, { durationMs: -1, mistakes: 0, hintsUsed: 0 })).status, 400);
     const done = await player("POST", `/levels/${local.id}/results`, { durationMs: 42_000, mistakes: 1, hintsUsed: 0 });
     assert.equal(done.status, 200);
-    assert.equal(done.body.stars, 2);
+    assert.equal(done.body.petals, 3); // sans indice, une fausse piste
     assert.equal(done.body.nextLevelId, second.levels[1].id);
     assert.equal((await player("GET", `/worlds/${after[1].slug}`)).body.levels[0].status, "completed");
 
@@ -185,9 +198,16 @@ await check("monde suivant ouvert après 3 énigmes ; mécanique jouée sur l'ap
     assert.equal((await player("POST", `/levels/${sealed.levels[0].id}/results`, { durationMs: 1000, mistakes: 0, hintsUsed: 0 })).status, 403);
 });
 
-await check("invité absent du classement", async () => {
-    const board = (await player("GET", "/leaderboard")).body;
-    assert.equal(board.me, null);
+await check("repères personnels : atteints, datés, avancée plafonnée", async () => {
+    assert.equal((await player("GET", "/leaderboard")).status, 404, "le classement a disparu");
+    const view = (await player("GET", "/me/milestones")).body;
+    assert.equal(view.facts.solvedLevels, 4);
+    assert.equal(view.facts.mechanicsExplored, 2);
+    const byKey = Object.fromEntries(view.milestones.map((m) => [m.key, m]));
+    assert.ok(byKey["premiers-pas"].reachedAt);
+    assert.equal(byKey["dix-enigmes"].reachedAt, null);
+    assert.equal(byKey["dix-enigmes"].current, 4);
+    assert.equal(byKey["dix-enigmes"].target, 10);
 });
 
 await check("inscription : l'invité garde sa progression", async () => {
@@ -205,10 +225,10 @@ await check("inscription : l'invité garde sa progression", async () => {
     assert.equal((await player("GET", `/worlds/${worlds[0].slug}`)).body.levels[0].status, "completed");
 });
 
-await check("apparaît au classement une fois inscrit", async () => {
-    const board = (await player("GET", "/leaderboard?limit=5")).body;
-    assert.ok(board.me);
-    assert.equal(board.me.totalStars, (await player("GET", "/me/progress")).body.totalStars);
+await check("les repères restent après l'inscription", async () => {
+    const view = (await player("GET", "/me/milestones")).body;
+    assert.ok(view.milestones.find((m) => m.key === "premiers-pas").reachedAt);
+    assert.equal((await player("GET", "/me/progress")).body.harmony, 3 + 3 + 3 + 2); // trois Liens en pleine harmonie, une énigme locale à deux pétales
 });
 
 await check("connexion depuis un nouvel invité : progression fusionnée", async () => {
@@ -308,7 +328,7 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         const lead = stats.falseLeads.find((l) => l.cells.join() === "0,1");
         assert.ok(lead, "fausse piste [0, 1] absente");
         assert.deepEqual(lead.symbols, ["○", "✦"]);
-        assert.deepEqual(stats.stars.map((s) => s.stars), [3, 2, 1]);
+        assert.deepEqual(stats.harmony.map((h) => h.petals), [3, 2, 1]);
         assert.equal(stats.hints.length, 2);
         assert.equal((await player("GET", `/admin/levels/${origines.levels[0].id}/stats`)).status, 403);
 
@@ -345,7 +365,8 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         for (const group of groups) last = (await attempt(player, s.sessionId, group)).body;
         assert.equal(last.completion.daily.firstToday, true);
         assert.equal(last.completion.daily.streak.current, 1);
-        assert.match(last.completion.daily.share, /🟥🟩/);
+        assert.match(last.completion.daily.share, /✿✿○ harmonie/);
+        assert.doesNotMatch(last.completion.daily.share, /🟥|erreur|\d:\d\d/);
         assert.match(last.completion.daily.share, /Série : 1 jour$/);
 
         // Rejouer ne change pas le résultat du jour.
@@ -354,7 +375,7 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         for (const group of groups) again = (await attempt(player, replay.sessionId, group)).body;
         assert.equal(again.completion.daily.firstToday, false);
         const after = (await player("GET", "/daily")).body;
-        assert.equal(after.result.mistakes, 1);
+        assert.equal(after.result.petals, 3);
         assert.ok(after.solvedToday >= 1);
         // La réserve du jour ne compte pas dans le parcours.
         const progress = (await player("GET", "/me/progress")).body;
@@ -389,7 +410,7 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         assert.equal((await attempt(admin, s.sessionId, [1, 5, 3])).body.result, "mismatch");
         const { body } = await attempt(admin, s.sessionId, [5, 1, 3]);
         assert.equal(body.result, "match");
-        assert.equal(body.completion.mistakes, 2);
+        assert.equal(body.completion.petals, 3); // deux fausses pistes, aucun indice
     });
 
     await check("admin : mondes (création, identifiant unique, suppression protégée)", async () => {

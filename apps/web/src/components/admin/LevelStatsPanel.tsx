@@ -45,16 +45,16 @@ export function LevelStatsPanel({ levelId, kind }: { levelId: string; kind: Leve
                         <Tile label="Parties" value={s.sessions} />
                         <Tile label="Réussite" value={s.completionRate === null ? "—" : `${Math.round(s.completionRate * 100)} %`} />
                         <Tile label="Temps médian" value={s.medianDurationMs === null ? "—" : formatDuration(s.medianDurationMs)} />
-                        <Tile label="Erreurs par victoire" value={decimal(s.averageMistakes)} />
+                        <Tile label="Fausses pistes par victoire" value={decimal(s.averageMistakes)} />
                         <Tile label="Indices par victoire" value={decimal(s.averageHints)} />
                     </dl>
 
                     <div className={styles.columns}>
                         <section>
-                            <h4>Étoiles obtenues</h4>
+                            <h4>Harmonie des victoires</h4>
                             <Bars
                                 total={s.completions}
-                                rows={s.stars.map((row) => ({ key: row.stars, label: "★".repeat(row.stars), value: row.count }))}
+                                rows={s.harmony.map((row) => ({ key: row.petals, label: "✿".repeat(row.petals), value: row.count }))}
                                 unit="victoire"
                             />
                         </section>

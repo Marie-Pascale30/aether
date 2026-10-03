@@ -5,16 +5,26 @@ import { ButtonLink, Button } from "@/components/ui/Button";
 import { Callout, Panel } from "@/components/ui/Panel";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { useElapsed } from "@/hooks/useElapsed";
+import { useEquilibrium } from "@/hooks/useEquilibrium";
 import { usePuzzle } from "@/hooks/usePuzzle";
 import { formatDuration, pad2 } from "@/lib/format";
+import { useSettings } from "@/lib/settings";
 import { KIND_COPY } from "@/lib/kinds";
 import { CompletionPanel } from "./CompletionPanel";
+import { EquilibriumNudge } from "./EquilibriumNudge";
 import styles from "./Puzzle.module.css";
 
 export function PuzzleView({ levelId }: { levelId: string }) {
     const puzzle = usePuzzle(levelId);
     const { level, session, completion } = puzzle;
-    const elapsed = useElapsed(session?.startedAt, Boolean(session) && !session?.completed);
+    const { settings } = useSettings();
+    const playing = Boolean(session) && !session?.completed;
+    const elapsed = useElapsed(session?.startedAt, settings.showTimer && playing);
+    const equilibrium = useEquilibrium({
+        active: playing && !completion,
+        progress: session?.foundGroups.length ?? 0,
+        mistakes: session?.mistakes ?? 0,
+    });
 
     if (level.error) return <ErrorState error={level.error} onRetry={() => void level.refetch()} />;
     if (puzzle.startError) return <ErrorState error={puzzle.startError} />;
@@ -41,14 +51,12 @@ export function PuzzleView({ levelId }: { levelId: string }) {
                         </span>
                     </div>
                     <dl className={styles.meters}>
-                        <div>
-                            <dt>Temps</dt>
-                            <dd>{formatDuration(completion?.durationMs ?? elapsed)}</dd>
-                        </div>
-                        <div>
-                            <dt>Erreurs</dt>
-                            <dd>{session.mistakes}</dd>
-                        </div>
+                        {settings.showTimer && (
+                            <div>
+                                <dt>Temps</dt>
+                                <dd>{formatDuration(completion?.durationMs ?? elapsed)}</dd>
+                            </div>
+                        )}
                         <div>
                             <dt>Liens</dt>
                             <dd>
@@ -71,7 +79,7 @@ export function PuzzleView({ levelId }: { levelId: string }) {
                             <Button variant="ghost" onClick={puzzle.requestHint} disabled={puzzle.hintPending}>
                                 ✧ Demander un indice ({puzzle.hintsRemaining})
                             </Button>
-                            <small>Un indice limite la note à ★★, deux à ★.</small>
+                            <small>Sans indice, le pétale Autonomie s&apos;ouvre ; il pourra toujours être cueilli une autre fois.</small>
                         </div>
                     )}
                 </section>
@@ -90,6 +98,19 @@ export function PuzzleView({ levelId }: { levelId: string }) {
                 <div className={styles.status} data-tone={puzzle.status.tone} role="status" aria-live="polite">
                     {puzzle.status.text}
                 </div>
+
+                {equilibrium.nudge && (
+                    <EquilibriumNudge
+                        reason={equilibrium.nudge}
+                        hintsRemaining={puzzle.hintsRemaining}
+                        onHint={() => {
+                            equilibrium.accept();
+                            puzzle.requestHint();
+                        }}
+                        onDismiss={equilibrium.dismiss}
+                        pauseHref={detail.isDaily ? "/quotidien" : `/mondes/${detail.world.slug}`}
+                    />
+                )}
 
                 <div className={styles.actions}>
                     <Button variant="ghost" onClick={puzzle.restart} disabled={puzzle.restarting}>

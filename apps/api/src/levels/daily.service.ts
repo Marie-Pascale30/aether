@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, type Level } from "@prisma/client";
-import { buildShareText, computeStreak, dateKey, type DailyOutcome, type DailyState } from "@aether/shared";
+import { buildShareText, computeStreak, dateKey, type DailyOutcome, type DailyState, type StreakSummary } from "@aether/shared";
 import type { AuthUser } from "../common/auth.decorators";
 import { ENV, type Env } from "../config/env";
 import { PrismaService } from "../prisma/prisma.service";
@@ -79,9 +79,9 @@ export class DailyService {
         return {
             date: key,
             level: { id: level.id, title: level.title, kind: level.kind, groupCount: parseGroups(level.groups).length },
-            result: result && { stars: result.stars, durationMs: result.durationMs, mistakes: result.mistakes, hintsUsed: result.hintsUsed },
+            result: result && { petals: result.petals, durationMs: result.durationMs, hintsUsed: result.hintsUsed },
             streak,
-            share: result ? buildShareText({ ...result, date: key, streak: streak.current }) : null,
+            share: result ? buildShareText({ petals: result.petals, date: key, streak: streak.current }) : null,
             solvedToday,
             timeZone: this.env.DAILY_TIMEZONE,
         };
@@ -93,43 +93,38 @@ export class DailyService {
      */
     async recordWin(
         user: AuthUser,
-        session: { id: string; stars: number; durationMs: number; mistakes: number; hintsUsed: number },
+        session: { id: string; petals: number; durationMs: number; mistakes: number; hintsUsed: number },
     ): Promise<DailyOutcome> {
         const key = this.today();
         const date = toDbDate(key);
         const existing = await this.prisma.dailyResult.findUnique({ where: { userId_date: { userId: user.id, date } } });
 
-        let result = existing;
-        if (!existing) {
-            const attempts = await this.prisma.attempt.findMany({
-                where: { sessionId: session.id },
-                orderBy: { createdAt: "asc" },
-                select: { correct: true },
-            });
-            result = await this.prisma.dailyResult.create({
+        const result =
+            existing ??
+            (await this.prisma.dailyResult.create({
                 data: {
                     userId: user.id,
                     date,
                     sessionId: session.id,
-                    stars: session.stars,
+                    petals: session.petals,
                     durationMs: session.durationMs,
                     mistakes: session.mistakes,
                     hintsUsed: session.hintsUsed,
-                    // Mécaniques jouées sur l'appareil : pas de coups enregistrés, on résume par les essais.
-                    pattern: attempts.length
-                        ? attempts.map((attempt) => attempt.correct)
-                        : [...Array<boolean>(session.mistakes).fill(false), true],
                 },
-            });
-        }
+            }));
 
-        const streak = computeStreak(await this.resultDays(user.id), key);
+        const streak = await this.streak(user.id);
         return {
             date: key,
             firstToday: !existing,
             streak,
-            share: buildShareText({ ...result!, date: key, streak: streak.current }),
+            share: buildShareText({ petals: result.petals, date: key, streak: streak.current }),
         };
+    }
+
+    /** Série de l'énigme du jour, à la date d'aujourd'hui. */
+    async streak(userId: string): Promise<StreakSummary> {
+        return computeStreak(await this.resultDays(userId), this.today());
     }
 
     private async resultDays(userId: string): Promise<string[]> {

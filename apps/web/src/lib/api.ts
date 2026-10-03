@@ -6,8 +6,8 @@ import type {
     CompletionResult,
     DailyState,
     LevelResultInput,
+    MilestonesView,
     HintResult,
-    Leaderboard,
     LevelDetail,
     LevelDesignStats,
     LevelInput,
@@ -94,9 +94,9 @@ export const api = {
     me: {
         progress: () => request<ProgressSummary>("GET", "/me/progress"),
         stats: () => request<PlayerStats>("GET", "/me/stats"),
+        milestones: () => request<MilestonesView>("GET", "/me/milestones"),
     },
     daily: () => request<DailyState>("GET", "/daily"),
-    leaderboard: (limit = 20) => request<Leaderboard>("GET", `/leaderboard?limit=${limit}`),
     admin: {
         levels: () => request<AdminLevel[]>("GET", "/admin/levels"),
         level: (id: string) => request<AdminLevel>("GET", `/admin/levels/${id}`),

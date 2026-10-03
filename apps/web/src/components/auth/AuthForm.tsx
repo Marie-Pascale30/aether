@@ -89,7 +89,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
             <form className="stack" onSubmit={onSubmit} noValidate>
                 {isRegister && (
-                    <Field label="Pseudo" name="displayName" autoComplete="nickname" error={errors.displayName} hint="Affiché au classement." />
+                    <Field label="Pseudo" name="displayName" autoComplete="nickname" error={errors.displayName} hint="Le nom que te donnera le Gardien." />
                 )}
                 <Field label="Adresse e-mail" name="email" type="email" autoComplete="email" error={errors.email} />
                 <Field

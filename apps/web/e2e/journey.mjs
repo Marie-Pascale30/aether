@@ -86,12 +86,14 @@ try {
         if ((await e1.getAttribute("aria-pressed")) !== "false") throw new Error("pas désélectionné");
     });
 
-    await step("mauvaise paire → erreur affichée puis effacée", async () => {
+    await step("mauvaise paire → fausse piste signalée puis effacée, sans compteur", async () => {
         await page.getByRole("button", { name: /^Écho 1 :/ }).click();
         await page.getByRole("button", { name: /^Écho 2 :/ }).click();
         await page.getByText("Ce lien ne résonne pas").waitFor();
         await page.screenshot({ path: OUT + "03-mismatch.png" });
         await page.getByText("Essaie une autre relation.").waitFor({ timeout: 3000 });
+        if (await page.getByText("Erreurs", { exact: true }).count()) throw new Error("compteur d'erreurs encore affiché");
+        if (await page.getByText("Temps", { exact: true }).count()) throw new Error("chrono affiché par défaut");
     });
 
     await step("indice demandé", async () => {
@@ -102,7 +104,11 @@ try {
     await step("bonne paire → panneau de fin", async () => {
         await page.getByRole("button", { name: /^Écho 1 :/ }).click();
         await page.getByRole("button", { name: /^Écho 4 :/ }).click();
-        await page.getByRole("dialog").waitFor();
+        const dialog = page.getByRole("dialog");
+        await dialog.waitFor();
+        await dialog.getByText("Éclosion").waitFor();
+        await dialog.getByText("Il t'attendra.").first().waitFor();
+        await dialog.getByText("✦ Premiers pas").waitFor();
         await page.waitForTimeout(1300);
         await page.screenshot({ path: OUT + "04-completion.png" });
     });
@@ -128,6 +134,21 @@ try {
         await page.getByRole("heading", { name: "L'ombre et la lumière" }).waitFor();
     });
 
+    await step("Équilibre : un souffle d'aide après plusieurs fausses pistes, puis discret", async () => {
+        // Seed : seule la paire Écho 2 + Écho 3 est juste.
+        for (const [a, b] of [[1, 4], [5, 6], [7, 8]]) {
+            await page.getByRole("button", { name: new RegExp(`^Écho ${a} :`) }).click();
+            await page.getByRole("button", { name: new RegExp(`^Écho ${b} :`) }).click();
+            await page.getByText("Essaie une autre relation.").waitFor({ timeout: 3000 });
+        }
+        const nudge = page.getByRole("complementary", { name: "Équilibre" });
+        await nudge.getByText("Plusieurs chemins explorés").waitFor();
+        await page.screenshot({ path: OUT + "06b-equilibre.png" });
+        await nudge.getByRole("button", { name: /Écouter un murmure/ }).click();
+        await page.getByText("Indice 1 :").waitFor();
+        await nudge.waitFor({ state: "detached" });
+    });
+
     await step("« mon jardin » mène au monde en cours, qui a poussé", async () => {
         await page.goto(BASE + "/jardin");
         await page.waitForURL("**/mondes/origines");
@@ -151,15 +172,18 @@ try {
         await page.getByRole("link", { name: /Flore/ }).waitFor();
     });
 
-    await step("classement", async () => {
+    await step("repères personnels (l'ancien classement y mène)", async () => {
         await page.goto(BASE + "/classement");
-        await page.getByText("(toi)").waitFor();
-        await page.screenshot({ path: OUT + "09-leaderboard.png" });
+        await page.waitForURL("**/reperes");
+        await page.getByRole("heading", { name: "Repères" }).waitFor();
+        await page.getByRole("article").filter({ hasText: "Premiers pas" }).getByText(/^Atteint le/).waitFor();
+        await page.getByRole("progressbar", { name: "Dix lumières : 1 sur 10" }).waitFor();
+        await page.screenshot({ path: OUT + "09-reperes.png", fullPage: true });
     });
 
-    await step("profil & stats", async () => {
+    await step("profil & chemin", async () => {
         await page.goto(BASE + "/profil");
-        await page.getByRole("heading", { name: "Statistiques" }).waitFor();
+        await page.getByRole("heading", { name: "Ton chemin" }).waitFor();
         await page.screenshot({ path: OUT + "10-profile.png", fullPage: true });
     });
 
@@ -243,7 +267,7 @@ try {
         const { groups } = await (await admin.request.get(`${BASE}/api/admin/levels/${daily.level.id}`)).json();
         await admin.goto(BASE + "/quotidien");
         await admin.getByRole("heading", { name: daily.level.title }).waitFor();
-        await admin.getByRole("link", { name: /Relever le défi|Rejouer/ }).click();
+        await admin.getByRole("link", { name: /Découvrir l'énigme|Rejouer/ }).click();
         await admin.getByText("ÉNIGME DU JOUR", { exact: true }).waitFor();
         await admin.getByRole("button", { name: /Recommencer/ }).click();
         await admin.waitForTimeout(300);
@@ -258,6 +282,7 @@ try {
         await admin.getByRole("link", { name: "Résumé du jour" }).click();
         await admin.getByText("Série en cours").waitFor();
         await admin.getByText(/AETHER · Énigme du jour/).waitFor();
+        await admin.getByText(/harmonie/).first().waitFor();
         await admin.screenshot({ path: OUT + "13c-daily.png", fullPage: true });
     });
 
@@ -415,6 +440,15 @@ try {
         const html = await keyboard.evaluate(() => ({ ...document.documentElement.dataset }));
         if (html.motion !== "reduce" || html.symbols !== "large") throw new Error(`réglages non appliqués : ${JSON.stringify(html)}`);
         if (await keyboard.getByRole("switch", { name: "Nappe d'ambiance" }).isChecked()) throw new Error("ambiance réactivée au rechargement");
+    });
+
+    await step("réglages : le temps ne s'affiche que sur demande", async () => {
+        await keyboard.getByRole("switch", { name: /Afficher le temps/ }).check({ force: true });
+        await keyboard.goto(BASE + "/mondes/origines");
+        await keyboard.getByRole("link", { name: /Le premier lien/ }).click();
+        await keyboard.getByText("Temps", { exact: true }).waitFor();
+        await keyboard.goto(BASE + "/reglages");
+        await keyboard.getByRole("switch", { name: /Afficher le temps/ }).uncheck({ force: true });
     });
 
     await step("mobile : énigme lisible à 390 px", async () => {

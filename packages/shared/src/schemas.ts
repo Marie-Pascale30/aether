@@ -69,10 +69,6 @@ export const attemptSchema = z.object({
         .refine((cells) => new Set(cells).size === cells.length, "Choisis des éléments différents."),
 });
 
-export const leaderboardQuerySchema = z.object({
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-
 // ─── Éditeur de niveaux ─────────────────────────────────────────────────────
 
 const groupSchema = z.array(z.number().int().min(0)).min(GROUP_SIZE.PAIRS.min).max(GROUP_SIZE.SEQUENCE.max);
@@ -176,7 +172,6 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type StartSessionInput = z.infer<typeof startSessionSchema>;
 export type AttemptInput = z.infer<typeof attemptSchema>;
-export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;
 export type LevelInput = z.infer<typeof levelInputSchema>;
 export type LevelResultInput = z.infer<typeof levelResultSchema>;
 export type ReorderLevelsInput = z.infer<typeof reorderLevelsSchema>;

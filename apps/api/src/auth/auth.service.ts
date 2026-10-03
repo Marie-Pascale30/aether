@@ -3,7 +3,7 @@ import { JwtService } from "@nestjs/jwt";
 import type { User } from "@prisma/client";
 import type { CookieOptions, Request, Response } from "express";
 import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
-import { isBetterResult, type LoginInput, type Me, type RegisterInput } from "@aether/shared";
+import { type LoginInput, type Me, type RegisterInput } from "@aether/shared";
 import type { AuthUser } from "../common/auth.decorators";
 import { ENV, type Env } from "../config/env";
 import { MailService } from "../mail/mail.service";
@@ -189,7 +189,7 @@ export class AuthService {
         });
     }
 
-    /** Garde, énigme par énigme, le meilleur des deux résultats, puis supprime le compte invité. */
+    /** Réunit, énigme par énigme, les pétales des deux comptes, puis supprime le compte invité. */
     private async mergeGuestInto(guestId: string, userId: string): Promise<void> {
         await this.prisma.$transaction(async (tx) => {
             const guestProgress = await tx.levelProgress.findMany({ where: { userId: guestId } });
@@ -203,10 +203,6 @@ export class AuthService {
                     continue;
                 }
 
-                const guestIsBetter = isBetterResult(
-                    { stars: progress.bestStars, durationMs: progress.bestTimeMs },
-                    { stars: existing.bestStars, durationMs: existing.bestTimeMs },
-                );
                 await tx.levelProgress.update({
                     where: key,
                     data: {
@@ -215,7 +211,8 @@ export class AuthService {
                             progress.firstCompletedAt < existing.firstCompletedAt
                                 ? progress.firstCompletedAt
                                 : existing.firstCompletedAt,
-                        ...(guestIsBetter && { bestStars: progress.bestStars, bestTimeMs: progress.bestTimeMs }),
+                        petals: existing.petals | progress.petals,
+                        bestTimeMs: Math.min(existing.bestTimeMs, progress.bestTimeMs),
                     },
                 });
             }
@@ -226,6 +223,16 @@ export class AuthService {
             await tx.dailyResult.updateMany({ where: { userId: guestId }, data: { userId } });
 
             await tx.playSession.updateMany({ where: { userId: guestId }, data: { userId } });
+
+            // Repères : on garde la date la plus ancienne de chacun.
+            const ownMilestones = await tx.milestone.findMany({ where: { userId } });
+            for (const milestone of await tx.milestone.findMany({ where: { userId: guestId } })) {
+                const own = ownMilestones.find((row) => row.key === milestone.key);
+                if (!own) await tx.milestone.create({ data: { ...milestone, userId } });
+                else if (milestone.reachedAt < own.reachedAt) {
+                    await tx.milestone.update({ where: { userId_key: { userId, key: own.key } }, data: { reachedAt: milestone.reachedAt } });
+                }
+            }
             await tx.user.delete({ where: { id: guestId } });
         });
     }

@@ -1,0 +1,93 @@
+.facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 20px 0 0;
+}
+
+.facts div {
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.facts dt {
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.facts dd {
+    margin: 4px 0 0;
+    font-size: 24px;
+    font-family: var(--font-serif);
+    font-variant-numeric: tabular-nums;
+}
+
+.group h3 {
+    margin: 8px 0 12px;
+    color: var(--gold);
+    font-size: 15px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+}
+
+.card {
+    height: 100%;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--muted);
+}
+
+.card[data-reached] {
+    border-color: #d9bd7266;
+    background: #d9bd720f;
+    color: var(--text);
+}
+
+.card h4 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    color: var(--text);
+}
+
+.card[data-reached] h4 span {
+    color: var(--gold);
+}
+
+.card p {
+    margin: 0 0 12px;
+    font-size: 14px;
+}
+
+.date {
+    color: var(--gold);
+}
+
+.progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.progress > div {
+    flex: 1;
+}
+
+.progress small {
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+}

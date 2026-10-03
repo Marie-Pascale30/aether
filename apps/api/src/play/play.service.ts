@@ -1,12 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Level, PlaySession } from "@prisma/client";
 import {
-    computeStars,
     findGroupIndex,
     groupsAt,
     groupSizeOf,
-    isBetterResult,
     isOrdered,
+    petalsFor,
     type AttemptInput,
     type AttemptResult,
     type CompletionResult,
@@ -20,6 +19,7 @@ import { JourneyService } from "../levels/journey.service";
 import { parseGroups, toWorldRef } from "../levels/level.mapper";
 import { LevelsService } from "../levels/levels.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { MilestonesService } from "../progress/milestones.service";
 
 type SessionWithLevel = PlaySession & { level: Level };
 
@@ -27,7 +27,7 @@ const CONCURRENT_UPDATE = "La partie a changé entre-temps : recharge l'énigme.
 
 /**
  * Boucle de jeu autoritaire : le client ne connaît jamais les réponses, il soumet des groupes
- * de cases et le serveur tient le compte des liens trouvés, des erreurs, des indices et du temps.
+ * de cases et le serveur tient le compte des liens trouvés, des fausses pistes, des indices et du temps.
  */
 @Injectable()
 export class PlayService {
@@ -36,6 +36,7 @@ export class PlayService {
         private readonly levels: LevelsService,
         private readonly journeys: JourneyService,
         private readonly daily: DailyService,
+        private readonly milestones: MilestonesService,
     ) {}
 
     /** Reprend la partie en cours sur ce niveau, ou en ouvre une (toujours une neuve si `restart`). */
@@ -149,42 +150,40 @@ export class PlayService {
 
     private async complete(user: AuthUser, session: SessionWithLevel, found: number[]): Promise<CompletionResult> {
         const durationMs = Math.max(0, Date.now() - session.startedAt.getTime());
-        const stars = computeStars({ mistakes: session.mistakes, hintsUsed: session.hintsUsed });
+        const petals = petalsFor({ mistakes: session.mistakes, hintsUsed: session.hintsUsed });
 
-        const best = await this.prisma.$transaction(async (tx) => {
+        const saved = await this.prisma.$transaction(async (tx) => {
             const { count } = await tx.playSession.updateMany({
                 where: { id: session.id, completedAt: null },
-                data: { foundGroups: found, completedAt: new Date(), stars, durationMs },
+                data: { foundGroups: found, completedAt: new Date(), petals, durationMs },
             });
             if (count === 0) throw new ConflictException(CONCURRENT_UPDATE);
 
             const key = { userId_levelId: { userId: user.id, levelId: session.levelId } };
             const previous = await tx.levelProgress.findUnique({ where: key });
-            const isNewBest = isBetterResult(
-                { stars, durationMs },
-                previous && { stars: previous.bestStars, durationMs: previous.bestTimeMs },
-            );
-
-            const saved = await tx.levelProgress.upsert({
+            // Les pétales s'additionnent : une partie moins harmonieuse ne retire jamais rien.
+            const levelPetals = (previous?.petals ?? 0) | petals;
+            const progress = await tx.levelProgress.upsert({
                 where: key,
-                create: { userId: user.id, levelId: session.levelId, bestStars: stars, bestTimeMs: durationMs },
+                create: { userId: user.id, levelId: session.levelId, petals, bestTimeMs: durationMs },
                 update: {
                     completions: { increment: 1 },
-                    ...(isNewBest && { bestStars: stars, bestTimeMs: durationMs }),
+                    petals: levelPetals,
+                    bestTimeMs: Math.min(previous?.bestTimeMs ?? durationMs, durationMs),
                 },
             });
-            return { isNewBest, bestStars: saved.bestStars, bestTimeMs: saved.bestTimeMs };
+            return { levelPetals, newPetals: levelPetals & ~(previous?.petals ?? 0), bestTimeMs: progress.bestTimeMs };
         });
 
         // Parcours relu après la sauvegarde : déblocages et jardin tiennent compte de cette victoire.
         const journey = await this.journeys.load(user.id);
         const location = this.journeys.locate(journey, session.levelId);
-        const performance = { stars, durationMs, mistakes: session.mistakes, hintsUsed: session.hintsUsed, ...best };
+        const performance = { petals, durationMs, hintsUsed: session.hintsUsed, ...saved };
 
         if (!location) {
             // Hors parcours : énigme du jour, ou brouillon joué par un administrateur.
             const daily = (await this.daily.isTodayLevel(session.levelId))
-                ? await this.daily.recordWin(user, { id: session.id, stars, durationMs, mistakes: session.mistakes, hintsUsed: session.hintsUsed })
+                ? await this.daily.recordWin(user, { id: session.id, petals, durationMs, mistakes: session.mistakes, hintsUsed: session.hintsUsed })
                 : null;
             return {
                 ...performance,
@@ -194,6 +193,7 @@ export class PlayService {
                 gameCompleted: false,
                 garden: { stage: 0, completedLevels: 0, totalLevels: 0 },
                 daily,
+                milestones: await this.milestones.reachNew(user.id),
             };
         }
 
@@ -209,6 +209,7 @@ export class PlayService {
             gameCompleted: journey.worlds.every((w) => journey.worldStatuses.get(w.world.id) === "completed"),
             garden: this.journeys.worldSummary(journey, location.worldIndex).garden,
             daily: null,
+            milestones: await this.milestones.reachNew(user.id),
         };
     }
 

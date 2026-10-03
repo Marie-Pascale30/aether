@@ -6,7 +6,6 @@ import { AuthGuard } from "./auth/auth.guard";
 import { AuthModule } from "./auth/auth.module";
 import { ConfigModule } from "./config/config.module";
 import { HealthController } from "./health.controller";
-import { LeaderboardModule } from "./leaderboard/leaderboard.module";
 import { LevelsModule } from "./levels/levels.module";
 import { MailModule } from "./mail/mail.module";
 import { MaintenanceModule } from "./maintenance/maintenance.module";
@@ -26,7 +25,6 @@ import { ProgressModule } from "./progress/progress.module";
         LevelsModule,
         PlayModule,
         ProgressModule,
-        LeaderboardModule,
         AdminModule,
         MaintenanceModule,
     ],

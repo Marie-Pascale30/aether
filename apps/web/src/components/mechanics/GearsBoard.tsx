@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties, type MouseEvent } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { gearsSolved, litTiles, type GearsPuzzle } from "@aether/shared";
 import type { PuzzleReport } from "@/hooks/useLocalPuzzle";
 import styles from "./mechanics.module.css";
@@ -22,6 +22,7 @@ export function GearsBoard({ puzzle, report }: { puzzle: GearsPuzzle; report: Pu
     const rotations = useMemo(() => turns.map((t) => ((t % 4) + 4) % 4), [turns]);
     const lit = useMemo(() => litTiles(puzzle, rotations), [puzzle, rotations]);
     const playable = puzzle.tiles.filter((tile) => tile.mask !== 0).length;
+    const mostLit = useRef(lit.size);
 
     const rotate = (index: number, delta: 1 | -1) => {
         if (done || puzzle.tiles[index]!.fixed) return;
@@ -33,6 +34,11 @@ export function GearsBoard({ puzzle, report }: { puzzle: GearsPuzzle; report: Pu
             report.solved("La lumière parcourt toute la machine.");
         } else {
             report.select();
+            const nextLit = litTiles(puzzle, nextRotations).size;
+            if (nextLit > mostLit.current) {
+                mostLit.current = nextLit;
+                report.advance();
+            }
         }
     };
 

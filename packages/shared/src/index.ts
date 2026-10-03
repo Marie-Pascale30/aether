@@ -7,5 +7,6 @@ export * from "./rules/garden";
 export * from "./rules/unlock";
 export * from "./format";
 export * from "./rules/daily";
+export * from "./rules/milestones";
 export * from "./rng";
 export * from "./mechanics";

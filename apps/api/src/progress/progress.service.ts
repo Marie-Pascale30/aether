@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { MAX_STARS_PER_LEVEL, type LevelStats, type PlayerStats, type ProgressSummary } from "@aether/shared";
+import { MAX_HARMONY_PER_LEVEL, petalCount, type LevelStats, type PlayerStats, type ProgressSummary } from "@aether/shared";
 import { JourneyService, type Journey } from "../levels/journey.service";
 import { toWorldRef } from "../levels/level.mapper";
 import { PrismaService } from "../prisma/prisma.service";
@@ -27,8 +27,8 @@ export class ProgressService {
 
         return {
             worlds,
-            totalStars: worlds.reduce((sum, world) => sum + world.stars, 0),
-            maxStars: totalLevels * MAX_STARS_PER_LEVEL,
+            harmony: worlds.reduce((sum, world) => sum + world.harmony, 0),
+            maxHarmony: totalLevels * MAX_HARMONY_PER_LEVEL,
             completedLevels: j.progress.size,
             totalLevels,
             resume,
@@ -45,7 +45,7 @@ export class ProgressService {
                 by: ["levelId"],
                 where: { userId, levelId: { in: levelIds } },
                 _count: { _all: true },
-                _sum: { mistakes: true, hintsUsed: true },
+                _sum: { hintsUsed: true },
             }),
             this.prisma.playSession.groupBy({
                 by: ["levelId"],
@@ -65,11 +65,10 @@ export class ProgressService {
                 worldTitle: world.title,
                 position,
                 title: level.title,
-                bestStars: best?.bestStars ?? null,
+                petals: best?.petals ?? 0,
                 bestTimeMs: best?.bestTimeMs ?? null,
                 completions: best?.completions ?? 0,
                 sessions: sessions?._count._all ?? 0,
-                mistakes: sessions?._sum.mistakes ?? 0,
                 hintsUsed: sessions?._sum.hintsUsed ?? 0,
             };
         });
@@ -81,9 +80,8 @@ export class ProgressService {
             totals: {
                 sessions: sum((row) => row.sessions),
                 completions: sum((row) => row.completions),
-                mistakes: sum((row) => row.mistakes),
                 hintsUsed: sum((row) => row.hintsUsed),
-                totalStars: sum((row) => row.bestStars ?? 0),
+                harmony: sum((row) => petalCount(row.petals)),
                 playTimeMs,
             },
         };

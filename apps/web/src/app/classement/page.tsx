@@ -1,8 +1,6 @@
-import type { Metadata } from "next";
-import { LeaderboardView } from "./LeaderboardView";
+import { permanentRedirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Classement" };
-
-export default function LeaderboardPage() {
-    return <LeaderboardView />;
+/** L'ancien classement a laissé place aux repères personnels. */
+export default function LegacyLeaderboardPage() {
+    permanentRedirect("/reperes");
 }

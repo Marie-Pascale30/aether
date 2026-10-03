@@ -4,7 +4,8 @@ export const MISMATCH_FEEDBACK_MS = 650;
 /** Nombre de stades visuels du jardin (0 = graine, dernier = jardin entièrement restauré). */
 export const GARDEN_STAGE_COUNT = 6;
 
-export const MAX_STARS_PER_LEVEL = 3;
+/** Pétales d'harmonie par énigme (voir `PETALS`). */
+export const MAX_HARMONY_PER_LEVEL = 3;
 
 /** Bornes d'une énigme, appliquées à l'identique par l'éditeur et par l'API. */
 export const LEVEL_LIMITS = {

@@ -3,10 +3,11 @@
 import { ShareButton } from "@/components/daily/ShareButton";
 import { ButtonLink } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
-import { Stars } from "@/components/ui/Stars";
+import { Harmony } from "@/components/ui/Harmony";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { formatCountdown, useCountdownToMidnight } from "@/hooks/useCountdownToMidnight";
 import { formatDuration, plural } from "@/lib/format";
+import { useSettings } from "@/lib/settings";
 import { countLabel, KIND_COPY } from "@/lib/kinds";
 import { useDaily } from "@/lib/queries";
 import styles from "./quotidien.module.css";
@@ -14,6 +15,7 @@ import styles from "./quotidien.module.css";
 export function DailyView() {
     const daily = useDaily();
     const remaining = useCountdownToMidnight(daily.data?.timeZone);
+    const { settings } = useSettings();
 
     if (daily.error) return <ErrorState error={daily.error} onRetry={() => void daily.refetch()} />;
     if (!daily.data) return <Loading />;
@@ -47,10 +49,8 @@ export function DailyView() {
 
             {result ? (
                 <section className={styles.result} aria-label="Ton résultat du jour">
-                    <Stars count={result.stars} size="lg" />
-                    <p>
-                        {formatDuration(result.durationMs)} · {plural(result.mistakes, "erreur")} · {plural(result.hintsUsed, "indice")}
-                    </p>
+                    <Harmony petals={result.petals} size="lg" />
+                    {settings.showTimer && <p>{formatDuration(result.durationMs)}</p>}
                     {share && <pre className={styles.share}>{share}</pre>}
                     <div className="row" style={{ justifyContent: "center" }}>
                         {share && <ShareButton text={share} variant="primary" />}
@@ -64,10 +64,10 @@ export function DailyView() {
                     <p>
                         {streak.current > 0
                             ? `Résous-la aujourd'hui pour porter ta série à ${plural(streak.current + 1, "jour")}.`
-                            : "Une énigme par jour, la même pour tout le monde. Seule ta première victoire compte."}
+                            : "Une énigme par jour, la même pour tout le monde. Prends le temps qu'il te faut."}
                     </p>
                     <ButtonLink href={`/niveaux/${level.id}`} variant="primary">
-                        Relever le défi
+                        Découvrir l&apos;énigme
                     </ButtonLink>
                 </section>
             )}

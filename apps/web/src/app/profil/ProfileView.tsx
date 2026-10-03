@@ -6,16 +6,18 @@ import { changePasswordSchema, displayNameSchema } from "@aether/shared";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Panel } from "@/components/ui/Panel";
-import { Stars } from "@/components/ui/Stars";
+import { Harmony } from "@/components/ui/Harmony";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { formatDuration, pad2 } from "@/lib/format";
 import { ApiError } from "@/lib/api";
+import { useSettings } from "@/lib/settings";
 import { useChangePassword, useLogout, useMe, useResendVerification, useStats, useUpdateDisplayName } from "@/lib/queries";
 import styles from "./profil.module.css";
 
 export function ProfileView() {
     const { data: me } = useMe();
     const stats = useStats();
+    const { settings } = useSettings();
 
     return (
         <div className="stack">
@@ -27,15 +29,15 @@ export function ProfileView() {
             ) : (
                 <Panel>
                     <div className="tag">Carnet de route</div>
-                    <h2>Statistiques</h2>
+                    <h2>Ton chemin</h2>
+                    <p className="muted">Ici, on ne se compare qu&apos;à soi-même.</p>
 
                     <dl className={styles.totals}>
-                        <Total label="Étoiles" value={stats.data.totals.totalStars} />
+                        <Total label="Pétales d'harmonie" value={stats.data.totals.harmony} />
                         <Total label="Énigmes résolues" value={stats.data.levels.filter((level) => level.completions > 0).length} />
                         <Total label="Parties" value={stats.data.totals.sessions} />
-                        <Total label="Erreurs" value={stats.data.totals.mistakes} />
-                        <Total label="Indices" value={stats.data.totals.hintsUsed} />
-                        <Total label="Temps de jeu" value={formatDuration(stats.data.totals.playTimeMs)} />
+                        <Total label="Indices écoutés" value={stats.data.totals.hintsUsed} />
+                        <Total label="Temps passé à jouer" value={formatDuration(stats.data.totals.playTimeMs)} />
                     </dl>
 
                     <div className={styles.scroll}>
@@ -44,11 +46,10 @@ export function ProfileView() {
                                 <tr>
                                     <th scope="col">Monde</th>
                                     <th scope="col">Énigme</th>
-                                    <th scope="col">Meilleur</th>
-                                    <th scope="col">Temps</th>
+                                    <th scope="col">Harmonie</th>
+                                    {settings.showTimer && <th scope="col">Meilleur temps</th>}
                                     <th scope="col">Résolue</th>
                                     <th scope="col">Parties</th>
-                                    <th scope="col">Erreurs</th>
                                     <th scope="col">Indices</th>
                                 </tr>
                             </thead>
@@ -59,11 +60,10 @@ export function ProfileView() {
                                         <td>
                                             <span className={styles.position}>{pad2(level.position)}</span> {level.title}
                                         </td>
-                                        <td>{level.bestStars === null ? "—" : <Stars count={level.bestStars} size="sm" />}</td>
-                                        <td>{level.bestTimeMs === null ? "—" : formatDuration(level.bestTimeMs)}</td>
+                                        <td>{level.petals === 0 ? "—" : <Harmony petals={level.petals} size="sm" />}</td>
+                                        {settings.showTimer && <td>{level.bestTimeMs === null ? "—" : formatDuration(level.bestTimeMs)}</td>}
                                         <td>{level.completions}×</td>
                                         <td>{level.sessions}</td>
-                                        <td>{level.mistakes}</td>
                                         <td>{level.hintsUsed}</td>
                                     </tr>
                                 ))}
@@ -92,7 +92,7 @@ function GuestCard() {
             <h2>Ta progression t&apos;attend</h2>
             <p>
                 Tu joues sans compte : ta progression est sauvegardée sur ce navigateur. Crée un compte pour la
-                retrouver partout et apparaître au classement.
+                retrouver sur tous tes appareils.
             </p>
             <div className="row">
                 <ButtonLink href="/inscription?next=/profil" variant="primary">
@@ -154,7 +154,7 @@ function AccountCard() {
                     name="displayName"
                     defaultValue={me.displayName}
                     error={error}
-                    hint={saved ? "Enregistré ✓" : "Affiché au classement."}
+                    hint={saved ? "Enregistré ✓" : "Le nom que te donnera le Gardien."}
                 />
                 <Button type="submit" disabled={update.isPending}>
                     Enregistrer

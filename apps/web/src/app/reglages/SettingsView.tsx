@@ -71,6 +71,20 @@ export function SettingsView() {
                 />
             </section>
 
+            <section className={styles.section} aria-labelledby="reglages-rythme">
+                <h3 id="reglages-rythme">Rythme</h3>
+                <Toggle
+                    checked={settings.equilibre}
+                    onChange={(equilibre) => update({ equilibre })}
+                    label="Équilibre : un souffle d'aide quand une énigme résiste"
+                />
+                <Toggle
+                    checked={settings.showTimer}
+                    onChange={(showTimer) => update({ showTimer })}
+                    label="Afficher le temps (rien ne presse : il est masqué par défaut)"
+                />
+            </section>
+
             <section className={styles.section} aria-labelledby="reglages-clavier">
                 <h3 id="reglages-clavier">Jouer au clavier</h3>
                 <ul className={styles.keys}>

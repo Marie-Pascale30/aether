@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PETALS } from "./scoring";
 import { buildShareText, computeStreak, dateKey, previousDateKey } from "./daily";
 
 describe("dateKey", () => {
@@ -29,16 +30,8 @@ describe("computeStreak", () => {
 });
 
 describe("buildShareText", () => {
-    it("résume sans révéler la solution", () => {
-        const text = buildShareText({
-            date: "2026-10-02",
-            stars: 2,
-            durationMs: 42_000,
-            mistakes: 1,
-            hintsUsed: 0,
-            pattern: [false, true],
-            streak: 3,
-        });
-        expect(text).toBe("AETHER · Énigme du jour · 2 octobre\n★★☆ · 0:42 · 1 erreur · 0 indice\n🟥🟩\nSérie : 3 jours");
+    it("résume l'harmonie et la série, sans temps ni faux pas", () => {
+        const text = buildShareText({ date: "2026-10-02", petals: PETALS.SOLVED | PETALS.AUTONOMY, streak: 3 });
+        expect(text).toBe("AETHER · Énigme du jour · 2 octobre\n✿✿○ harmonie\nSérie : 3 jours");
     });
 });

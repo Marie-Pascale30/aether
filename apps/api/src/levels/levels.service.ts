@@ -105,7 +105,7 @@ export class LevelsService {
             kind: level.kind,
             groupCount: goalCount(level),
             status: journey.levelStatuses.get(level.id) ?? "locked",
-            bestStars: best?.bestStars ?? null,
+            petals: best?.petals ?? 0,
             bestTimeMs: best?.bestTimeMs ?? null,
         };
     }

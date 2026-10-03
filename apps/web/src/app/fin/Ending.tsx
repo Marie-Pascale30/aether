@@ -47,13 +47,13 @@ export function Ending() {
             <p>
                 Tu viens de terminer la première boucle d&apos;AETHER : observer, comprendre, relier, restaurer.
                 <br />
-                {progress.totalStars} étoiles sur {progress.maxStars}
-                {progress.totalStars < progress.maxStars && " — certaines énigmes peuvent encore briller davantage."}
+                {progress.harmony} pétales d&apos;harmonie sur {progress.maxHarmony}
+                {progress.harmony < progress.maxHarmony && " — d'autres t'attendent, quand tu voudras revenir les cueillir."}
             </p>
 
             {me?.isGuest && (
                 <p className={styles.invite}>
-                    Crée un compte pour inscrire ton nom au classement : ta progression est conservée.
+                    Crée un compte pour retrouver ton jardin sur tous tes appareils : ta progression est conservée.
                 </p>
             )}
 
@@ -64,7 +64,7 @@ export function Ending() {
                 {me?.isGuest ? (
                     <ButtonLink href="/inscription">Créer un compte</ButtonLink>
                 ) : (
-                    <ButtonLink href="/classement">Voir le classement</ButtonLink>
+                    <ButtonLink href="/reperes">Revoir ton chemin</ButtonLink>
                 )}
             </div>
         </Panel>

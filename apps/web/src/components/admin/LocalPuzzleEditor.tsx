@@ -30,6 +30,7 @@ interface Props {
 /** Rapport muet : l'aperçu se joue, mais n'envoie rien et ne fait aucun bruit. */
 const silentReport = (onSolved: () => void): PuzzleReport => ({
     mistake: () => {},
+    advance: () => {},
     progress: () => {},
     select: () => {},
     solved: onSolved,

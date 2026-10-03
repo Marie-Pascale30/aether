@@ -1,5 +1,5 @@
-import { MAX_STARS_PER_LEVEL } from "../constants";
-import { formatDuration } from "../format";
+import { MAX_HARMONY_PER_LEVEL } from "../constants";
+import { petalCount } from "./scoring";
 import type { StreakSummary } from "../types";
 
 /** Date du jour « AAAA-MM-JJ » dans un fuseau donné (minuit local, pas minuit UTC). */
@@ -41,24 +41,20 @@ export function computeStreak(days: readonly string[], today: string): StreakSum
 
 export interface ShareInput {
     date: string;
-    stars: number;
-    durationMs: number;
-    mistakes: number;
-    hintsUsed: number;
-    /** Coups dans l'ordre : true = juste. */
-    pattern: readonly boolean[];
+    /** Pétales cueillis (masque `PETALS`). */
+    petals: number;
     streak: number;
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
 
-/** Résumé à partager, sans rien révéler de la solution (façon Wordle). */
-export function buildShareText({ date, stars, durationMs, mistakes, hintsUsed, pattern, streak }: ShareInput): string {
+/** Résumé à partager : ni temps ni faux pas, seulement l'harmonie et la régularité. */
+export function buildShareText({ date, petals, streak }: ShareInput): string {
     const day = new Date(`${date}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "UTC" });
+    const count = petalCount(petals);
     return [
         `AETHER · Énigme du jour · ${day}`,
-        `${"★".repeat(stars)}${"☆".repeat(MAX_STARS_PER_LEVEL - stars)} · ${formatDuration(durationMs)} · ${plural(mistakes, "erreur")} · ${plural(hintsUsed, "indice")}`,
-        pattern.map((correct) => (correct ? "🟩" : "🟥")).join(""),
+        `${"✿".repeat(count)}${"○".repeat(MAX_HARMONY_PER_LEVEL - count)} harmonie`,
         `Série : ${plural(streak, "jour")}`,
     ].join("\n");
 }

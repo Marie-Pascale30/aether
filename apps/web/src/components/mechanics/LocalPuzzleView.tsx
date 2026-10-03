@@ -2,9 +2,11 @@
 
 import type { EchoesPuzzle, FlowPuzzle, GearsPuzzle, LevelDetail, LocalMechanic, MemoryPuzzle } from "@aether/shared";
 import { CompletionPanel } from "@/components/puzzle/CompletionPanel";
+import { EquilibriumNudge } from "@/components/puzzle/EquilibriumNudge";
 import puzzleStyles from "@/components/puzzle/Puzzle.module.css";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Callout, Panel } from "@/components/ui/Panel";
+import { useEquilibrium } from "@/hooks/useEquilibrium";
 import { useLocalPuzzle, type PuzzleReport } from "@/hooks/useLocalPuzzle";
 import { pad2 } from "@/lib/format";
 import { MECHANIC_COPY } from "@/lib/kinds";
@@ -31,6 +33,12 @@ function MechanicBoard({ detail, report }: { detail: LevelDetail; report: Puzzle
 export function LocalPuzzleView({ detail }: { detail: LevelDetail }) {
     const puzzle = useLocalPuzzle(detail);
     const copy = MECHANIC_COPY[detail.mechanic as LocalMechanic];
+    const equilibrium = useEquilibrium({
+        active: !puzzle.completion && !puzzle.submitting,
+        progress: puzzle.advances,
+        mistakes: puzzle.mistakes,
+    });
+    const pauseHref = detail.isDaily ? "/quotidien" : `/mondes/${detail.world.slug}`;
 
     return (
         <>
@@ -72,11 +80,24 @@ export function LocalPuzzleView({ detail }: { detail: LevelDetail }) {
                     {puzzle.submitting ? "Le monde s'éclaire…" : (puzzle.status?.text ?? "")}
                 </div>
 
+                {equilibrium.nudge && (
+                    <EquilibriumNudge
+                        reason={equilibrium.nudge}
+                        hintsRemaining={puzzle.hintsRemaining}
+                        onHint={() => {
+                            equilibrium.accept();
+                            puzzle.revealHint();
+                        }}
+                        onDismiss={equilibrium.dismiss}
+                        pauseHref={pauseHref}
+                    />
+                )}
+
                 <div className={puzzleStyles.actions}>
                     <Button variant="ghost" onClick={puzzle.restart}>
                         ↺ Recommencer
                     </Button>
-                    <ButtonLink href={detail.isDaily ? "/quotidien" : `/mondes/${detail.world.slug}`} variant="ghost">
+                    <ButtonLink href={pauseHref} variant="ghost">
                         {detail.isDaily ? "Énigme du jour" : detail.world.title}
                     </ButtonLink>
                 </div>

@@ -3,30 +3,22 @@ import { GARDEN_STAGE_COUNT } from "../constants";
 import { attemptSchema, levelInputSchema } from "../schemas";
 import { gardenStage } from "./garden";
 import { findGroupIndex, matchesGroup, validateLevelDefinition } from "./levels";
-import { computeStars, isBetterResult } from "./scoring";
+import { evaluateMilestones, MILESTONES } from "./milestones";
+import { ALL_PETALS, petalCount, petalsFor, PETALS } from "./scoring";
 import { computeJourney, computeLevelStatuses } from "./unlock";
 
-describe("computeStars", () => {
-    it("donne 3 étoiles à une résolution parfaite", () => {
-        expect(computeStars({ mistakes: 0, hintsUsed: 0 })).toBe(3);
+describe("harmonie", () => {
+    it("cueille un pétale par façon de jouer, sans rien retirer", () => {
+        expect(petalsFor({ mistakes: 0, hintsUsed: 0 })).toBe(ALL_PETALS);
+        expect(petalsFor({ mistakes: 4, hintsUsed: 0 })).toBe(PETALS.SOLVED | PETALS.AUTONOMY);
+        expect(petalsFor({ mistakes: 0, hintsUsed: 2 })).toBe(PETALS.SOLVED | PETALS.CLARITY);
+        expect(petalsFor({ mistakes: 9, hintsUsed: 3 })).toBe(PETALS.SOLVED);
     });
-    it("donne 2 étoiles avec peu d'erreurs ou un indice", () => {
-        expect(computeStars({ mistakes: 2, hintsUsed: 0 })).toBe(2);
-        expect(computeStars({ mistakes: 0, hintsUsed: 1 })).toBe(2);
-    });
-    it("donne 1 étoile au-delà", () => {
-        expect(computeStars({ mistakes: 3, hintsUsed: 0 })).toBe(1);
-        expect(computeStars({ mistakes: 0, hintsUsed: 2 })).toBe(1);
-    });
-});
-
-describe("isBetterResult", () => {
-    it("préfère plus d'étoiles, puis le temps le plus court", () => {
-        expect(isBetterResult({ stars: 2, durationMs: 9000 }, null)).toBe(true);
-        expect(isBetterResult({ stars: 3, durationMs: 9000 }, { stars: 2, durationMs: 1000 })).toBe(true);
-        expect(isBetterResult({ stars: 2, durationMs: 900 }, { stars: 2, durationMs: 1000 })).toBe(true);
-        expect(isBetterResult({ stars: 2, durationMs: 1000 }, { stars: 2, durationMs: 1000 })).toBe(false);
-        expect(isBetterResult({ stars: 1, durationMs: 10 }, { stars: 2, durationMs: 1000 })).toBe(false);
+    it("additionne les pétales de parties différentes", () => {
+        const first = petalsFor({ mistakes: 3, hintsUsed: 0 });
+        const second = petalsFor({ mistakes: 0, hintsUsed: 1 });
+        expect(petalCount(first)).toBe(2);
+        expect(petalCount(first | second)).toBe(3);
     });
 });
 
@@ -131,5 +123,31 @@ describe("computeJourney", () => {
     it("ne saute pas un monde scellé, même avec des énigmes résolues plus loin", () => {
         const big = [{ id: "w1", levelIds: ["a", "b", "c"] }, { id: "w2", levelIds: ["d", "e", "f"] }, { id: "w3", levelIds: ["g"] }];
         expect(computeJourney(big, new Set(["d", "e", "f"])).worlds.get("w3")).toBe("locked");
+    });
+});
+
+describe("repères", () => {
+    const none = {
+        solvedLevels: 0,
+        restoredWorlds: 0,
+        mechanicsExplored: 0,
+        autonomousLevels: 0,
+        clearLevels: 0,
+        fullHarmonyLevels: 0,
+        dailyDays: 0,
+        bestStreak: 0,
+        playDays: 0,
+    };
+    it("ont des clés uniques et des cibles positives", () => {
+        expect(new Set(MILESTONES.map((m) => m.key)).size).toBe(MILESTONES.length);
+        MILESTONES.forEach((m) => expect(m.target).toBeGreaterThan(0));
+    });
+    it("plafonnent l'avancée à la cible", () => {
+        const progress = evaluateMilestones({ ...none, solvedLevels: 12 });
+        const ten = progress.find((p) => p.definition.key === "dix-enigmes")!;
+        const thirty = progress.find((p) => p.definition.key === "trente-enigmes")!;
+        expect(ten).toMatchObject({ current: 10, reached: true });
+        expect(thirty).toMatchObject({ current: 12, reached: false });
+        expect(evaluateMilestones(none).every((p) => !p.reached)).toBe(true);
     });
 });

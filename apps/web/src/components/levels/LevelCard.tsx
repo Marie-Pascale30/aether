@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { LevelSummary } from "@aether/shared";
-import { Stars } from "@/components/ui/Stars";
-import { formatDuration, pad2 } from "@/lib/format";
+import { Harmony } from "@/components/ui/Harmony";
+import { pad2 } from "@/lib/format";
 import { goalLabel, levelLabel } from "@/lib/kinds";
 import styles from "./levels.module.css";
 
@@ -18,10 +18,7 @@ export function LevelCard({ level }: { level: LevelSummary }) {
                 {level.status === "locked" && "Scellée"}
                 {level.status === "available" && goalLabel(level.mechanic, level.kind, level.groupCount)}
                 {level.status === "completed" && (
-                    <>
-                        <Stars count={level.bestStars} size="sm" />
-                        {level.bestTimeMs !== null && <span>{formatDuration(level.bestTimeMs)}</span>}
-                    </>
+                    <Harmony petals={level.petals} size="sm" />
                 )}
             </span>
         </>

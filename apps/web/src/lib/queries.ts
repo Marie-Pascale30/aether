@@ -12,7 +12,7 @@ export const keys = {
     level: (id: string) => ["levels", id] as const,
     progress: ["me", "progress"] as const,
     stats: ["me", "stats"] as const,
-    leaderboard: ["leaderboard"] as const,
+    milestones: ["me", "milestones"] as const,
     daily: ["daily"] as const,
     adminLevels: ["admin", "levels"] as const,
     adminLevel: (id: string) => ["admin", "levels", id] as const,
@@ -69,7 +69,6 @@ export function useUpdateDisplayName() {
         mutationFn: (displayName: string) => api.auth.updateMe(displayName),
         onSuccess: (me) => {
             qc.setQueryData(keys.me, me);
-            void qc.invalidateQueries({ queryKey: keys.leaderboard });
         },
     });
 }
@@ -134,8 +133,8 @@ export function useDaily() {
     return useQuery({ queryKey: keys.daily, queryFn: api.daily });
 }
 
-export function useLeaderboard(limit = 20) {
-    return useQuery({ queryKey: [...keys.leaderboard, limit], queryFn: () => api.leaderboard(limit) });
+export function useMilestones() {
+    return useQuery({ queryKey: keys.milestones, queryFn: api.me.milestones });
 }
 
 /** À appeler quand une énigme est résolue : tout ce qui dépend de la progression est périmé. */
@@ -143,7 +142,7 @@ export function useInvalidateProgress() {
     const qc = useQueryClient();
     return () =>
         Promise.all(
-            [keys.worlds, keys.progress, keys.stats, keys.leaderboard, keys.daily].map((queryKey) =>
+            [keys.worlds, keys.progress, keys.stats, keys.milestones, keys.daily].map((queryKey) =>
                 qc.invalidateQueries({ queryKey }),
             ),
         );
