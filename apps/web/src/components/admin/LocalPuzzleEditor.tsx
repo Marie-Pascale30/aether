@@ -31,6 +31,8 @@ interface Props {
 const silentReport = (onSolved: () => void): PuzzleReport => ({
     mistake: () => {},
     advance: () => {},
+    note: () => {},
+    attempt: () => {},
     progress: () => {},
     select: () => {},
     solved: onSolved,

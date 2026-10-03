@@ -5,12 +5,13 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { Loading } from "@/components/ui/States";
 import { useGrowingStage } from "@/hooks/useGrowingStage";
-import { useMe, useProgress } from "@/lib/queries";
+import { usePlayer } from "@/lib/offline/player";
+import { useMe } from "@/lib/queries";
 import styles from "./fin.module.css";
 
 export function Ending() {
     const { data: me } = useMe();
-    const { data: progress } = useProgress();
+    const progress = usePlayer().data?.journey.summary;
     // Le jardin du dernier monde, celui qui vient de s'épanouir.
     const lastWorld = progress?.worlds.at(-1);
     const garden = useGrowingStage(lastWorld?.garden.stage, lastWorld?.slug ?? "fin");

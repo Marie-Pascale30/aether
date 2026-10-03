@@ -149,16 +149,16 @@ model LevelProgress {
   @@index([levelId])
 }
 
-/// Une tentative de résolution d'une énigme, validée coup par coup par le serveur.
+/// Une partie résolue, jouée sur l'appareil (éventuellement hors ligne) puis envoyée.
 model PlaySession {
-  id          String    @id @default(cuid())
-  userId      String
-  levelId     String
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
-  /// Indices (dans `Level.groups`) des groupes déjà trouvés.
-  foundGroups Int[]
-  mistakes    Int       @default(0)
+  id             String    @id @default(cuid())
+  userId         String
+  levelId        String
+  /// Identifiant choisi par l'appareil : un renvoi du même résultat n'est compté qu'une fois.
+  clientResultId String?   @unique
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  mistakes       Int       @default(0)
   hintsUsed   Int       @default(0)
   /// Pétales cueillis par cette partie, une fois terminée.
   petals      Int?
@@ -171,7 +171,7 @@ model PlaySession {
   @@index([userId, levelId, completedAt])
 }
 
-/// Chaque coup joué, juste ou faux : sert aux statistiques de conception des énigmes
+/// Chaque coup joué sur une énigme de Liens, juste ou faux : sert aux statistiques de conception
 /// (taux de réussite, fausses pistes les plus fréquentes).
 model Attempt {
   id        String   @id @default(cuid())
@@ -190,6 +190,7 @@ model Attempt {
 }
 
 /// Énigme tirée pour un jour donné (fuseau DAILY_TIMEZONE), identique pour tous les joueurs.
+/// Les jours suivants sont tirés d'avance, pour être jouables hors ligne.
 model DailyChallenge {
   date      DateTime @id @db.Date
   levelId   String

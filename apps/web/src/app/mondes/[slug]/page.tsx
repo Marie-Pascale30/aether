@@ -1,14 +1,7 @@
-import type { Metadata } from "next";
-import { RequirePlayer } from "@/components/shell/RequirePlayer";
-import { WorldView } from "./WorldView";
+import { permanentRedirect } from "next/navigation";
+import { worldHref } from "@/lib/routes";
 
-export const metadata: Metadata = { title: "Monde" };
-
-export default async function WorldPage({ params }: { params: Promise<{ slug: string }> }) {
-    const { slug } = await params;
-    return (
-        <RequirePlayer>
-            <WorldView key={slug} slug={slug} />
-        </RequirePlayer>
-    );
+/** Ancienne adresse d'un monde. */
+export default async function LegacyWorldPage({ params }: { params: Promise<{ slug: string }> }) {
+    permanentRedirect(worldHref((await params).slug));
 }

@@ -31,7 +31,6 @@ const envSchema = z
         /** Un invité inactif depuis ce nombre de jours est supprimé avec sa progression. */
         GUEST_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
         /** Une partie non terminée depuis ce nombre de jours est supprimée. */
-        OPEN_SESSION_RETENTION_DAYS: z.coerce.number().int().positive().default(7),
     })
     .superRefine((env, ctx) => {
         if (env.NODE_ENV !== "production") return;

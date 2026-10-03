@@ -6,39 +6,39 @@ import { Garden } from "@/components/garden/Garden";
 import { ProgressBar } from "@/components/levels/LevelCard";
 import { Panel } from "@/components/ui/Panel";
 import { ErrorState, Loading } from "@/components/ui/States";
-import { useProgress, useWorlds } from "@/lib/queries";
+import { usePlayer } from "@/lib/offline/player";
 import styles from "./mondes.module.css";
+import { worldHref } from "@/lib/routes";
 
 export function WorldsView() {
-    const worlds = useWorlds();
-    const { data: progress } = useProgress();
+    const player = usePlayer();
 
-    if (worlds.error) return <ErrorState error={worlds.error} onRetry={() => void worlds.refetch()} />;
-    if (!worlds.data) return <Loading />;
+    if (player.error) return <ErrorState error={player.error} onRetry={player.retry} />;
+    if (!player.data) return <Loading />;
+    const progress = player.data.journey.summary;
+    const worlds = player.data.journey.worlds;
 
     return (
         <div className="stack">
             <Panel>
                 <div className="tag">Le monde d&apos;AETHER</div>
                 <h2>Les mondes</h2>
-                <p>Chaque monde a son jardin et sa manière de relier les choses. Restaure-le entièrement pour ouvrir le suivant.</p>
-                {progress && (
-                    <div className={styles.total}>
-                        <ProgressBar value={progress.completedLevels} max={progress.totalLevels} label="Énigmes restaurées" />
-                        <span>
-                            {progress.completedLevels} / {progress.totalLevels} énigmes · {progress.harmony} / {progress.maxHarmony} ✿
-                        </span>
-                    </div>
-                )}
+                <p>Chaque monde a son jardin et sa manière de relier les choses. Trois énigmes résolues suffisent à ouvrir le suivant.</p>
+                <div className={styles.total}>
+                    <ProgressBar value={progress.completedLevels} max={progress.totalLevels} label="Énigmes restaurées" />
+                    <span>
+                        {progress.completedLevels} / {progress.totalLevels} énigmes · {progress.harmony} / {progress.maxHarmony} ✿
+                    </span>
+                </div>
             </Panel>
 
-            {worlds.data.length === 0 ? (
+            {worlds.length === 0 ? (
                 <Panel>
                     <p>Aucun monde n&apos;est encore ouvert.</p>
                 </Panel>
             ) : (
                 <ol className={styles.list}>
-                    {worlds.data.map((world) => (
+                    {worlds.map((world) => (
                         <li key={world.id}>
                             <WorldCard world={world} />
                         </li>
@@ -76,12 +76,12 @@ function WorldCard({ world }: { world: WorldSummary }) {
         return (
             <div className={styles.card} data-status="locked">
                 {content}
-                <span className={styles.sealed}>Restaure le monde précédent pour l&apos;ouvrir.</span>
+                <span className={styles.sealed}>Résous trois énigmes du monde précédent pour l&apos;ouvrir.</span>
             </div>
         );
     }
     return (
-        <Link href={`/mondes/${world.slug}`} className={styles.card} data-status={world.status}>
+        <Link href={worldHref(world.slug)} className={styles.card} data-status={world.status}>
             {content}
         </Link>
     );

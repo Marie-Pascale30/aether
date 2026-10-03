@@ -23,6 +23,7 @@ import { ApiError, type ApiIssue } from "@/lib/api";
 import { KIND_COPY, MECHANIC_COPY } from "@/lib/kinds";
 import { useAdminWorlds, useCreateLevel, useUpdateLevel } from "@/lib/queries";
 import styles from "./LevelEditor.module.css";
+import { levelHref } from "@/lib/routes";
 
 const GROUP_COLORS = ["#d9bd72", "#8ce5dc", "#75b78a", "#e59ab5", "#b49cf0", "#f0a860", "#9fd3f0", "#e6e38a"];
 const KINDS: LevelKind[] = ["PAIRS", "GROUPS", "SEQUENCE"];
@@ -226,7 +227,7 @@ export function LevelEditor({ level, initialWorldId }: Props) {
                             ← Toutes les énigmes
                         </ButtonLink>
                         {level && (
-                            <ButtonLink href={`/niveaux/${level.id}`} variant="ghost">
+                            <ButtonLink href={levelHref(level.id)} variant="ghost">
                                 Tester
                             </ButtonLink>
                         )}

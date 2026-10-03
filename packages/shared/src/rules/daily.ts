@@ -1,6 +1,6 @@
 import { MAX_HARMONY_PER_LEVEL } from "../constants";
 import { petalCount } from "./scoring";
-import type { StreakSummary } from "../types";
+import type { DailyOutcome, StreakSummary } from "../types";
 
 /** Date du jour « AAAA-MM-JJ » dans un fuseau donné (minuit local, pas minuit UTC). */
 export function dateKey(date: Date, timeZone: string): string {
@@ -57,4 +57,14 @@ export function buildShareText({ date, petals, streak }: ShareInput): string {
         `${"✿".repeat(count)}${"○".repeat(MAX_HARMONY_PER_LEVEL - count)} harmonie`,
         `Série : ${plural(streak, "jour")}`,
     ].join("\n");
+}
+
+/**
+ * Effet d'une victoire sur l'énigme du jour `date` : seule la première victoire de ce jour compte
+ * pour la série et le partage. `results` : pétales des jours déjà réussis.
+ */
+export function dailyOutcome(results: ReadonlyMap<string, number>, date: string, today: string, petals: number): DailyOutcome {
+    const firstToday = !results.has(date);
+    const streak = computeStreak([...new Set([...results.keys(), date])], today);
+    return { date, firstToday, streak, share: buildShareText({ date, petals: results.get(date) ?? petals, streak: streak.current }) };
 }

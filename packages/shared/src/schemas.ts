@@ -53,22 +53,6 @@ export const changePasswordSchema = z
         message: "Le nouveau mot de passe doit différer de l'actuel.",
     });
 
-// ─── Partie ─────────────────────────────────────────────────────────────────
-
-export const startSessionSchema = z.object({
-    /** Abandonne la partie en cours sur ce niveau et en démarre une neuve. */
-    restart: z.boolean().optional(),
-});
-
-/** Cases choisies pour former un lien, dans l'ordre de sélection (significatif pour une suite). */
-export const attemptSchema = z.object({
-    cells: z
-        .array(z.number().int().min(0))
-        .min(GROUP_SIZE.PAIRS.min)
-        .max(GROUP_SIZE.SEQUENCE.max)
-        .refine((cells) => new Set(cells).size === cells.length, "Choisis des éléments différents."),
-});
-
 // ─── Éditeur de niveaux ─────────────────────────────────────────────────────
 
 const groupSchema = z.array(z.number().int().min(0)).min(GROUP_SIZE.PAIRS.min).max(GROUP_SIZE.SEQUENCE.max);
@@ -118,12 +102,28 @@ export const levelInputSchema = z
         for (const found of validatePuzzle(mechanic, shape.data as never)) issue(["puzzle", ...found.path], found.message);
     });
 
-/** Résultat d'une énigme jouée sur l'appareil (Mémoires, Rouages, Flux, Échos). */
+/**
+ * Résultat d'une énigme jouée sur l'appareil, éventuellement hors ligne et envoyé plus tard.
+ * `resultId` (choisi par l'appareil) rend l'envoi idempotent : un renvoi n'est compté qu'une fois.
+ */
 export const levelResultSchema = z.object({
+    resultId: z.uuid(),
+    /** Moment de la victoire (l'envoi peut avoir lieu bien après). */
+    playedAt: z.iso.datetime(),
     /** Durée réelle de la partie ; plafonnée à 6 h. */
     durationMs: z.number().int().min(0).max(6 * 60 * 60 * 1000),
     mistakes: z.number().int().min(0).max(999),
     hintsUsed: z.number().int().min(0).max(L.hintsMax),
+    /** Liens : coups joués dans l'ordre, pour les statistiques de conception. */
+    attempts: z
+        .array(
+            z.object({
+                cells: z.array(z.number().int().min(0)).min(1).max(GROUP_SIZE.SEQUENCE.max),
+                correct: z.boolean(),
+            }),
+        )
+        .max(500)
+        .default([]),
 });
 
 /** Nouvel ordre des énigmes d'un monde : `ids` liste exactement toutes ses énigmes. */
@@ -170,8 +170,6 @@ export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
-export type StartSessionInput = z.infer<typeof startSessionSchema>;
-export type AttemptInput = z.infer<typeof attemptSchema>;
 export type LevelInput = z.infer<typeof levelInputSchema>;
 export type LevelResultInput = z.infer<typeof levelResultSchema>;
 export type ReorderLevelsInput = z.infer<typeof reorderLevelsSchema>;

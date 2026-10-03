@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { MAX_HARMONY_PER_LEVEL, petalCount, type LevelStats, type PlayerStats, type ProgressSummary } from "@aether/shared";
+import { MAX_HARMONY_PER_LEVEL, petalCount, type SyncState, type LevelStats, type PlayerStats, type ProgressSummary } from "@aether/shared";
+import { DailyService } from "../levels/daily.service";
 import { JourneyService, type Journey } from "../levels/journey.service";
 import { toWorldRef } from "../levels/level.mapper";
 import { PrismaService } from "../prisma/prisma.service";
@@ -9,7 +10,20 @@ export class ProgressService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly journeys: JourneyService,
+        private readonly daily: DailyService,
     ) {}
+
+    /** Progression brute : l'appareil en déduit le parcours à partir du contenu embarqué. */
+    async sync(userId: string): Promise<SyncState> {
+        const [levels, daily] = await Promise.all([
+            this.prisma.levelProgress.findMany({ where: { userId }, select: { levelId: true, petals: true, bestTimeMs: true } }),
+            this.daily.results(userId),
+        ]);
+        return {
+            levels: Object.fromEntries(levels.map((row) => [row.levelId, { petals: row.petals, bestTimeMs: row.bestTimeMs }])),
+            daily,
+        };
+    }
 
     async summary(userId: string, journey?: Journey): Promise<ProgressSummary> {
         const j = journey ?? (await this.journeys.load(userId));

@@ -1,33 +1,28 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import type { Level, PlaySession } from "@prisma/client";
-import {
-    findGroupIndex,
-    groupsAt,
-    groupSizeOf,
-    isOrdered,
-    petalsFor,
-    type AttemptInput,
-    type AttemptResult,
-    type CompletionResult,
-    type HintResult,
-    type LevelResultInput,
-    type SessionState,
-} from "@aether/shared";
+import { ConflictException, Injectable } from "@nestjs/common";
+import { Prisma, type PlaySession } from "@prisma/client";
+import { petalsFor, type CompletionResult, type LevelResultInput } from "@aether/shared";
 import type { AuthUser } from "../common/auth.decorators";
 import { DailyService } from "../levels/daily.service";
 import { JourneyService } from "../levels/journey.service";
-import { parseGroups, toWorldRef } from "../levels/level.mapper";
-import { LevelsService } from "../levels/levels.service";
+import { toWorldRef } from "../levels/level.mapper";
+import { LevelsService, type Playable } from "../levels/levels.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { MilestonesService } from "../progress/milestones.service";
 
-type SessionWithLevel = PlaySession & { level: Level };
+/** Une victoire datée de plus de 5 min dans le futur vient d'une horloge déréglée : on la ramène à maintenant. */
+const CLOCK_SKEW_MS = 5 * 60 * 1000;
 
-const CONCURRENT_UPDATE = "La partie a changé entre-temps : recharge l'énigme.";
+interface Recorded {
+    session: PlaySession;
+    levelPetals: number;
+    newPetals: number;
+    bestTimeMs: number;
+}
 
 /**
- * Boucle de jeu autoritaire : le client ne connaît jamais les réponses, il soumet des groupes
- * de cases et le serveur tient le compte des liens trouvés, des fausses pistes, des indices et du temps.
+ * Toutes les énigmes se jouent sur l'appareil, éventuellement hors ligne ; l'appareil envoie
+ * ensuite le résultat, que le serveur enregistre (progression, série du jour, repères,
+ * statistiques de conception). Sans classement, il n'y a rien à arbitrer coup par coup.
  */
 @Injectable()
 export class PlayService {
@@ -39,152 +34,94 @@ export class PlayService {
         private readonly milestones: MilestonesService,
     ) {}
 
-    /** Reprend la partie en cours sur ce niveau, ou en ouvre une (toujours une neuve si `restart`). */
-    async start(user: AuthUser, levelId: string, restart = false): Promise<SessionState> {
-        const { level } = await this.levels.playable(user, levelId);
-
-        if (restart) {
-            await this.prisma.playSession.deleteMany({ where: { userId: user.id, levelId, completedAt: null } });
-        } else {
-            const open = await this.prisma.playSession.findFirst({
-                where: { userId: user.id, levelId, completedAt: null },
-                orderBy: { startedAt: "desc" },
-            });
-            if (open) return toSessionState(open, level);
-        }
-
-        const session = await this.prisma.playSession.create({ data: { userId: user.id, levelId, foundGroups: [] } });
-        return toSessionState(session, level);
-    }
-
-    async attempt(user: AuthUser, sessionId: string, { cells }: AttemptInput): Promise<AttemptResult> {
-        const session = await this.openSession(user, sessionId);
-        const groups = parseGroups(session.level.groups);
-        const size = groupSizeOf({ groups });
-
-        if (cells.length !== size) throw new BadRequestException(`Choisis exactement ${size} éléments.`);
-        if (cells.some((cell) => cell >= session.level.symbols.length)) throw new BadRequestException("Cette case n'existe pas.");
-        const linked = groupsAt(groups, session.foundGroups).flat();
-        if (cells.some((cell) => linked.includes(cell))) throw new BadRequestException("Cette case est déjà reliée.");
-
-        const groupIndex = findGroupIndex(groups, session.foundGroups, cells, isOrdered(session.level.kind));
-        await this.prisma.attempt.create({
-            data: { sessionId: session.id, levelId: session.levelId, cells, correct: groupIndex !== -1 },
-        });
-
-        if (groupIndex === -1) {
-            const updated = await this.prisma.playSession.update({
-                where: { id: session.id },
-                data: { mistakes: { increment: 1 } },
-            });
-            return {
-                result: "mismatch",
-                cells,
-                foundGroups: groupsAt(groups, session.foundGroups),
-                remaining: groups.length - session.foundGroups.length,
-                mistakes: updated.mistakes,
-                completion: null,
-            };
-        }
-
-        const found = [...session.foundGroups, groupIndex];
-        const completion = found.length === groups.length ? await this.complete(user, session, found) : null;
-
-        if (!completion) {
-            // Condition sur l'état lu : deux requêtes simultanées ne peuvent pas valider le même groupe.
-            const { count } = await this.prisma.playSession.updateMany({
-                where: { id: session.id, completedAt: null, NOT: { foundGroups: { has: groupIndex } } },
-                data: { foundGroups: { push: groupIndex } },
-            });
-            if (count === 0) throw new ConflictException(CONCURRENT_UPDATE);
-        }
-
-        return {
-            result: "match",
-            cells,
-            foundGroups: groupsAt(groups, found),
-            remaining: groups.length - found.length,
-            mistakes: session.mistakes,
-            completion,
-        };
-    }
-
-    /**
-     * Résultat d'une énigme jouée sur l'appareil (Mémoires, Rouages, Flux, Échos). Le serveur ne
-     * rejoue pas la partie (c'est le prix du hors ligne) : il l'enregistre comme une partie terminée,
-     * ce qui alimente progression, records, série du jour et statistiques par le même chemin.
-     */
     async submitResult(user: AuthUser, levelId: string, input: LevelResultInput): Promise<CompletionResult> {
-        const { level } = await this.levels.playable(user, levelId);
-        if (level.mechanic === "LINKS") {
-            throw new BadRequestException("Les Liens se jouent coup par coup : ouvre une partie sur cette énigme.");
+        const playedAt = new Date(Math.min(Date.parse(input.playedAt), Date.now() + CLOCK_SKEW_MS));
+        const playable = await this.levels.playable(user, levelId, playedAt);
+        const recorded = (await this.findDuplicate(user, levelId, input.resultId)) ?? (await this.record(user, playable, input, playedAt));
+        return this.describe(user, playable, recorded);
+    }
+
+    /** Résultat déjà reçu (renvoi après une coupure réseau) : décrit à nouveau, sans rien compter. */
+    private async findDuplicate(user: AuthUser, levelId: string, resultId: string): Promise<Recorded | null> {
+        const session = await this.prisma.playSession.findUnique({ where: { clientResultId: resultId } });
+        if (!session) return null;
+        if (session.userId !== user.id || session.levelId !== levelId) throw new ConflictException("Ce résultat a déjà été envoyé pour une autre partie.");
+        const progress = await this.prisma.levelProgress.findUnique({ where: { userId_levelId: { userId: user.id, levelId } } });
+        return { session, levelPetals: progress?.petals ?? session.petals ?? 0, newPetals: 0, bestTimeMs: progress?.bestTimeMs ?? session.durationMs ?? 0 };
+    }
+
+    private async record(user: AuthUser, { level }: Playable, input: LevelResultInput, playedAt: Date): Promise<Recorded> {
+        const hintsUsed = Math.min(input.hintsUsed, level.hints.length);
+        const petals = petalsFor({ mistakes: input.mistakes, hintsUsed });
+        const durationMs = input.durationMs;
+
+        try {
+            return await this.prisma.$transaction(async (tx) => {
+                const session = await tx.playSession.create({
+                    data: {
+                        userId: user.id,
+                        levelId: level.id,
+                        clientResultId: input.resultId,
+                        startedAt: new Date(playedAt.getTime() - durationMs),
+                        completedAt: playedAt,
+                        mistakes: input.mistakes,
+                        hintsUsed,
+                        petals,
+                        durationMs,
+                    },
+                });
+                // Coups des Liens : alimentent les fausses pistes des statistiques de conception.
+                if (level.mechanic === "LINKS" && input.attempts.length > 0) {
+                    await tx.attempt.createMany({
+                        data: input.attempts.map((attempt) => ({ sessionId: session.id, levelId: level.id, cells: attempt.cells, correct: attempt.correct })),
+                    });
+                }
+
+                const key = { userId_levelId: { userId: user.id, levelId: level.id } };
+                const previous = await tx.levelProgress.findUnique({ where: key });
+                // Les pétales s'additionnent : une partie moins harmonieuse ne retire jamais rien.
+                const levelPetals = (previous?.petals ?? 0) | petals;
+                const progress = await tx.levelProgress.upsert({
+                    where: key,
+                    create: { userId: user.id, levelId: level.id, petals, bestTimeMs: durationMs, firstCompletedAt: playedAt },
+                    update: {
+                        completions: { increment: 1 },
+                        petals: levelPetals,
+                        bestTimeMs: Math.min(previous?.bestTimeMs ?? durationMs, durationMs),
+                    },
+                });
+                return { session, levelPetals, newPetals: levelPetals & ~(previous?.petals ?? 0), bestTimeMs: progress.bestTimeMs };
+            });
+        } catch (error) {
+            // Deux envois simultanés du même résultat : le second décrit celui du premier.
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+                const duplicate = await this.findDuplicate(user, level.id, input.resultId);
+                if (duplicate) return duplicate;
+            }
+            throw error;
         }
-        const session = await this.prisma.playSession.create({
-            data: {
-                userId: user.id,
-                levelId,
-                foundGroups: [],
-                mistakes: input.mistakes,
-                hintsUsed: Math.min(input.hintsUsed, level.hints.length),
-                startedAt: new Date(Date.now() - input.durationMs),
-            },
-        });
-        return this.complete(user, { ...session, level }, []);
     }
 
-    async hint(user: AuthUser, sessionId: string): Promise<HintResult> {
-        const session = await this.openSession(user, sessionId);
-        const { hints } = session.level;
-        const used = session.hintsUsed;
-
-        if (used >= hints.length) throw new BadRequestException("Il n'y a plus d'indice pour cette énigme.");
-
-        const { count } = await this.prisma.playSession.updateMany({
-            where: { id: session.id, completedAt: null, hintsUsed: used },
-            data: { hintsUsed: { increment: 1 } },
-        });
-        if (count === 0) throw new ConflictException(CONCURRENT_UPDATE);
-
-        return { hint: hints[used]!, hints: hints.slice(0, used + 1), hintsRemaining: hints.length - used - 1 };
-    }
-
-    private async complete(user: AuthUser, session: SessionWithLevel, found: number[]): Promise<CompletionResult> {
-        const durationMs = Math.max(0, Date.now() - session.startedAt.getTime());
-        const petals = petalsFor({ mistakes: session.mistakes, hintsUsed: session.hintsUsed });
-
-        const saved = await this.prisma.$transaction(async (tx) => {
-            const { count } = await tx.playSession.updateMany({
-                where: { id: session.id, completedAt: null },
-                data: { foundGroups: found, completedAt: new Date(), petals, durationMs },
-            });
-            if (count === 0) throw new ConflictException(CONCURRENT_UPDATE);
-
-            const key = { userId_levelId: { userId: user.id, levelId: session.levelId } };
-            const previous = await tx.levelProgress.findUnique({ where: key });
-            // Les pétales s'additionnent : une partie moins harmonieuse ne retire jamais rien.
-            const levelPetals = (previous?.petals ?? 0) | petals;
-            const progress = await tx.levelProgress.upsert({
-                where: key,
-                create: { userId: user.id, levelId: session.levelId, petals, bestTimeMs: durationMs },
-                update: {
-                    completions: { increment: 1 },
-                    petals: levelPetals,
-                    bestTimeMs: Math.min(previous?.bestTimeMs ?? durationMs, durationMs),
-                },
-            });
-            return { levelPetals, newPetals: levelPetals & ~(previous?.petals ?? 0), bestTimeMs: progress.bestTimeMs };
-        });
+    private async describe(user: AuthUser, { level, dailyDate }: Playable, recorded: Recorded): Promise<CompletionResult> {
+        const { session, levelPetals, newPetals, bestTimeMs } = recorded;
+        const performance = { petals: session.petals ?? 0, levelPetals, newPetals, durationMs: session.durationMs ?? 0, hintsUsed: session.hintsUsed, bestTimeMs };
 
         // Parcours relu après la sauvegarde : déblocages et jardin tiennent compte de cette victoire.
         const journey = await this.journeys.load(user.id);
-        const location = this.journeys.locate(journey, session.levelId);
-        const performance = { petals, durationMs, hintsUsed: session.hintsUsed, ...saved };
+        const location = this.journeys.locate(journey, level.id);
+        const daily = dailyDate
+            ? await this.daily.recordWin(user, dailyDate, {
+                  id: session.id,
+                  petals: performance.petals,
+                  durationMs: performance.durationMs,
+                  mistakes: session.mistakes,
+                  hintsUsed: session.hintsUsed,
+              })
+            : null;
+        const milestones = await this.milestones.reachNew(user.id);
 
         if (!location) {
             // Hors parcours : énigme du jour, ou brouillon joué par un administrateur.
-            const daily = (await this.daily.isTodayLevel(session.levelId))
-                ? await this.daily.recordWin(user, { id: session.id, petals, durationMs, mistakes: session.mistakes, hintsUsed: session.hintsUsed })
-                : null;
             return {
                 ...performance,
                 nextLevelId: null,
@@ -193,7 +130,7 @@ export class PlayService {
                 gameCompleted: false,
                 garden: { stage: 0, completedLevels: 0, totalLevels: 0 },
                 daily,
-                milestones: await this.milestones.reachNew(user.id),
+                milestones,
             };
         }
 
@@ -208,28 +145,8 @@ export class PlayService {
             nextWorld: worldCompleted && nextWorld && journey.worldStatuses.get(nextWorld.world.id) !== "locked" ? toWorldRef(nextWorld.world) : null,
             gameCompleted: journey.worlds.every((w) => journey.worldStatuses.get(w.world.id) === "completed"),
             garden: this.journeys.worldSummary(journey, location.worldIndex).garden,
-            daily: null,
-            milestones: await this.milestones.reachNew(user.id),
+            daily,
+            milestones,
         };
     }
-
-    private async openSession(user: AuthUser, sessionId: string): Promise<SessionWithLevel> {
-        const session = await this.prisma.playSession.findUnique({ where: { id: sessionId }, include: { level: true } });
-        if (!session || session.userId !== user.id) throw new NotFoundException("Partie introuvable.");
-        if (session.completedAt) throw new ConflictException("Cette partie est déjà terminée.");
-        return session;
-    }
-}
-
-function toSessionState(session: PlaySession, level: Level): SessionState {
-    return {
-        sessionId: session.id,
-        levelId: level.id,
-        startedAt: session.startedAt.toISOString(),
-        foundGroups: groupsAt(parseGroups(level.groups), session.foundGroups),
-        mistakes: session.mistakes,
-        hints: level.hints.slice(0, session.hintsUsed),
-        hintCount: level.hints.length,
-        completed: session.completedAt !== null,
-    };
 }

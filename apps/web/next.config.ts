@@ -6,6 +6,8 @@ const API_URL = process.env.API_URL ?? "http://localhost:4100";
 
 const nextConfig: NextConfig = {
     reactStrictMode: true,
+    // Version de la construction : renouvelle le service worker (et ses caches) à chaque déploiement.
+    env: { NEXT_PUBLIC_BUILD_ID: process.env.BUILD_ID ?? Date.now().toString(36) },
     // Image Docker : serveur autonome qui n'embarque que les fichiers utiles. La racine de traçage
     // est celle du monorepo, pour inclure le paquet partagé.
     ...(process.env.NEXT_STANDALONE === "1" && {

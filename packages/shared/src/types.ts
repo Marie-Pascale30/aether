@@ -86,7 +86,10 @@ export interface WorldRef {
     theme: WorldTheme;
 }
 
-/** Énigme telle que vue par le joueur : les groupes (les réponses) n'y figurent jamais. */
+/**
+ * Énigme prête à jouer sur l'appareil, réponses comprises : sans classement, il n'y a rien à
+ * protéger, et c'est ce qui permet de jouer hors ligne.
+ */
 export interface LevelDetail {
     id: string;
     world: WorldRef;
@@ -98,18 +101,16 @@ export interface LevelDetail {
     symbols: string[];
     columns: number;
     mechanic: Mechanic;
-    /**
-     * Plateau complet des mécaniques jouées sur l'appareil (Mémoires, Rouages, Flux, Échos),
-     * solution comprise ; `null` pour les Liens, validés par le serveur.
-     */
+    /** Plateau des mécaniques Mémoires, Rouages, Flux et Échos (solution comprise) ; `null` pour les Liens. */
     puzzle: LocalPuzzle | null;
-    /** Indices des mécaniques jouées sur l'appareil ; vide pour les Liens (révélés par le serveur). */
+    /** Indices, révélés un par un à la demande. */
     hints: string[];
     kind: LevelKind;
+    /** Liens à trouver (vide pour les autres mécaniques). */
+    groups: Group[];
     /** Nombre de cases à choisir pour former un lien. */
     groupSize: number;
     groupCount: number;
-    hintCount: number;
     previousLevelId: string | null;
     nextLevelId: string | null;
     /** Énigme du jour (hors parcours). */
@@ -117,18 +118,6 @@ export interface LevelDetail {
 }
 
 // ─── Partie ──────────────────────────────────────────────────────────────────
-
-export interface SessionState {
-    sessionId: string;
-    levelId: string;
-    startedAt: string;
-    foundGroups: Group[];
-    mistakes: number;
-    /** Indices déjà révélés, dans l'ordre. */
-    hints: string[];
-    hintCount: number;
-    completed: boolean;
-}
 
 export interface CompletionResult {
     /** Pétales cueillis par cette partie (masque `PETALS`). */
@@ -176,28 +165,13 @@ export interface DailyOutcome {
 export interface DailyState {
     /** Jour « AAAA-MM-JJ » dans le fuseau du jeu. */
     date: string;
-    level: { id: string; title: string; kind: LevelKind; groupCount: number };
+    level: { id: string; title: string; mechanic: Mechanic; kind: LevelKind; groupCount: number };
     result: { petals: number; durationMs: number; hintsUsed: number } | null;
     streak: StreakSummary;
     share: string | null;
     /** Joueurs ayant déjà résolu l'énigme du jour. */
     solvedToday: number;
     timeZone: string;
-}
-
-export interface AttemptResult {
-    result: "match" | "mismatch";
-    cells: number[];
-    foundGroups: Group[];
-    remaining: number;
-    mistakes: number;
-    completion: CompletionResult | null;
-}
-
-export interface HintResult {
-    hint: string;
-    hints: string[];
-    hintsRemaining: number;
 }
 
 // ─── Progression & statistiques ─────────────────────────────────────────────
@@ -254,6 +228,74 @@ export interface MilestonesView {
     facts: MilestoneFacts;
     /** Série de l'énigme du jour en cours. */
     currentStreak: number;
+}
+
+// ─── Contenu embarqué et synchronisation ────────────────────────────────────
+
+/** Énigme telle que l'appareil la garde pour jouer hors ligne. */
+export interface ContentLevel {
+    id: string;
+    title: string;
+    description: string;
+    mechanic: Mechanic;
+    kind: LevelKind;
+    symbols: string[];
+    columns: number;
+    groups: Group[];
+    puzzle: LocalPuzzle | null;
+    hints: string[];
+}
+
+export interface ContentWorld {
+    id: string;
+    slug: string;
+    title: string;
+    tagline: string;
+    description: string;
+    theme: WorldTheme;
+    /** Énigmes publiées, dans l'ordre. */
+    levels: ContentLevel[];
+}
+
+export interface DailyEntry {
+    /** Jour « AAAA-MM-JJ » dans le fuseau du jeu. */
+    date: string;
+    world: WorldRef;
+    level: ContentLevel;
+}
+
+/**
+ * Tout le contenu publié, téléchargé une fois et gardé sur l'appareil : le parcours se calcule
+ * ensuite localement, avec les mêmes règles que le serveur.
+ */
+export interface ContentBundle {
+    /** Change dès qu'un monde ou une énigme publiés changent. */
+    version: string;
+    worlds: ContentWorld[];
+    daily: {
+        timeZone: string;
+        /** Énigmes du jour déjà tirées : aujourd'hui et les jours suivants (jouables hors ligne). */
+        days: DailyEntry[];
+    };
+}
+
+/** Ce que le joueur a accompli sur une énigme. */
+export interface LevelRecord {
+    petals: number;
+    bestTimeMs: number;
+}
+
+export interface DailyRecord {
+    date: string;
+    petals: number;
+    durationMs: number;
+    hintsUsed: number;
+}
+
+/** Progression du joueur, telle que le serveur la connaît (sans les victoires encore en attente). */
+export interface SyncState {
+    levels: Record<string, LevelRecord>;
+    daily: DailyRecord[];
 }
 
 // ─── Administration ─────────────────────────────────────────────────────────

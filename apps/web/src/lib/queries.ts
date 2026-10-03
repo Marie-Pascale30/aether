@@ -3,14 +3,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LevelInput, LoginInput, Me, RegisterInput, WorldInput } from "@aether/shared";
 import { api, ApiError } from "./api";
+import { outbox } from "./offline/outbox";
 import { signedOut } from "./signedOut";
 
 export const keys = {
     me: ["me"] as const,
-    worlds: ["worlds"] as const,
-    world: (slug: string) => ["worlds", slug] as const,
+    /** Contenu publié (persisté sur l'appareil). */
+    content: ["content"] as const,
+    /** Progression connue du serveur (persistée sur l'appareil). */
+    sync: ["me", "sync"] as const,
     level: (id: string) => ["levels", id] as const,
-    progress: ["me", "progress"] as const,
     stats: ["me", "stats"] as const,
     milestones: ["me", "milestones"] as const,
     daily: ["daily"] as const,
@@ -31,6 +33,9 @@ export function useMe() {
 function useSwitchIdentity() {
     const qc = useQueryClient();
     return (me: Me | null) => {
+        // Les victoires d'un invité encore en attente suivent le compte auquel il se connecte.
+        const previous = qc.getQueryData<Me | null>(keys.me);
+        if (previous?.isGuest && me) outbox.reassign(previous.id, me.id);
         signedOut.set(me === null);
         qc.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] });
         qc.setQueryData(keys.me, me);
@@ -109,20 +114,9 @@ export function useChangePassword() {
 
 // ─── Jeu ────────────────────────────────────────────────────────────────────
 
-export function useWorlds() {
-    return useQuery({ queryKey: keys.worlds, queryFn: api.worlds.list });
-}
-
-export function useWorld(slug: string) {
-    return useQuery({ queryKey: keys.world(slug), queryFn: () => api.worlds.get(slug), retry: noRetryOn4xx });
-}
-
-export function useLevel(id: string) {
-    return useQuery({ queryKey: keys.level(id), queryFn: () => api.levels.get(id), retry: noRetryOn4xx });
-}
-
-export function useProgress(enabled = true) {
-    return useQuery({ queryKey: keys.progress, queryFn: api.me.progress, enabled });
+/** Énigme hors contenu embarqué (brouillon d'administrateur, énigme du jour) : demandée au serveur. */
+export function useLevel(id: string, enabled = true) {
+    return useQuery({ queryKey: keys.level(id), queryFn: () => api.levels.get(id), retry: noRetryOn4xx, enabled });
 }
 
 export function useStats() {
@@ -135,17 +129,6 @@ export function useDaily() {
 
 export function useMilestones() {
     return useQuery({ queryKey: keys.milestones, queryFn: api.me.milestones });
-}
-
-/** À appeler quand une énigme est résolue : tout ce qui dépend de la progression est périmé. */
-export function useInvalidateProgress() {
-    const qc = useQueryClient();
-    return () =>
-        Promise.all(
-            [keys.worlds, keys.progress, keys.stats, keys.milestones, keys.daily].map((queryKey) =>
-                qc.invalidateQueries({ queryKey }),
-            ),
-        );
 }
 
 // ─── Administration ─────────────────────────────────────────────────────────
@@ -169,7 +152,7 @@ function useAdminMutation<TArgs, TResult>(mutationFn: (args: TArgs) => Promise<T
         // Le parcours des joueurs dépend aussi des niveaux : on invalide les deux côtés.
         onSuccess: () =>
             Promise.all(
-                [["admin"], keys.worlds, ["levels"], keys.progress].map((queryKey) => qc.invalidateQueries({ queryKey })),
+                [["admin"], keys.content, ["levels"]].map((queryKey) => qc.invalidateQueries({ queryKey })),
             ),
     });
 }

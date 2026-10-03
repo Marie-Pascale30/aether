@@ -6,22 +6,31 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Callout, Panel } from "@/components/ui/Panel";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { useGrowingStage } from "@/hooks/useGrowingStage";
-import { KIND_COPY } from "@/lib/kinds";
-import { useWorld } from "@/lib/queries";
-import styles from "../mondes.module.css";
+import { levelLabel } from "@/lib/kinds";
+import { usePlayer } from "@/lib/offline/player";
+import { levelHref } from "@/lib/routes";
+import styles from "../mondes/mondes.module.css";
 
 export function WorldView({ slug }: { slug: string }) {
-    const world = useWorld(slug);
-    const garden = useGrowingStage(world.data?.garden.stage, slug);
+    const player = usePlayer();
+    const w = player.data?.journey.world(slug) ?? null;
+    const garden = useGrowingStage(w?.garden.stage, slug);
 
-    if (world.error) return <ErrorState error={world.error} onRetry={() => void world.refetch()} />;
-    if (!world.data) return <Loading />;
+    if (player.error) return <ErrorState error={player.error} onRetry={player.retry} />;
+    if (!player.data) return <Loading />;
+    if (!w) {
+        return (
+            <Panel>
+                <h2>Ce monde n&apos;existe pas</h2>
+                <ButtonLink href="/mondes">Tous les mondes</ButtonLink>
+            </Panel>
+        );
+    }
 
-    const w = world.data;
     const { completedLevels, totalLevels } = w.garden;
-    const kinds = [...new Set(w.levels.map((level) => level.kind))];
+    const labels = [...new Map(w.levels.map((level) => [levelLabel(level.mechanic, level.kind).label, levelLabel(level.mechanic, level.kind)])).values()];
     const cta = w.nextLevelId
-        ? { href: `/niveaux/${w.nextLevelId}`, label: completedLevels > 0 ? "Continuer la restauration" : "Entrer dans le monde" }
+        ? { href: levelHref(w.nextLevelId), label: completedLevels > 0 ? "Continuer la restauration" : "Entrer dans le monde" }
         : null;
 
     return (
@@ -36,12 +45,7 @@ export function WorldView({ slug }: { slug: string }) {
                         <h2>{w.title}</h2>
                         <p>{w.description}</p>
                         <Callout label="Ici :">
-                            {kinds
-                                .map((kind) => {
-                                    const copy = KIND_COPY[kind];
-                                    return `${copy.glyph} ${copy.label.toLowerCase()}`;
-                                })
-                                .join(" · ")}
+                            {labels.map((label) => `${label.glyph} ${label.label.toLowerCase()}`).join(" · ")}
                             . Chaque énigme résolue fait pousser ce jardin.
                         </Callout>
                         <p className={styles.count}>
@@ -49,7 +53,7 @@ export function WorldView({ slug }: { slug: string }) {
                         </p>
                         <div className="row">
                             {w.status === "locked" ? (
-                                <span className="muted">Restaure le monde précédent pour ouvrir celui-ci.</span>
+                                <span className="muted">Résous trois énigmes du monde précédent pour ouvrir celui-ci.</span>
                             ) : (
                                 cta && (
                                     <ButtonLink href={cta.href} variant="primary">

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-/** Millisecondes écoulées depuis `startedAt`, rafraîchies chaque seconde tant que `running`. */
-export function useElapsed(startedAt: string | undefined, running: boolean): number {
+/** Millisecondes écoulées depuis `startedAt` (horodatage), rafraîchies chaque seconde tant que `running`. */
+export function useElapsed(startedAt: number, running: boolean): number {
     const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
@@ -13,5 +13,5 @@ export function useElapsed(startedAt: string | undefined, running: boolean): num
         return () => clearInterval(timer);
     }, [running]);
 
-    return startedAt ? Math.max(0, now - Date.parse(startedAt)) : 0;
+    return Math.max(0, now - startedAt);
 }

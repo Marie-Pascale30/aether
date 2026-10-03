@@ -1,11 +1,12 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Level, World } from "@prisma/client";
-import { groupSizeOf, type LevelDetail, type LevelSummary, type WorldDetail, type WorldSummary } from "@aether/shared";
+import { toLevelDetail, type LevelDetail, type LevelSummary, type WorldDetail, type WorldSummary } from "@aether/shared";
 import type { AuthUser } from "../common/auth.decorators";
 import { PrismaService } from "../prisma/prisma.service";
 import { DailyService } from "./daily.service";
 import { JourneyService, type Journey, type LevelLocation } from "./journey.service";
-import { goalCount, parseGroups, parsePuzzle, toWorldRef } from "./level.mapper";
+import { toContentLevel } from "./content.service";
+import { goalCount, toWorldRef } from "./level.mapper";
 
 export interface Playable {
     level: Level;
@@ -13,7 +14,8 @@ export interface Playable {
     journey: Journey;
     /** `null` hors parcours : énigme du jour, ou brouillon vu par un administrateur. */
     location: LevelLocation | null;
-    isDaily: boolean;
+    /** Jour dont c'est l'énigme du jour, sinon `null`. */
+    dailyDate: string | null;
 }
 
 @Injectable()
@@ -44,55 +46,35 @@ export class LevelsService {
     }
 
     /**
-     * Énigme jouable par cet utilisateur. Refuse les énigmes scellées ou non publiées,
-     * sauf pour un administrateur (aperçu depuis l'éditeur).
+     * Énigme jouable par cet utilisateur. Refuse les énigmes scellées ou non publiées, sauf pour
+     * un administrateur (aperçu depuis l'éditeur). Une énigme du jour l'est le jour venu : avec
+     * `playedAt` (résultat envoyé, peut-être en retard), le jour de la victoire.
      */
-    async playable(user: AuthUser, levelId: string): Promise<Playable> {
+    async playable(user: AuthUser, levelId: string, playedAt?: Date): Promise<Playable> {
         const journey = await this.journeys.load(user.id);
         const location = this.journeys.locate(journey, levelId);
         const isAdmin = user.role === "ADMIN";
 
         if (!location) {
-            const isDaily = await this.daily.isTodayLevel(levelId);
-            const offJourney = isAdmin || isDaily ? await this.prisma.level.findUnique({ where: { id: levelId }, include: { world: true } }) : null;
+            const dailyDate = await this.daily.dateForLevel(levelId, playedAt);
+            const offJourney = isAdmin || dailyDate ? await this.prisma.level.findUnique({ where: { id: levelId }, include: { world: true } }) : null;
             if (!offJourney) throw new NotFoundException("Cette énigme n'existe pas, ou n'est pas encore ouverte.");
             const { world, ...level } = offJourney;
-            return { level, world, journey, location: null, isDaily };
+            return { level, world, journey, location: null, dailyDate };
         }
 
         if (!isAdmin && journey.levelStatuses.get(levelId) === "locked") {
             throw new ForbiddenException("Cette énigme est encore scellée : résous d'abord celles qui la précèdent.");
         }
         const { world, levels } = journey.worlds[location.worldIndex]!;
-        return { level: levels[location.levelIndex]!, world, journey, location, isDaily: false };
+        return { level: levels[location.levelIndex]!, world, journey, location, dailyDate: null };
     }
 
+    /** Énigme prête à jouer (hors contenu embarqué : brouillon d'administrateur, énigme du jour). */
     async detail(user: AuthUser, levelId: string): Promise<LevelDetail> {
-        const { level, world, journey, location, isDaily } = await this.playable(user, levelId);
-        const siblings = location ? journey.worlds[location.worldIndex]!.levels : [];
-        const groups = parseGroups(level.groups);
-
-        return {
-            id: level.id,
-            world: toWorldRef(world),
-            position: location ? location.levelIndex + 1 : 0,
-            total: siblings.length,
-            title: level.title,
-            description: level.description,
-            symbols: level.symbols,
-            columns: level.columns,
-            mechanic: level.mechanic,
-            puzzle: parsePuzzle(level),
-            // Hors ligne : les mécaniques locales emportent leurs indices ; ceux des Liens sont révélés par le serveur.
-            hints: level.mechanic === "LINKS" ? [] : level.hints,
-            kind: level.kind,
-            groupSize: groupSizeOf({ groups }),
-            groupCount: goalCount(level),
-            hintCount: level.hints.length,
-            previousLevelId: location ? (siblings[location.levelIndex - 1]?.id ?? null) : null,
-            nextLevelId: location ? (siblings[location.levelIndex + 1]?.id ?? null) : null,
-            isDaily,
-        };
+        const { level, world, journey, location, dailyDate } = await this.playable(user, levelId);
+        const siblings = location ? journey.worlds[location.worldIndex]!.levels.map(toContentLevel) : [];
+        return toLevelDetail(toContentLevel(level), toWorldRef(world), location ? { siblings, index: location.levelIndex } : null, dailyDate !== null);
     }
 
     private levelSummary(journey: Journey, level: Level, index: number): LevelSummary {

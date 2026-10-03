@@ -51,17 +51,26 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
   mécanique). Seed : Jardin des Origines, Bibliothèque Vivante, Atelier des Inventeurs, Canaux d'Éther,
   Salle des Échos, Forêt des Échos, Rivage des Suites.
 - **Mécaniques** :
-  - *Liens* — paires (2 cases), familles (3–4 cases), suites (3–5 cases dans l'ordre) ; validés par le
-    serveur coup par coup ;
+  - *Liens* — paires (2 cases), familles (3–4 cases), suites (3–5 cases dans l'ordre) ;
   - *Mémoires* — observer un plateau sans limite de temps, puis retrouver où était chaque symbole
     (variante : les symboles s'effacent un à un) ;
   - *Rouages* — faire pivoter les conduits pour éclairer tout le réseau depuis la source, sans fuite ;
   - *Flux* — relier chaque paire de sources de même symbole sans croisement, en remplissant la grille ;
   - *Échos* — deviner la règle cachée derrière quelques exemples, puis l'appliquer.
 
-  Mémoires, Rouages, Flux et Échos se jouent **entièrement sur l'appareil** (base du hors ligne) : leurs
-  moteurs et générateurs procéduraux vivent dans `packages/shared/src/mechanics/`, et seul le résultat
-  est envoyé (`POST /levels/:id/results`). Une même graine donne le même plateau partout.
+  Toutes se jouent **entièrement sur l'appareil** : leurs moteurs et générateurs procéduraux vivent dans
+  `packages/shared/src/mechanics/`, et seul le résultat est envoyé. Une même graine donne le même
+  plateau partout.
+- **Hors ligne d'abord** : l'appli télécharge tout le contenu publié (`GET /content`) et le garde sur
+  l'appareil (cache de requêtes persistant), avec la progression (`GET /me/sync`). Le parcours
+  (ouvertures, jardins, harmonie, panneau de fin) se calcule localement avec les règles partagées
+  (`packages/shared/src/rules/journey.ts`). Chaque victoire rejoint une **file d'envoi** (localStorage)
+  vidée dans l'ordre au retour du réseau ; son `resultId` rend l'envoi idempotent, et `playedAt` la date
+  du jour où elle a été jouée. Les énigmes du jour de la semaine sont tirées d'avance ; une victoire du
+  jour envoyée en retard compte jusqu'à deux jours après. Un bandeau discret signale le mode hors ligne.
+- **Application installable (PWA)** : manifeste, icônes, et service worker (`apps/web/public/sw.js`)
+  qui garde les pages et leurs fichiers. Les pages de jeu sont fixes et paramétrées (`/monde?m=…`,
+  `/enigme?id=…`) : une seule copie à garder, et un export statique possible pour les applis.
 - **Sérénité** : aucun chrono ni compteur de fausses pistes à l'écran (le temps peut s'afficher sur
   demande, dans les réglages). Chaque énigme porte trois **pétales d'harmonie** : *Éclosion* (résolue),
   *Autonomie* (sans indice), *Clarté* (sans fausse piste). Ils s'additionnent d'une partie à l'autre :
@@ -96,10 +105,11 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
 
 ## Architecture
 
-**Le serveur est l'arbitre.** Le navigateur ne reçoit jamais les réponses : il ouvre une partie, soumet
-des groupes de cases, et l'API tient le compte (liens, fausses pistes, indices, temps, pétales). Les
-mises à jour sont conditionnelles (doubles clics, onglets concurrents). Chaque coup est enregistré
-(`Attempt`) pour les statistiques.
+**L'appareil joue, le serveur se souvient.** Sans classement, il n'y a rien à arbitrer : les énigmes
+arrivent avec leurs réponses, se jouent sur l'appareil, et l'API enregistre les victoires (pétales,
+meilleur temps, série du jour, repères). Un renvoi du même résultat n'est compté qu'une fois. Les coups
+des Liens accompagnent le résultat (`Attempt`) pour les statistiques de conception. Les parties
+abandonnées ne sont pas connues du serveur.
 
 **Règles partagées.** Validation des énigmes, correspondance des groupes, pétales d'harmonie, repères,
 jardin, déblocage par mondes, série du jour et résumé à partager vivent dans `packages/shared`, testés, et sont utilisés à
@@ -109,8 +119,8 @@ l'identique par l'API et l'éditeur.
 réponses d'erreur), cookies jamais journalisés. Les erreurs du navigateur (`instrumentation-client`,
 `error.tsx`) sont envoyées à `POST /api/client-errors` et finissent dans les mêmes journaux.
 
-**Maintenance.** Chaque nuit à 3 h 30 : suppression des invités inactifs (`GUEST_RETENTION_DAYS`), des
-parties abandonnées (`OPEN_SESSION_RETENTION_DAYS`) et des jetons e-mail périmés. Les comptes inscrits ne
+**Maintenance.** Chaque nuit à 3 h 30 : suppression des invités inactifs (`GUEST_RETENTION_DAYS`) et des
+jetons e-mail périmés. Les comptes inscrits ne
 sont jamais supprimés. À la demande : `POST /api/admin/maintenance/cleanup?dryRun=true`.
 
 ## Configuration de l'API (`apps/api/.env`)
@@ -124,7 +134,7 @@ sont jamais supprimés. À la demande : `POST /api/admin/maintenance/cleanup?dry
 | `LOG_LEVEL` | `info` | Niveau des journaux |
 | `DAILY_TIMEZONE` | `Europe/Paris` | Minuit de l'énigme du jour et heure du nettoyage |
 | `MAIL_TRANSPORT` · `SMTP_URL` · `MAIL_FROM` | `log` | `log` (boîte d'envoi locale) ou `smtp` |
-| `GUEST_RETENTION_DAYS` · `OPEN_SESSION_RETENTION_DAYS` | 30 · 7 | Rétention avant nettoyage |
+| `GUEST_RETENTION_DAYS` | 30 | Rétention des invités inactifs avant nettoyage |
 | `ADMIN_EMAIL` · `ADMIN_PASSWORD` | — | Compte admin du seed (12 car. min. en production) |
 
 ## Déployer (Docker)
@@ -156,12 +166,11 @@ session est `Secure`. L'API n'est pas exposée hors du réseau Docker ; ne l'exp
 | `POST /auth/email/verify` · `email/resend` | Vérification d'adresse |
 | `POST /auth/password/forgot` · `password/reset` · `PATCH /auth/password` | Mot de passe |
 | `GET /worlds` · `GET /worlds/:slug` | Mondes avec statut, harmonie, jardin · énigmes d'un monde |
-| `GET /levels/:id` | Détail d'une énigme, sans les réponses |
-| `POST /levels/:id/sessions` | Démarrer ou reprendre une partie (`{ restart: true }`) |
-| `POST /sessions/:id/attempts` (`{ cells }`) · `/sessions/:id/hints` | Liens : jouer un lien · indice suivant |
-| `POST /levels/:id/results` | Autres mécaniques : résultat d'une partie jouée sur l'appareil |
+| `GET /content` | Tout le contenu publié et les énigmes du jour de la semaine (gardés sur l'appareil) |
+| `GET /levels/:id` | Une énigme prête à jouer (brouillon d'administrateur, énigme du jour) |
+| `POST /levels/:id/results` | Victoire (`resultId`, `playedAt`, durée, fausses pistes, indices, coups des Liens) |
 | `GET /daily` | Énigme du jour, résultat, série, résumé à partager |
-| `GET /me/progress` · `GET /me/stats` | Progression par monde · statistiques par énigme |
+| `GET /me/sync` · `GET /me/progress` · `GET /me/stats` | Progression brute (pour l'appareil) · par monde · par énigme |
 | `GET /me/milestones` | Repères personnels (atteints, avancée) et chemin parcouru |
 | `/admin/worlds` · `/admin/levels` (+ `reorder`, `:id/duplicate`, `:id/stats`) | Éditeur (`ADMIN`) |
 | `POST /admin/maintenance/cleanup` | Nettoyage à la demande |

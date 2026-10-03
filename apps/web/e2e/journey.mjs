@@ -37,8 +37,10 @@ let playerEmail = "";
 
 const browser = await chromium.launch({ executablePath });
 
-function watch(page, name) {
-    page.on("console", (msg) => msg.type() === "error" && !msg.text().startsWith("Failed to load resource") && errors.push(`[${name}] console: ${msg.text()}`));
+/** Hors ligne, les requêtes refusées par le navigateur sont attendues : on ne les compte pas. */
+function watch(page, name, { offline = false } = {}) {
+    const expected = (text) => text.startsWith("Failed to load resource") || (offline && /ERR_INTERNET_DISCONNECTED|Failed to fetch/.test(text));
+    page.on("console", (msg) => msg.type() === "error" && !expected(msg.text()) && errors.push(`[${name}] console: ${msg.text()}`));
     page.on("response", (res) => res.status() >= 400 && errors.push(`[${name}] HTTP ${res.status()} ${res.request().method()} ${res.url()}`));
     page.on("pageerror", (err) => errors.push(`[${name}] pageerror: ${err.message}`));
 }
@@ -66,7 +68,7 @@ try {
 
     await step("commencer → premier monde (invité créé)", async () => {
         await page.getByRole("link", { name: "Commencer" }).click();
-        await page.waitForURL("**/mondes/origines");
+        await page.waitForURL("**/monde?m=origines");
         await page.getByRole("heading", { name: "Jardin des Origines" }).waitFor();
         await page.waitForTimeout(900);
         await page.screenshot({ path: OUT + "02-monde.png", fullPage: true });
@@ -123,7 +125,7 @@ try {
         await page.goto(BASE + "/mondes");
         await page.getByRole("heading", { name: "Les mondes" }).waitFor();
         await page.getByText(/^1 \/ \d+ énigmes/).first().waitFor();
-        await page.getByText("Restaure le monde précédent pour l'ouvrir.").first().waitFor();
+        await page.getByText("Résous trois énigmes du monde précédent pour l'ouvrir.").first().waitFor();
         await page.waitForTimeout(400);
         await page.screenshot({ path: OUT + "06-mondes.png", fullPage: true });
     });
@@ -151,7 +153,7 @@ try {
 
     await step("« mon jardin » mène au monde en cours, qui a poussé", async () => {
         await page.goto(BASE + "/jardin");
-        await page.waitForURL("**/mondes/origines");
+        await page.waitForURL("**/monde?m=origines");
         await page.getByText("1 / 10 énigmes restaurées").waitFor();
         await page.waitForTimeout(2500);
         await page.screenshot({ path: OUT + "07-jardin-grown.png" });
@@ -291,7 +293,7 @@ try {
         const firstLevel = async (slug) => (await api(`/worlds/${slug}`)).levels[0].id;
         const open = async (slug) => {
             const id = await firstLevel(slug);
-            await admin.goto(`${BASE}/niveaux/${id}`);
+            await admin.goto(`${BASE}/enigme?id=${id}`);
             return (await api(`/admin/levels/${id}`)).puzzle;
         };
         const finish = async (name) => {
@@ -444,7 +446,7 @@ try {
 
     await step("réglages : le temps ne s'affiche que sur demande", async () => {
         await keyboard.getByRole("switch", { name: /Afficher le temps/ }).check({ force: true });
-        await keyboard.goto(BASE + "/mondes/origines");
+        await keyboard.goto(BASE + "/monde?m=origines");
         await keyboard.getByRole("link", { name: /Le premier lien/ }).click();
         await keyboard.getByText("Temps", { exact: true }).waitFor();
         await keyboard.goto(BASE + "/reglages");
@@ -460,6 +462,41 @@ try {
         await mobile.screenshot({ path: OUT + "16-mobile.png", fullPage: true });
         const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
         if (overflow) throw new Error("défilement horizontal sur mobile");
+    });
+
+    await step("hors ligne : jouer, débloquer la suite, puis tout envoyer au retour du réseau", async () => {
+        const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+        const offline = await context.newPage();
+        watch(offline, "hors-ligne", { offline: true });
+        await offline.goto(BASE + "/jardin");
+        await offline.waitForURL("**/monde?m=origines");
+        await offline.getByRole("link", { name: "Entrer dans le monde" }).waitFor();
+        // Service worker installé (pages gardées) et cache de données écrit sur l'appareil.
+        await offline.evaluate(() => navigator.serviceWorker.ready);
+        await offline.waitForTimeout(1500);
+        const content = await (await offline.request.get(BASE + "/api/content")).json();
+        const [first, second] = content.worlds[0].levels;
+
+        await context.setOffline(true);
+        await offline.goto(`${BASE}/enigme?id=${first.id}`);
+        await offline.getByRole("heading", { name: first.title }).waitFor();
+        await offline.getByText("Hors ligne : le jeu continue").waitFor();
+        for (const cell of first.groups[0]) await offline.getByRole("button", { name: new RegExp(`^Écho ${cell + 1} :`) }).click();
+        const dialog = offline.getByRole("dialog");
+        await dialog.getByText("Éclosion").waitFor();
+        await offline.getByText("1 victoire en attente").waitFor();
+        await offline.screenshot({ path: OUT + "19-offline-completion.png" });
+
+        // L'énigme suivante s'ouvre sans réseau : le parcours est calculé sur l'appareil.
+        await dialog.getByRole("link", { name: "Énigme suivante" }).click();
+        await offline.getByRole("heading", { name: second.title }).waitFor();
+        await offline.screenshot({ path: OUT + "20-offline-next.png" });
+
+        await context.setOffline(false);
+        await offline.getByText(/en attente|Enregistrement/).waitFor({ state: "detached", timeout: 15000 });
+        const sync = await (await offline.request.get(BASE + "/api/me/sync")).json();
+        if (!sync.levels[first.id]) throw new Error("la victoire hors ligne n'a pas été enregistrée");
+        await context.close();
     });
 } catch {
     process.exitCode = 1;

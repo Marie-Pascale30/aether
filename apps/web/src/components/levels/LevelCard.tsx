@@ -4,6 +4,7 @@ import { Harmony } from "@/components/ui/Harmony";
 import { pad2 } from "@/lib/format";
 import { goalLabel, levelLabel } from "@/lib/kinds";
 import styles from "./levels.module.css";
+import { levelHref } from "@/lib/routes";
 
 export function LevelCard({ level }: { level: LevelSummary }) {
     const label = levelLabel(level.mechanic, level.kind);
@@ -36,7 +37,7 @@ export function LevelCard({ level }: { level: LevelSummary }) {
     }
 
     return (
-        <Link href={`/niveaux/${level.id}`} className={styles.card} data-status={level.status}>
+        <Link href={levelHref(level.id)} className={styles.card} data-status={level.status}>
             {content}
         </Link>
     );

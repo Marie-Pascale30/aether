@@ -6,6 +6,7 @@ import { ShareButton } from "@/components/daily/ShareButton";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Harmony } from "@/components/ui/Harmony";
 import { formatDuration } from "@/lib/format";
+import { levelHref, worldHref } from "@/lib/routes";
 import { useSettings } from "@/lib/settings";
 import styles from "./Puzzle.module.css";
 
@@ -34,12 +35,12 @@ export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Pr
     const primary = daily
         ? { href: "/quotidien", label: "Résumé du jour" }
         : nextLevelId
-          ? { href: `/niveaux/${nextLevelId}`, label: "Énigme suivante" }
+          ? { href: levelHref(nextLevelId), label: "Énigme suivante" }
           : gameCompleted
             ? { href: "/fin", label: "Découvrir la fin" }
             : nextWorld
-              ? { href: `/mondes/${nextWorld.slug}`, label: `Monde suivant : ${nextWorld.title}` }
-              : { href: `/mondes/${worldSlug}`, label: "Retour au monde" };
+              ? { href: worldHref(nextWorld.slug), label: `Monde suivant : ${nextWorld.title}` }
+              : { href: worldHref(worldSlug), label: "Retour au monde" };
 
     return (
         <div className={styles.overlay} onClick={onClose}>

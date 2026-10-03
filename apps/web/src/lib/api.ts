@@ -2,24 +2,20 @@ import type {
     AdminLevel,
     AdminWorld,
     ApiErrorBody,
-    AttemptResult,
     CompletionResult,
+    ContentBundle,
     DailyState,
     LevelResultInput,
     MilestonesView,
-    HintResult,
     LevelDetail,
     LevelDesignStats,
     LevelInput,
     LoginInput,
     Me,
     PlayerStats,
-    ProgressSummary,
     RegisterInput,
-    SessionState,
-    WorldDetail,
+    SyncState,
     WorldInput,
-    WorldSummary,
 } from "@aether/shared";
 
 export type ApiIssue = NonNullable<ApiErrorBody["issues"]>[number];
@@ -75,24 +71,17 @@ export const api = {
         changePassword: (currentPassword: string, newPassword: string) =>
             request<Me>("PATCH", "/auth/password", { currentPassword, newPassword }),
     },
-    worlds: {
-        list: () => request<WorldSummary[]>("GET", "/worlds"),
-        get: (slug: string) => request<WorldDetail>("GET", `/worlds/${slug}`),
-    },
     levels: {
         get: (id: string) => request<LevelDetail>("GET", `/levels/${id}`),
     },
+    /** Tout le contenu publié, gardé sur l'appareil pour jouer hors ligne. */
+    content: () => request<ContentBundle>("GET", "/content"),
     play: {
-        start: (levelId: string, restart = false) =>
-            request<SessionState>("POST", `/levels/${levelId}/sessions`, { restart }),
-        attempt: (sessionId: string, cells: number[]) =>
-            request<AttemptResult>("POST", `/sessions/${sessionId}/attempts`, { cells }),
-        hint: (sessionId: string) => request<HintResult>("POST", `/sessions/${sessionId}/hints`),
-        /** Fin d'une énigme jouée sur l'appareil (toutes les mécaniques sauf les Liens). */
+        /** Victoire sur une énigme jouée sur l'appareil (renvoi idempotent grâce à `resultId`). */
         result: (levelId: string, input: LevelResultInput) => request<CompletionResult>("POST", `/levels/${levelId}/results`, input),
     },
     me: {
-        progress: () => request<ProgressSummary>("GET", "/me/progress"),
+        sync: () => request<SyncState>("GET", "/me/sync"),
         stats: () => request<PlayerStats>("GET", "/me/stats"),
         milestones: () => request<MilestonesView>("GET", "/me/milestones"),
     },

@@ -1,14 +1,16 @@
 "use client";
 
 import { ButtonLink } from "@/components/ui/Button";
-import { useMe, useProgress } from "@/lib/queries";
+import { usePlayer } from "@/lib/offline/player";
+import { useMe } from "@/lib/queries";
+import { levelHref } from "@/lib/routes";
 import styles from "./home.module.css";
 
 export default function HomePage() {
     const { data: me } = useMe();
-    const { data: progress } = useProgress(Boolean(me));
+    const progress = usePlayer().data?.journey.summary;
     const hasStarted = (progress?.completedLevels ?? 0) > 0;
-    const resumeHref = progress?.resume?.levelId ? `/niveaux/${progress.resume.levelId}` : "/jardin";
+    const resumeHref = progress?.resume?.levelId ? levelHref(progress.resume.levelId) : "/jardin";
 
     return (
         <section className={styles.hero}>

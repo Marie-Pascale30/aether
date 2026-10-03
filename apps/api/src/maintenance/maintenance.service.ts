@@ -12,13 +12,12 @@ const TOKEN_RETENTION_DAYS = 7;
 export interface CleanupReport {
     dryRun: boolean;
     guests: number;
-    openSessions: number;
     tokens: number;
 }
 
 /**
- * Nettoyage nocturne : invités inactifs (avec leur progression, qu'aucun compte ne réclamera),
- * parties abandonnées et jetons périmés. Les comptes inscrits ne sont jamais supprimés.
+ * Nettoyage nocturne : invités inactifs (avec leur progression, qu'aucun compte ne réclamera)
+ * et jetons périmés. Les comptes inscrits ne sont jamais supprimés.
  */
 @Injectable()
 export class MaintenanceService implements OnModuleInit {
@@ -44,29 +43,25 @@ export class MaintenanceService implements OnModuleInit {
     async cleanup({ dryRun = false }: { dryRun?: boolean } = {}): Promise<CleanupReport> {
         const now = Date.now();
         const guestCutoff = new Date(now - this.env.GUEST_RETENTION_DAYS * DAY_MS);
-        const sessionCutoff = new Date(now - this.env.OPEN_SESSION_RETENTION_DAYS * DAY_MS);
         const tokenCutoff = new Date(now - TOKEN_RETENTION_DAYS * DAY_MS);
 
         const guests = { isGuest: true, lastSeenAt: { lt: guestCutoff } };
-        const openSessions = { completedAt: null, startedAt: { lt: sessionCutoff } };
         const tokens = { OR: [{ expiresAt: { lt: tokenCutoff } }, { usedAt: { lt: tokenCutoff } }] };
 
         const report: CleanupReport = dryRun
             ? {
                   dryRun,
                   guests: await this.prisma.user.count({ where: guests }),
-                  openSessions: await this.prisma.playSession.count({ where: openSessions }),
                   tokens: await this.prisma.authToken.count({ where: tokens }),
               }
             : {
                   dryRun,
                   // Les invités emportent leurs parties et résultats (suppression en cascade).
                   guests: (await this.prisma.user.deleteMany({ where: guests })).count,
-                  openSessions: (await this.prisma.playSession.deleteMany({ where: openSessions })).count,
                   tokens: (await this.prisma.authToken.deleteMany({ where: tokens })).count,
               };
 
-        this.logger.info({ ...report, guestCutoff, sessionCutoff }, dryRun ? "Nettoyage (simulation)" : "Nettoyage effectué");
+        this.logger.info({ ...report, guestCutoff }, dryRun ? "Nettoyage (simulation)" : "Nettoyage effectué");
         return report;
     }
 }

@@ -11,9 +11,9 @@ export * from "./issues";
 export * from "./memory";
 
 /**
- * Mécaniques de jeu. LINKS (paires, familles, suites) est validée par le serveur coup par coup ;
- * les autres tournent entièrement sur l'appareil (prêtes pour le hors ligne) et seul le
- * résultat est envoyé.
+ * Mécaniques de jeu, toutes jouées sur l'appareil (y compris hors ligne) : seul le résultat est
+ * envoyé. LINKS (paires, familles, suites) est décrite par `symbols` et `groups` ; les autres
+ * (« locales » ici) par un plateau `puzzle`, souvent généré à partir d'une graine.
  */
 export const MECHANICS = ["LINKS", "MEMORY", "GEARS", "FLOW", "ECHOES"] as const;
 export type Mechanic = (typeof MECHANICS)[number];

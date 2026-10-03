@@ -29,6 +29,8 @@ FROM base AS runtime
 ENV NODE_ENV=production PORT=3100 HOSTNAME=0.0.0.0
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /app/apps/web/.next/static apps/web/.next/static
+# Fichiers publics : service worker (hors ligne) et icônes de l'application installable.
+COPY --from=build --chown=node:node /app/apps/web/public apps/web/public
 USER node
 EXPOSE 3100
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \

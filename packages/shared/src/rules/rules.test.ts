@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GARDEN_STAGE_COUNT } from "../constants";
-import { attemptSchema, levelInputSchema } from "../schemas";
+import { levelInputSchema, levelResultSchema } from "../schemas";
 import { gardenStage } from "./garden";
 import { findGroupIndex, matchesGroup, validateLevelDefinition } from "./levels";
 import { evaluateMilestones, MILESTONES } from "./milestones";
@@ -78,9 +78,11 @@ describe("matchesGroup / findGroupIndex", () => {
         expect(findGroupIndex(groups, [0], [0, 5], false)).toBe(-1);
         expect(findGroupIndex(groups, [], [0, 1], false)).toBe(-1);
     });
-    it("refuse un coup qui choisit deux fois la même case", () => {
-        expect(attemptSchema.safeParse({ cells: [1, 1] }).success).toBe(false);
-        expect(attemptSchema.safeParse({ cells: [1, 2, 3] }).success).toBe(true);
+    it("exige un identifiant de résultat et une date de victoire", () => {
+        const result = { durationMs: 1000, mistakes: 0, hintsUsed: 0 };
+        expect(levelResultSchema.safeParse(result).success).toBe(false);
+        const parsed = levelResultSchema.parse({ ...result, resultId: crypto.randomUUID(), playedAt: new Date().toISOString() });
+        expect(parsed.attempts).toEqual([]);
     });
 });
 

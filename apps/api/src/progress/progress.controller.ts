@@ -1,5 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import type { MilestonesView, PlayerStats, ProgressSummary } from "@aether/shared";
+import type { MilestonesView, PlayerStats, ProgressSummary, SyncState } from "@aether/shared";
 import { CurrentUser, type AuthUser } from "../common/auth.decorators";
 import { MilestonesService } from "./milestones.service";
 import { ProgressService } from "./progress.service";
@@ -14,6 +14,11 @@ export class ProgressController {
     @Get("progress")
     summary(@CurrentUser() user: AuthUser): Promise<ProgressSummary> {
         return this.progress.summary(user.id);
+    }
+
+    @Get("sync")
+    sync(@CurrentUser() user: AuthUser): Promise<SyncState> {
+        return this.progress.sync(user.id);
     }
 
     @Get("milestones")
