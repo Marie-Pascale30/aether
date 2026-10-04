@@ -11,7 +11,7 @@
     "db:migrate": "npm run prisma:migrate -w @aether/api",
     "db:seed": "npm run prisma:seed -w @aether/api",
     "setup": "npm run db:up && npm run build -w @aether/shared && npm run db:migrate && npm run db:seed",
-    "dev": "npm run build -w @aether/shared && concurrently -n shared,api,web -c gray,magenta,cyan \"npm run dev -w @aether/shared\" \"npm run dev -w @aether/api\" \"npm run dev -w @aether/web\"",
+    "dev": "node scripts/dev.mjs",
     "build": "npm run build -w @aether/shared && npm run build -w @aether/api && npm run build -w @aether/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"

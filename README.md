@@ -18,7 +18,7 @@ Prérequis : Node 22+ et Docker.
 npm install
 cp apps/api/.env.example apps/api/.env    # puis remplace JWT_SECRET (32+ caractères aléatoires)
 npm run setup                             # Postgres (Docker), build du paquet partagé, migrations, seed
-npm run dev                               # shared (watch) + API :4100 + web :3100
+npm run dev                               # shared (watch) + API :4100 + web :3100 (ou ports libres suivants)
 ```
 
 Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte `ADMIN_EMAIL` /
@@ -26,7 +26,7 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
 
 - **E-mails en local** : rien n'est envoyé ; chaque message (vérification d'adresse, mot de passe oublié)
   est écrit en JSON dans `apps/api/.mail-outbox/`, avec son lien.
-- **Ports** : 3100 (web), 4100 (API) et 5433 (Postgres) évitent les habituels 3000 / 4000 / 5432.
+- **Ports** : 3100 (web), 4100 (API) et 5433 (Postgres) évitent les habituels 3000 / 4000 / 5432. Si l'un est déjà pris, `npm run dev` bascule tout seul sur le suivant libre (3101, 4101…) et affiche l'adresse à ouvrir.
 - **Docker Hub injoignable ?** `docker pull mirror.gcr.io/library/postgres:17-alpine` puis
   `docker tag mirror.gcr.io/library/postgres:17-alpine postgres:17-alpine` (idem pour `node:24-alpine`).
 - **Windows** : arrête `npm run dev` avant `npm run db:migrate`, sinon le moteur Prisma reste verrouillé.
