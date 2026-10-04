@@ -53,8 +53,8 @@
 }
 
 .card[data-reached] {
-    border-color: #d9bd7266;
-    background: #d9bd720f;
+    border-color: rgb(var(--gold-rgb) / 0.4);
+    background: rgb(var(--gold-rgb) / 0.06);
     color: var(--text);
 }
 

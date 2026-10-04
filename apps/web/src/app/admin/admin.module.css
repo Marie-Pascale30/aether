@@ -65,7 +65,7 @@
 }
 
 .badge[data-published="true"] {
-    border-color: #75b78a80;
+    border-color: rgb(var(--green-rgb) / 0.5);
     color: var(--green);
 }
 
@@ -130,7 +130,7 @@
 
 .selectField select {
     padding: 11px 14px;
-    background: #0a1c22;
+    background: #0d1a2c;
     border: 1px solid var(--line-strong);
     border-radius: 12px;
 }

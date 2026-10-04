@@ -7,8 +7,10 @@ import { ProgressBar } from "@/components/levels/LevelCard";
 import { Panel } from "@/components/ui/Panel";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { usePlayer } from "@/lib/offline/player";
-import styles from "./mondes.module.css";
+import { AtlasMap } from "@/components/atlas/AtlasMap";
+import { REGIONS } from "@/lib/regions";
 import { worldHref } from "@/lib/routes";
+import styles from "./mondes.module.css";
 
 export function WorldsView() {
     const player = usePlayer();
@@ -21,15 +23,19 @@ export function WorldsView() {
     return (
         <div className="stack">
             <Panel>
-                <div className="tag">Le monde d&apos;AETHER</div>
-                <h2>Les mondes</h2>
-                <p>Chaque monde a son jardin et sa manière de relier les choses. Trois énigmes résolues suffisent à ouvrir le suivant.</p>
+                <div className="tag">AETHER</div>
+                <h2>L&apos;Atlas des Esprits</h2>
+                <p>
+                    Une bibliothèque vivante s&apos;est brisée en fragments. Chaque région exerce une faculté de l&apos;esprit et
+                    reprend vie à mesure que tu en résous les énigmes. Trois énigmes suffisent à ouvrir la suivante.
+                </p>
                 <div className={styles.total}>
                     <ProgressBar value={progress.completedLevels} max={progress.totalLevels} label="Énigmes restaurées" />
                     <span>
                         {progress.completedLevels} / {progress.totalLevels} énigmes · {progress.harmony} / {progress.maxHarmony} ✿
                     </span>
                 </div>
+                {worlds.length > 0 && <AtlasMap worlds={worlds} />}
             </Panel>
 
             {worlds.length === 0 ? (
@@ -56,9 +62,9 @@ function WorldCard({ world }: { world: WorldSummary }) {
             <Garden stage={world.garden.stage} theme={world.theme} instant className={styles.garden} />
             <div className={styles.body}>
                 <div className="tag">
-                    Monde {world.position}
-                    {world.status === "completed" && " · restauré"}
-                    {world.status === "locked" && " · scellé"}
+                    Région {world.position} · {REGIONS[world.theme].faculty}
+                    {world.status === "completed" && " · restaurée"}
+                    {world.status === "locked" && " · scellée"}
                 </div>
                 <h3>{world.title}</h3>
                 <p>{world.tagline}</p>
@@ -76,7 +82,7 @@ function WorldCard({ world }: { world: WorldSummary }) {
         return (
             <div className={styles.card} data-status="locked">
                 {content}
-                <span className={styles.sealed}>Résous trois énigmes du monde précédent pour l&apos;ouvrir.</span>
+                <span className={styles.sealed}>Résous trois énigmes de la région précédente pour l&apos;ouvrir.</span>
             </div>
         );
     }

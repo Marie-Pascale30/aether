@@ -6,15 +6,15 @@
     margin: -8px auto 18px;
     padding: 8px 16px;
     max-width: 720px;
-    border: 1px solid #8ce5dc2e;
+    border: 1px solid rgb(var(--sage-rgb) / 0.18);
     border-radius: var(--radius-pill);
-    background: #8ce5dc0a;
+    background: rgb(var(--sage-rgb) / 0.04);
     color: var(--muted);
     font-size: 13px;
     text-align: center;
 }
 
 .status[data-offline] {
-    border-color: #d9bd7240;
-    background: #d9bd720d;
+    border-color: rgb(var(--gold-rgb) / 0.25);
+    background: rgb(var(--gold-rgb) / 0.05);
 }

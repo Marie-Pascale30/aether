@@ -46,10 +46,19 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
 
 ## Le jeu
 
-- **Mondes** : chaque monde a son jardin (6 stades, qui ne font que croître) et son ambiance. Le premier
-  est ouvert ; **3 énigmes résolues** dans un monde ouvrent le suivant (chaque monde apporte vite sa
-  mécanique). Seed : Jardin des Origines, Bibliothèque Vivante, Atelier des Inventeurs, Canaux d'Éther,
-  Salle des Échos, Forêt des Échos, Rivage des Suites.
+- **L'Atlas des Esprits** : sept régions, chacune exerçant une faculté de l'esprit — Jardin des Échos
+  (observation), Bibliothèque Vivante (mémoire), Atelier des Inventeurs (logique), Observatoire
+  (vision spatiale), Conservatoire (rythme), Forêt des Connexions (associations), Sommet des Sages
+  (toutes les facultés). La première est ouverte ; **3 énigmes résolues** dans une région ouvrent la
+  suivante. Une carte (`/mondes`) montre le sentier et la région en cours.
+- **Monde vivant** : chaque région a son paysage (`components/garden/Garden.tsx`) qui se restaure par
+  stades — l'aube se lève, l'arbre grandit, le lieu reprend vie (fontaine, arche de livres, rouages,
+  coupole et constellation, colonnes et notes, forêt, cimes et soleil levant), le Gardien silencieux
+  apparaît, puis papillons et lucioles. Palette : bleu nuit, ivoire, or ancien, vert sauge, bois clair,
+  pierre (jetons dans `globals.css`).
+- **Musique** : synthétisée en direct, donc disponible hors ligne (`lib/sound/`) — piano ou harpe sur
+  une gamme pentatonique, vent, eau et oiseaux, dosés par région, avec réverbération et fondu d'une
+  région à l'autre. Les sons de jeu restent doux, y compris pour une fausse piste.
 - **Mécaniques** :
   - *Liens* — paires (2 cases), familles (3–4 cases), suites (3–5 cases dans l'ordre) ;
   - *Mémoires* — observer un plateau sans limite de temps, puis retrouver où était chaque symbole

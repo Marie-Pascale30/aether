@@ -9,7 +9,7 @@
 }
 
 .kind {
-    color: var(--cyan);
+    color: var(--sage);
     font-size: 14px;
 }
 
@@ -50,7 +50,7 @@
     padding: 14px 18px;
     border: 1px dashed var(--line-strong);
     border-radius: 12px;
-    background: #0a1c22;
+    background: #0d1a2c;
     color: var(--text);
     font-family: inherit;
     font-size: 14px;

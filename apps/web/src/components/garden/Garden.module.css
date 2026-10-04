@@ -3,7 +3,7 @@
     height: 430px;
     border-radius: 20px;
     overflow: hidden;
-    background: #0b252c;
+    background: #10203a;
 }
 
 .garden svg {
@@ -42,7 +42,7 @@
 }
 
 .stars circle {
-    fill: #edf1dfb3;
+    fill: rgb(var(--ivory-rgb) / 0.7);
     animation: twinkle 4.2s ease-in-out infinite;
 }
 
@@ -54,7 +54,7 @@
 
 .fireflies circle {
     fill: #f3dc92;
-    filter: drop-shadow(0 0 3px #d9bd72);
+    filter: drop-shadow(0 0 3px var(--gold));
     animation: drift 5s ease-in-out infinite;
 }
 
@@ -87,5 +87,140 @@
     50% {
         transform: translateX(8px);
         opacity: .5;
+    }
+}
+
+/* ─── L'Atlas vivant ──────────────────────────────────────────────────────── */
+
+/* L'aube et le soleil suivent la restauration en douceur. */
+.fade,
+.stars {
+    transition: opacity 2s var(--ease);
+}
+
+.rise {
+    transition: cy 2.4s var(--ease);
+}
+
+.garden[data-instant] .fade,
+.garden[data-instant] .stars,
+.garden[data-instant] .rise {
+    transition: none;
+}
+
+.water path {
+    stroke-dasharray: 4 5;
+    animation: flow 1.6s linear infinite;
+}
+
+@keyframes flow {
+    to {
+        stroke-dashoffset: -18;
+    }
+}
+
+.gear {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.gear[data-run="true"] {
+    animation: turn 14s linear infinite;
+}
+
+.gearReverse[data-run="true"] {
+    animation-direction: reverse;
+    animation-duration: 8.4s;
+}
+
+@keyframes turn {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.pages rect,
+.notes text {
+    animation: float 7s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: .9;
+    }
+
+    50% {
+        transform: translate(8px, -12px) rotate(12deg);
+        opacity: .45;
+    }
+}
+
+.clouds ellipse {
+    animation: drift-cloud 30s ease-in-out infinite;
+}
+
+@keyframes drift-cloud {
+    50% {
+        transform: translateX(24px);
+    }
+}
+
+.glow {
+    animation: pulse 3.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    50% {
+        opacity: .55;
+    }
+}
+
+.lantern {
+    filter: drop-shadow(0 0 3px currentColor);
+    animation: pulse 2.8s ease-in-out infinite;
+}
+
+/* Papillons : un vol lent en boucle, des ailes qui battent. */
+.butterfly {
+    animation: flutter 9s ease-in-out infinite;
+}
+
+@keyframes flutter {
+    0%,
+    100% {
+        transform: translate(0, 0);
+    }
+
+    25% {
+        transform: translate(14px, -10px);
+    }
+
+    50% {
+        transform: translate(24px, 2px);
+    }
+
+    75% {
+        transform: translate(8px, 8px);
+    }
+}
+
+.wings path {
+    transform-box: fill-box;
+    animation: flap .45s ease-in-out infinite alternate;
+}
+
+.wings path:first-child {
+    transform-origin: right center;
+}
+
+.wings path:last-child {
+    transform-origin: left center;
+}
+
+@keyframes flap {
+    to {
+        transform: scaleX(.35);
     }
 }

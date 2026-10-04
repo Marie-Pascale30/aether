@@ -71,7 +71,7 @@
 .account:hover,
 .account[aria-current="page"] {
     color: var(--text);
-    border-color: #d9bd7280;
+    border-color: rgb(var(--gold-rgb) / 0.5);
 }
 
 @media (max-width: 760px) {

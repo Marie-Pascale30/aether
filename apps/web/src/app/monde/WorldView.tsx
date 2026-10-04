@@ -8,13 +8,16 @@ import { ErrorState, Loading } from "@/components/ui/States";
 import { useGrowingStage } from "@/hooks/useGrowingStage";
 import { levelLabel } from "@/lib/kinds";
 import { usePlayer } from "@/lib/offline/player";
+import { REGIONS } from "@/lib/regions";
 import { levelHref } from "@/lib/routes";
+import { useAmbience } from "@/lib/sound/SoundProvider";
 import styles from "../mondes/mondes.module.css";
 
 export function WorldView({ slug }: { slug: string }) {
     const player = usePlayer();
     const w = player.data?.journey.world(slug) ?? null;
     const garden = useGrowingStage(w?.garden.stage, slug);
+    useAmbience(w?.theme);
 
     if (player.error) return <ErrorState error={player.error} onRetry={player.retry} />;
     if (!player.data) return <Loading />;
@@ -39,8 +42,8 @@ export function WorldView({ slug }: { slug: string }) {
                 <div className={styles.intro}>
                     <div>
                         <div className="tag">
-                            Monde {w.position}
-                            {w.status === "completed" && " · restauré"}
+                            Région {w.position} · {REGIONS[w.theme].faculty}
+                            {w.status === "completed" && " · restaurée"}
                         </div>
                         <h2>{w.title}</h2>
                         <p>{w.description}</p>
@@ -53,7 +56,7 @@ export function WorldView({ slug }: { slug: string }) {
                         </p>
                         <div className="row">
                             {w.status === "locked" ? (
-                                <span className="muted">Résous trois énigmes du monde précédent pour ouvrir celui-ci.</span>
+                                <span className="muted">Résous trois énigmes de la région précédente pour ouvrir celle-ci.</span>
                             ) : (
                                 cta && (
                                     <ButtonLink href={cta.href} variant="primary">
@@ -62,7 +65,7 @@ export function WorldView({ slug }: { slug: string }) {
                                 )
                             )}
                             <ButtonLink href="/mondes" variant="ghost">
-                                Tous les mondes
+                                L&apos;Atlas
                             </ButtonLink>
                         </div>
                     </div>

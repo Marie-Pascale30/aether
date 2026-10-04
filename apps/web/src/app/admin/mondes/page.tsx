@@ -10,16 +10,10 @@ import { ErrorState, Loading } from "@/components/ui/States";
 import { useDragReorder } from "@/hooks/useDragReorder";
 import { ApiError } from "@/lib/api";
 import { useAdminWorlds, useCreateWorld, useDeleteWorld, useReorderWorlds, useUpdateWorld } from "@/lib/queries";
+import { THEME_LABELS } from "@/lib/regions";
 import styles from "../admin.module.css";
 
-const THEME_LABELS: Record<WorldTheme, string> = {
-    origines: "Origines (vert tendre)",
-    foret: "Forêt (vert profond)",
-    ocean: "Océan (bleu-vert)",
-    cosmos: "Cosmos (violet)",
-};
-
-const EMPTY: WorldInput = { slug: "", title: "", tagline: "", description: "", theme: "origines", published: false, isDaily: false };
+const EMPTY: WorldInput = { slug: "", title: "", tagline: "", description: "", theme: "jardin", published: false, isDaily: false };
 
 export default function AdminWorldsPage() {
     const worlds = useAdminWorlds();
@@ -165,7 +159,7 @@ function WorldForm({ world, onDone }: { world?: AdminWorld; onDone: () => void }
                 <TextArea label="Description" value={draft.description} onChange={(e) => set("description", e.target.value)} error={errors.description} />
                 <div className={styles.formGrid}>
                     <label className={styles.selectField}>
-                        Ambiance du jardin
+                        Région de l&apos;Atlas (paysage et musique)
                         <select value={draft.theme} onChange={(e) => set("theme", e.target.value as WorldTheme)}>
                             {WORLD_THEMES.map((theme) => (
                                 <option key={theme} value={theme}>

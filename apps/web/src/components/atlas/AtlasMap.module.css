@@ -1,0 +1,137 @@
+.atlas {
+    margin: 22px 0 0;
+    padding: 8px 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background:
+        radial-gradient(circle at 20% 80%, rgb(var(--sage-rgb) / 0.08), transparent 45%),
+        radial-gradient(circle at 85% 20%, rgb(var(--gold-rgb) / 0.08), transparent 40%),
+        #0d1a2c;
+}
+
+.atlas svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.trail {
+    fill: none;
+    stroke: rgb(var(--ivory-rgb) / 0.16);
+    stroke-width: 2;
+    stroke-dasharray: 2 8;
+    stroke-linecap: round;
+}
+
+.lit {
+    stroke: transparent;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    transition: stroke 1.2s var(--ease);
+}
+
+.lit[data-on] {
+    stroke: rgb(var(--gold-rgb) / 0.75);
+}
+
+.node {
+    cursor: pointer;
+}
+
+.node[data-status="locked"] {
+    cursor: default;
+}
+
+.halo {
+    fill: none;
+    stroke: var(--accent);
+    stroke-opacity: 0;
+    stroke-width: 2;
+}
+
+.disc {
+    fill: #142338;
+    stroke: var(--accent);
+    stroke-width: 2;
+    transition: fill .3s, stroke-width .3s;
+}
+
+.node[data-status="completed"] .disc {
+    fill: color-mix(in srgb, var(--accent) 32%, #142338);
+}
+
+.node[data-status="locked"] .disc {
+    stroke: var(--stone);
+    stroke-opacity: .45;
+    fill: #0f1b2c;
+}
+
+/* La région en cours respire : seule l'opacité varie (la forme reste immobile sous le pointeur). */
+.node[data-current] .halo {
+    stroke-opacity: .7;
+    animation: breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes breathe {
+    50% {
+        stroke-opacity: .12;
+    }
+}
+
+.link:hover .disc,
+.link:focus-visible .disc {
+    stroke-width: 3.5;
+}
+
+.link:focus-visible {
+    outline: none;
+}
+
+.link:focus-visible .halo {
+    stroke-opacity: 1;
+}
+
+.glyph {
+    fill: var(--accent);
+    font-size: 20px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.node[data-status="locked"] .glyph {
+    fill: var(--faint);
+}
+
+.label,
+.faculty {
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.label {
+    fill: var(--text);
+    font-family: var(--font-serif);
+    font-size: 14px;
+}
+
+.faculty {
+    fill: var(--muted);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.node[data-status="locked"] .label,
+.node[data-status="locked"] .faculty {
+    fill: var(--faint);
+}
+
+/* Sur petit écran, la carte garde ses repères ; les noms sont dans la liste en dessous. */
+@media (max-width: 620px) {
+    .label,
+    .faculty {
+        display: none;
+    }
+}

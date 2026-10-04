@@ -12,6 +12,7 @@ import { goalLabel, levelLabel } from "@/lib/kinds";
 import { todayDaily, usePlayer } from "@/lib/offline/player";
 import { useDaily } from "@/lib/queries";
 import { levelHref } from "@/lib/routes";
+import { useAmbience } from "@/lib/sound/SoundProvider";
 import styles from "./quotidien.module.css";
 
 /** L'énigme du jour, tirée d'avance et embarquée : elle se joue (et se compte) même hors ligne. */
@@ -20,6 +21,7 @@ export function DailyView() {
     // En ligne seulement : combien de joueurs l'ont déjà résolue.
     const server = useDaily();
     const remaining = useCountdownToMidnight(player.data?.bundle.daily.timeZone);
+    useAmbience(player.data ? (todayDaily(player.data.bundle)?.world.theme ?? "sommet") : undefined);
 
     if (player.error) return <ErrorState error={player.error} onRetry={player.retry} />;
     if (!player.data) return <Loading />;

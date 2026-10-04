@@ -10,12 +10,12 @@
 .symbol {
     width: 150px;
     height: 150px;
-    border: 1px solid #d9bd7266;
+    border: 1px solid rgb(var(--gold-rgb) / 0.4);
     border-radius: 50%;
     display: grid;
     place-items: center;
     margin-bottom: 30px;
-    box-shadow: 0 0 70px #8ce5dc12;
+    box-shadow: 0 0 70px rgb(var(--sage-rgb) / 0.07);
     animation: halo 6s ease-in-out infinite;
 }
 
@@ -27,8 +27,8 @@
 
 @keyframes halo {
     50% {
-        box-shadow: 0 0 110px #8ce5dc2a;
-        border-color: #d9bd72a0;
+        box-shadow: 0 0 110px rgb(var(--sage-rgb) / 0.16);
+        border-color: rgb(var(--gold-rgb) / 0.63);
     }
 }
 

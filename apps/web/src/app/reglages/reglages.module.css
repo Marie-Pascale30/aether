@@ -38,7 +38,7 @@
     width: 42px;
     height: 24px;
     border-radius: var(--radius-pill);
-    background: #dcebdc26;
+    background: rgb(var(--ivory-rgb) / 0.15);
     transition: background .2s;
 }
 
@@ -60,11 +60,11 @@
 
 .toggle input:checked + .switch::after {
     transform: translateX(18px);
-    background: #132019;
+    background: var(--on-gold);
 }
 
 .toggle input:focus-visible + .switch {
-    outline: 2px solid var(--cyan);
+    outline: 2px solid var(--sage);
     outline-offset: 3px;
 }
 

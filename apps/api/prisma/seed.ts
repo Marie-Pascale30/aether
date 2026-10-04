@@ -1,28 +1,12 @@
 import { Prisma, PrismaClient } from "@prisma/client";
-import { generatePuzzle, levelInputSchema, worldInputSchema, type LevelInput, type LocalMechanic, type WorldInput } from "@aether/shared";
+import { generatePuzzle, levelInputSchema, worldInputSchema, type WorldInput } from "@aether/shared";
 import { hashPassword } from "../src/auth/password";
+import { ECHOES_HINTS, FLOW_HINTS, GEARS_HINTS, generated, MEMORY_HINTS, SUMMIT_LEVELS, type SeedLevel } from "./atlas-content";
 
 const prisma = new PrismaClient();
 
-type SeedLevel = Omit<LevelInput, "worldId" | "published">;
 /** `isDaily` est facultatif à la saisie (faux par défaut). */
 type SeedWorld = Omit<WorldInput, "isDaily"> & { isDaily?: boolean; levels: SeedLevel[] };
-
-/**
- * Énigme d'une mécanique jouée sur l'appareil, générée depuis une graine fixe : le contenu est
- * identique à chaque installation, et la difficulté monte régulièrement dans le monde.
- */
-function generated(mechanic: LocalMechanic, seed: string, difficulty: number, text: { title: string; description: string; hints: string[] }): SeedLevel {
-    return {
-        ...text,
-        mechanic,
-        puzzle: generatePuzzle(mechanic, seed, difficulty),
-        kind: "PAIRS",
-        symbols: [],
-        columns: 4,
-        groups: [],
-    };
-}
 
 /**
  * Échos variés : pour chaque niveau, la première graine (dans un ordre fixe) dont la règle
@@ -42,11 +26,12 @@ function variedEchoes(levels: [string, string, number][]): SeedLevel[] {
     });
 }
 
-const MEMORY_HINTS = ["Associe chaque symbole à sa rangée, puis à sa colonne.", "Raconte-toi une petite histoire qui relie les symboles dans l'ordre."];
-const GEARS_HINTS = ["Pars de la source : chaque conduit doit mener quelque part.", "Les coins et les bords ne laissent que peu d'orientations possibles."];
-const FLOW_HINTS = ["Commence par les flux dont les sources sont proches.", "Le long des bords, il n'y a souvent qu'un seul chemin possible."];
-const ECHOES_HINTS = ["Compare chaque point de départ à ce qu'il devient.", "Une seule transformation explique tous les exemples à la fois."];
+/** Entrelace deux listes (a0, b0, a1, b1…), le reste de la plus longue à la fin. */
+function interleave<T>(a: T[], b: T[]): T[] {
+    return Array.from({ length: Math.max(a.length, b.length) }, (_, i) => [a[i], b[i]]).flat().filter((x): x is T => x !== undefined);
+}
 
+/** Régions de l'Atlas consacrées aux mécaniques jouées sur l'appareil. */
 const MECHANIC_WORLDS: SeedWorld[] = [
     {
         slug: "bibliotheque-vivante",
@@ -54,7 +39,7 @@ const MECHANIC_WORLDS: SeedWorld[] = [
         tagline: "Les livres se souviennent de ce qu'on leur confie.",
         description:
             "Dans les allées de la Bibliothèque, chaque rayon garde la trace d'un savoir. Observe les symboles aussi longtemps qu'il te plaît, puis retrouve leur place : la mémoire revient aux étagères.",
-        theme: "cosmos",
+        theme: "bibliotheque",
         published: true,
         isDaily: false,
         levels: [
@@ -74,7 +59,7 @@ const MECHANIC_WORLDS: SeedWorld[] = [
         tagline: "Chaque rouage attend sa juste place.",
         description:
             "Les machines de l'Atelier se sont arrêtées. Fais pivoter les conduits pour que la lumière parte de la source et atteigne chaque pièce, sans qu'aucune ouverture ne se perde dans le vide.",
-        theme: "origines",
+        theme: "atelier",
         published: true,
         isDaily: false,
         levels: [
@@ -89,42 +74,24 @@ const MECHANIC_WORLDS: SeedWorld[] = [
         ),
     },
     {
-        slug: "canaux-d-ether",
-        title: "Les Canaux d'Éther",
-        tagline: "L'énergie cherche son chemin.",
+        slug: "observatoire",
+        title: "L'Observatoire",
+        tagline: "Chaque étoile cherche sa jumelle.",
         description:
-            "Sous le monde coulent des canaux d'éther. Relie chaque paire de sources de même signe sans croiser les autres flux, et remplis tout le réseau : aucune case ne doit rester à sec.",
-        theme: "ocean",
+            "Sous la coupole, le ciel s'est éteint. Relie chaque paire d'étoiles de même signe sans croiser les autres tracés, et fais passer la lumière par chaque case : le ciel entier doit briller.",
+        theme: "observatoire",
         published: true,
         isDaily: false,
         levels: [
-            ["La source", "Deux flux, un petit bassin.", 1],
-            ["Les rigoles", "Les chemins se partagent l'espace.", 2],
-            ["Le lavoir", "Plus de flux, plus de détours.", 4],
-            ["Les aqueducs", "Une grande grille à irriguer.", 6],
-            ["Le delta", "Les flux s'entrelacent.", 8],
-            ["La mer d'éther", "Tout le réseau, d'un seul tenant.", 10],
+            ["Première lueur", "Deux tracés, un petit coin de ciel.", 1],
+            ["Les astres jumeaux", "Les chemins se partagent l'espace.", 2],
+            ["La lunette", "Plus de tracés, plus de détours.", 4],
+            ["Les orbites", "Un grand ciel à éclairer.", 6],
+            ["La voie lactée", "Les tracés s'entrelacent.", 8],
+            ["La carte du ciel", "Tout le ciel, d'un seul tenant.", 10],
         ].map(([title, description, d], i) =>
             generated("FLOW", `flux-${i}`, d as number, { title: title as string, description: description as string, hints: FLOW_HINTS }),
         ),
-    },
-    {
-        slug: "salle-des-echos",
-        title: "La Salle des Échos",
-        tagline: "Chaque chose répond à une règle.",
-        description:
-            "Dans la Salle des Échos, les choses se transforment toujours de la même façon. Observe les exemples, devine la règle, puis applique-la : l'écho juste résonne dans toute la salle.",
-        theme: "foret",
-        published: true,
-        isDaily: false,
-        levels: variedEchoes([
-            ["Le premier écho", "Trois exemples pour deviner.", 1],
-            ["La résonance", "Une transformation à reconnaître.", 2],
-            ["Le chœur", "Moins d'exemples, même logique.", 4],
-            ["La voûte", "Une règle plus discrète.", 6],
-            ["Le double écho", "Deux transformations se combinent.", 8],
-            ["Le silence", "Deux transformations, deux exemples seulement.", 10],
-        ]),
     },
 ];
 
@@ -138,12 +105,12 @@ const DECOYS = ["○", "△", "□", "◇", "✦", "⬡", "☾", "✧"];
  */
 const WORLDS: SeedWorld[] = [
     {
-        slug: "origines",
-        title: "Jardin des Origines",
-        tagline: "Là où naissent les premiers liens.",
+        slug: "jardin-des-echos",
+        title: "Le Jardin des Échos",
+        tagline: "Observer, c'est déjà relier.",
         description:
-            "Dans AETHER, les choses ne sont pas seulement placées les unes à côté des autres. Elles se répondent. Ici, elles vont par deux.",
-        theme: "origines",
+            "Première page de l'Atlas des Esprits. Ici, les choses ne sont pas seulement posées les unes à côté des autres : elles se répondent. Observe-les, et elles vont par deux.",
+        theme: "jardin",
         published: true,
         levels: [
             {
@@ -263,9 +230,75 @@ const WORLDS: SeedWorld[] = [
     },
     ...MECHANIC_WORLDS,
     {
-        slug: "foret-des-echos",
-        title: "Forêt des Échos",
-        tagline: "Ici, rien ne va seul : tout va par trois.",
+        slug: "conservatoire",
+        title: "Le Conservatoire",
+        tagline: "Chaque note appelle la suivante.",
+        description:
+            "Dans le Conservatoire, tout suit une mesure : les saisons, les heures, les phases de la lune. Retrouve l'ordre juste, du premier temps au dernier, et la musique reprend.",
+        theme: "conservatoire",
+        published: true,
+        levels: [
+            {
+                title: "La glace et la vapeur",
+                description: "L'eau change d'état en se réchauffant.",
+                hints: ["Commence par le plus froid.", "La glace fond, puis l'eau s'évapore en nuage."],
+                symbols: ["🔥", "💧", "△", "☁", "🪨", "❄", "○", "☀", "✦"],
+                columns: 3,
+                mechanic: "LINKS",
+                puzzle: null,
+                kind: "SEQUENCE",
+                groups: [[5, 1, 3]],
+            },
+            {
+                title: "La croissance",
+                description: "De la graine à l'arbre, il n'y a qu'un chemin.",
+                hints: ["Commence par le plus petit.", "Graine, pousse, plante, arbre."],
+                symbols: ["🌳", "○", "🌰", "△", "□", "🌿", "◇", "✦", "🌱", "☾", "⬡", "✧"],
+                columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
+                kind: "SEQUENCE",
+                groups: [[2, 8, 5, 0]],
+            },
+            {
+                title: "Compter les points",
+                description: "Les dés ne mentent pas.",
+                hints: ["Du plus petit au plus grand.", "Un, deux, trois, quatre points."],
+                symbols: ["⚂", "○", "△", "⚀", "□", "◇", "⚃", "✦", "☾", "⚁", "⬡", "✧"],
+                columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
+                kind: "SEQUENCE",
+                groups: [[3, 9, 0, 6]],
+            },
+            {
+                title: "La lune qui grandit",
+                description: "Nuit après nuit, la lumière revient.",
+                hints: ["Pars de la nuit la plus noire.", "De la nouvelle lune à la pleine lune."],
+                symbols: ["🌓", "○", "🌑", "☀", "🌕", "✦", "🌒", "△", "✧", "🌔", "□", "◇"],
+                columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
+                kind: "SEQUENCE",
+                groups: [[2, 6, 0, 9, 4]],
+            },
+            {
+                title: "Deux chemins",
+                description: "Deux choses grandissent côte à côte.",
+                hints: ["L'une monte, l'autre se remplit.", "Les barres du plus bas au plus haut ; le cercle du plus vide au plus plein."],
+                symbols: ["▅", "◑", "○", "▁", "△", "◕", "□", "▃", "◇", "◔", "✦", "☾"],
+                columns: 4,
+                mechanic: "LINKS",
+                puzzle: null,
+                kind: "SEQUENCE",
+                groups: [[3, 7, 0], [9, 1, 5]],
+            },
+        ],
+    },
+    {
+        slug: "foret-des-connexions",
+        title: "La Forêt des Connexions",
+        tagline: "Ici, rien ne va seul : tout va par familles.",
         description:
             "Sous les grands arbres, les liens se font plus larges. Réunis les familles entières : un trio n'est complet que si personne ne manque.",
         theme: "foret",
@@ -329,70 +362,24 @@ const WORLDS: SeedWorld[] = [
         ],
     },
     {
-        slug: "rivage-des-suites",
-        title: "Rivage des Suites",
-        tagline: "Chaque pas mène au suivant.",
+        slug: "sommet-des-sages",
+        title: "Le Sommet des Sages",
+        tagline: "Toutes les facultés se rejoignent.",
         description:
-            "Au bord de l'eau, les choses ont un sens de lecture. Relie-les dans l'ordre : un chemin pris à l'envers ne mène nulle part.",
-        theme: "ocean",
+            "Au sommet de l'Atlas, les esprits se rassemblent. Devine la règle cachée des échos, puis retrouve en chemin tout ce que tu as appris : la mémoire, la logique et le regard qui embrasse l'espace.",
+        theme: "sommet",
         published: true,
-        levels: [
-            {
-                title: "La glace et la vapeur",
-                description: "L'eau change d'état en se réchauffant.",
-                hints: ["Commence par le plus froid.", "La glace fond, puis l'eau s'évapore en nuage."],
-                symbols: ["🔥", "💧", "△", "☁", "🪨", "❄", "○", "☀", "✦"],
-                columns: 3,
-                mechanic: "LINKS",
-                puzzle: null,
-                kind: "SEQUENCE",
-                groups: [[5, 1, 3]],
-            },
-            {
-                title: "La croissance",
-                description: "De la graine à l'arbre, il n'y a qu'un chemin.",
-                hints: ["Commence par le plus petit.", "Graine, pousse, plante, arbre."],
-                symbols: ["🌳", "○", "🌰", "△", "□", "🌿", "◇", "✦", "🌱", "☾", "⬡", "✧"],
-                columns: 4,
-                mechanic: "LINKS",
-                puzzle: null,
-                kind: "SEQUENCE",
-                groups: [[2, 8, 5, 0]],
-            },
-            {
-                title: "Compter les points",
-                description: "Les dés ne mentent pas.",
-                hints: ["Du plus petit au plus grand.", "Un, deux, trois, quatre points."],
-                symbols: ["⚂", "○", "△", "⚀", "□", "◇", "⚃", "✦", "☾", "⚁", "⬡", "✧"],
-                columns: 4,
-                mechanic: "LINKS",
-                puzzle: null,
-                kind: "SEQUENCE",
-                groups: [[3, 9, 0, 6]],
-            },
-            {
-                title: "La lune qui grandit",
-                description: "Nuit après nuit, la lumière revient.",
-                hints: ["Pars de la nuit la plus noire.", "De la nouvelle lune à la pleine lune."],
-                symbols: ["🌓", "○", "🌑", "☀", "🌕", "✦", "🌒", "△", "✧", "🌔", "□", "◇"],
-                columns: 4,
-                mechanic: "LINKS",
-                puzzle: null,
-                kind: "SEQUENCE",
-                groups: [[2, 6, 0, 9, 4]],
-            },
-            {
-                title: "Deux chemins",
-                description: "Deux choses grandissent côte à côte.",
-                hints: ["L'une monte, l'autre se remplit.", "Les barres du plus bas au plus haut ; le cercle du plus vide au plus plein."],
-                symbols: ["▅", "◑", "○", "▁", "△", "◕", "□", "▃", "◇", "◔", "✦", "☾"],
-                columns: 4,
-                mechanic: "LINKS",
-                puzzle: null,
-                kind: "SEQUENCE",
-                groups: [[3, 7, 0], [9, 1, 5]],
-            },
-        ],
+        levels: interleave(
+            variedEchoes([
+                ["Le premier écho", "Trois exemples pour deviner.", 1],
+                ["La résonance", "Une transformation à reconnaître.", 2],
+                ["Le chœur", "Moins d'exemples, même logique.", 4],
+                ["La voûte", "Une règle plus discrète.", 6],
+                ["Le double écho", "Deux transformations se combinent.", 8],
+                ["Le silence", "Deux transformations, deux exemples seulement.", 10],
+            ]),
+            SUMMIT_LEVELS,
+        ),
     },
     {
         // Réserve de l'énigme du jour : hors parcours, une énigme tirée chaque jour.
@@ -400,7 +387,7 @@ const WORLDS: SeedWorld[] = [
         title: "Énigmes du jour",
         tagline: "Une énigme par jour, la même pour tout le monde.",
         description: "Réserve de l'énigme du jour. Ce monde n'apparaît pas dans le parcours.",
-        theme: "cosmos",
+        theme: "sommet",
         published: true,
         isDaily: true,
         levels: [

@@ -16,11 +16,12 @@ export type LevelKind = "PAIRS" | "GROUPS" | "SEQUENCE";
 /** Indices de cases (dans `symbols`) qui forment ensemble un lien. Pour une suite, l'ordre compte. */
 export type Group = number[];
 
+import type { WORLD_THEMES } from "./constants";
 import type { LocalPuzzle, Mechanic } from "./mechanics";
 import type { MilestoneFacts, MilestoneValue } from "./rules/milestones";
 
-/** Palette du jardin d'un monde. */
-export type WorldTheme = "origines" | "foret" | "ocean" | "cosmos";
+/** Région de l'Atlas dont un monde reprend le paysage, la palette et la musique. */
+export type WorldTheme = (typeof WORLD_THEMES)[number];
 
 export interface Me {
     id: string;

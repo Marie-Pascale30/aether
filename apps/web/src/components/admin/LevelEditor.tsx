@@ -25,7 +25,7 @@ import { useAdminWorlds, useCreateLevel, useUpdateLevel } from "@/lib/queries";
 import styles from "./LevelEditor.module.css";
 import { levelHref } from "@/lib/routes";
 
-const GROUP_COLORS = ["#d9bd72", "#8ce5dc", "#75b78a", "#e59ab5", "#b49cf0", "#f0a860", "#9fd3f0", "#e6e38a"];
+const GROUP_COLORS = ["#cfae5f", "#a6c39a", "#8fbf8a", "#e59ab5", "#b49cf0", "#f0a860", "#9fd3f0", "#e6e38a"];
 const KINDS: LevelKind[] = ["PAIRS", "GROUPS", "SEQUENCE"];
 
 const MECHANIC_LABELS: Record<Mechanic, string> = {

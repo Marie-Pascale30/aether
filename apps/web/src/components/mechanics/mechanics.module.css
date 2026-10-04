@@ -54,7 +54,7 @@
     aspect-ratio: 1;
     display: grid;
     place-items: center;
-    border: 1px solid #dcebdc2e;
+    border: 1px solid rgb(var(--ivory-rgb) / 0.18);
     border-radius: var(--radius-md);
     background: var(--surface);
     color: var(--text);
@@ -68,7 +68,7 @@
 }
 
 .cell:not(:disabled):hover {
-    border-color: #8ce5dc80;
+    border-color: rgb(var(--sage-rgb) / 0.5);
     transform: translateY(-2px);
 }
 
@@ -78,8 +78,8 @@
 }
 
 .cell[data-found] {
-    border-color: #d9bd7299;
-    background: #16302f;
+    border-color: rgb(var(--gold-rgb) / 0.6);
+    background: #172a40;
 }
 
 .cell[data-wrong] {
@@ -107,17 +107,17 @@
 .tile {
     aspect-ratio: 1;
     padding: 0;
-    border: 1px solid #dcebdc1f;
+    border: 1px solid rgb(var(--ivory-rgb) / 0.12);
     border-radius: 10px;
-    background: #0e2329;
+    background: #102035;
     cursor: pointer;
-    --pipe: #6f8983;
+    --pipe: var(--faint);
 }
 
 .tile[data-fixed] {
-    background: #132a2c;
-    border-color: #d9bd7280;
-    box-shadow: inset 0 0 0 2px #d9bd7233;
+    background: #16283c;
+    border-color: rgb(var(--gold-rgb) / 0.5);
+    box-shadow: inset 0 0 0 2px rgb(var(--gold-rgb) / 0.2);
     cursor: default;
 }
 
@@ -150,7 +150,7 @@
 }
 
 .source {
-    filter: drop-shadow(0 0 6px #d9bd72aa);
+    filter: drop-shadow(0 0 6px rgb(var(--gold-rgb) / 0.67));
 }
 
 .tile[data-lit] .lamp {
@@ -179,17 +179,17 @@
 
 .flowCell {
     fill: var(--surface);
-    stroke: #dcebdc1f;
+    stroke: rgb(var(--ivory-rgb) / 0.12);
     stroke-width: .02;
 }
 
 .flowCell[data-cursor] {
-    stroke: var(--cyan);
+    stroke: var(--sage);
     stroke-width: .05;
 }
 
 .flow:not(:focus-visible) .flowCell[data-cursor] {
-    stroke: #dcebdc1f;
+    stroke: rgb(var(--ivory-rgb) / 0.12);
     stroke-width: .02;
 }
 
@@ -237,8 +237,8 @@
 }
 
 .examples .question {
-    border-color: #8ce5dc66;
-    background: #8ce5dc0d;
+    border-color: rgb(var(--sage-rgb) / 0.4);
+    background: rgb(var(--sage-rgb) / 0.05);
 }
 
 .echo {
@@ -296,7 +296,7 @@
 
 .option[data-correct] {
     border-color: var(--gold);
-    background: #d9bd7226;
+    background: rgb(var(--gold-rgb) / 0.15);
 }
 
 @keyframes appear {

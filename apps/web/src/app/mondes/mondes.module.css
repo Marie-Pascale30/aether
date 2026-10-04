@@ -26,20 +26,20 @@
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
-    background: linear-gradient(145deg, #122b32ee, #091a21ee);
+    background: linear-gradient(145deg, #15263eee, #0b1729ee);
     color: var(--text);
     text-decoration: none;
     transition: border-color .25s, transform .2s var(--ease), box-shadow .25s;
 }
 
 a.card:hover {
-    border-color: #d9bd7280;
+    border-color: rgb(var(--gold-rgb) / 0.5);
     transform: translateY(-3px);
     box-shadow: 0 16px 50px #00000050;
 }
 
 .card[data-status="available"] {
-    border-color: #8ce5dc55;
+    border-color: rgb(var(--sage-rgb) / 0.33);
 }
 
 .card[data-status="locked"] {

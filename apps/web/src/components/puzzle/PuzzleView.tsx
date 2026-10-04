@@ -15,6 +15,7 @@ import { formatDuration, pad2 } from "@/lib/format";
 import { levelLabel } from "@/lib/kinds";
 import { worldHref } from "@/lib/routes";
 import { useSettings } from "@/lib/settings";
+import { useAmbience } from "@/lib/sound/SoundProvider";
 import { CompletionPanel } from "./CompletionPanel";
 import { EquilibriumNudge } from "./EquilibriumNudge";
 import styles from "./Puzzle.module.css";
@@ -43,6 +44,7 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
     const label = levelLabel(detail.mechanic, detail.kind);
     const equilibrium = useEquilibrium({ active: !puzzle.completion, progress: puzzle.advances, mistakes: puzzle.mistakes });
     const pauseHref = detail.isDaily ? "/quotidien" : worldHref(detail.world.slug);
+    useAmbience(detail.world.theme);
 
     return (
         <>

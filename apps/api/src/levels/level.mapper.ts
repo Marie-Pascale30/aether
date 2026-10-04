@@ -41,7 +41,7 @@ export function goalCount(level: Pick<Level, "mechanic" | "puzzle" | "groups">):
 
 /** Un thème inconnu (saisi à la main en base) retombe sur le thème par défaut. */
 export function toTheme(theme: string): WorldTheme {
-    return (WORLD_THEMES as readonly string[]).includes(theme) ? (theme as WorldTheme) : "origines";
+    return (WORLD_THEMES as readonly string[]).includes(theme) ? (theme as WorldTheme) : "jardin";
 }
 
 export function toWorldRef(world: Pick<World, "slug" | "title" | "theme">): WorldRef {

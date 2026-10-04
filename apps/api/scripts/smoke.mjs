@@ -42,7 +42,7 @@ const unique = Date.now().toString(36);
 /** Victoire jouée sur l'appareil, telle que l'application l'envoie (éventuellement plus tard). */
 const win = (who, levelId, { resultId = randomUUID(), playedAt = new Date(), durationMs = 30_000, mistakes = 0, hintsUsed = 0, attempts = [] } = {}) =>
     who("POST", `/levels/${levelId}/results`, { resultId, playedAt: playedAt.toISOString(), durationMs, mistakes, hintsUsed, attempts });
-let worlds, origines, firstResultId;
+let worlds, jardin, firstResultId;
 
 console.log(`Smoke test sur ${API}`);
 
@@ -77,20 +77,20 @@ await check("mondes : le premier ouvert, les suivants scellés", async () => {
     assert.ok(worlds.length >= 3);
     assert.deepEqual(worlds.map((w) => w.status).slice(0, 3), ["available", "locked", "locked"]);
     assert.equal(worlds[0].garden.stage, 0);
-    origines = (await player("GET", `/worlds/${worlds[0].slug}`)).body;
-    assert.equal(origines.levels[0].status, "available");
-    assert.equal(origines.levels[1].status, "locked");
-    assert.equal(origines.nextLevelId, origines.levels[0].id);
+    jardin = (await player("GET", `/worlds/${worlds[0].slug}`)).body;
+    assert.equal(jardin.levels[0].status, "available");
+    assert.equal(jardin.levels[1].status, "locked");
+    assert.equal(jardin.nextLevelId, jardin.levels[0].id);
 });
 
 await check("énigmes : prêtes à jouer (réponses comprises), énigme scellée → 403 (y compris dans un monde scellé)", async () => {
-    const detail = (await player("GET", `/levels/${origines.levels[0].id}`)).body;
+    const detail = (await player("GET", `/levels/${jardin.levels[0].id}`)).body;
     assert.deepEqual(detail.groups, [[0, 3]]); // sans classement, rien à cacher : c'est ce qui permet le hors ligne
     assert.equal(detail.hints.length, 2);
     assert.equal(detail.kind, "PAIRS");
     assert.equal(detail.groupSize, 2);
     assert.equal(detail.world.slug, worlds[0].slug);
-    assert.equal((await player("GET", `/levels/${origines.levels[1].id}`)).status, 403);
+    assert.equal((await player("GET", `/levels/${jardin.levels[1].id}`)).status, 403);
     const foret = (await player("GET", `/worlds/${worlds[1].slug}`)).body; // 2e monde, scellé au départ
     assert.equal(foret.levels[0].status, "locked");
     assert.equal((await player("GET", `/levels/${foret.levels[0].id}`)).status, 403);
@@ -112,7 +112,7 @@ await check("contenu embarqué : mondes publiés, réponses, énigmes du jour ti
 });
 
 await check("résultat invalide refusé (identifiant, date, durée)", async () => {
-    const id = origines.levels[0].id;
+    const id = jardin.levels[0].id;
     assert.equal((await player("POST", `/levels/${id}/results`, { durationMs: 1000, mistakes: 0, hintsUsed: 0 })).status, 400);
     assert.equal((await player("POST", `/levels/${id}/results`, { resultId: "x", playedAt: "hier", durationMs: 1, mistakes: 0, hintsUsed: 0 })).status, 400);
     assert.equal((await win(player, id, { durationMs: -1 })).status, 400);
@@ -121,7 +121,7 @@ await check("résultat invalide refusé (identifiant, date, durée)", async () =
 await check("première victoire (une fausse piste, deux indices) → pétale d'éclosion et premier repère", async () => {
     // Seed : énigme 1 = cases 0 et 3. Les coups des Liens partent avec le résultat (statistiques).
     firstResultId = randomUUID();
-    const { status, body } = await win(player, origines.levels[0].id, {
+    const { status, body } = await win(player, jardin.levels[0].id, {
         resultId: firstResultId,
         mistakes: 1,
         hintsUsed: 2,
@@ -135,30 +135,30 @@ await check("première victoire (une fausse piste, deux indices) → pétale d'�
     assert.equal(body.newPetals, 1);
     assert.equal(body.mistakes, undefined, "les fausses pistes ne sont pas renvoyées");
     assert.deepEqual(body.milestones.map((m) => m.key), ["premiers-pas"]);
-    assert.equal(body.nextLevelId, origines.levels[1].id);
+    assert.equal(body.nextLevelId, jardin.levels[1].id);
     assert.equal(body.worldCompleted, false);
     assert.equal(body.garden.completedLevels, 1);
 });
 
 await check("renvoi du même résultat (coupure réseau) : compté une seule fois", async () => {
-    const { status, body } = await win(player, origines.levels[0].id, { resultId: firstResultId, mistakes: 1, hintsUsed: 2 });
+    const { status, body } = await win(player, jardin.levels[0].id, { resultId: firstResultId, mistakes: 1, hintsUsed: 2 });
     assert.equal(status, 200);
     assert.equal(body.newPetals, 0);
     assert.deepEqual(body.milestones, []);
     assert.equal((await player("GET", "/me/stats")).body.levels[0].completions, 1);
     // Le même identifiant pour une autre énigme est un conflit.
-    assert.equal((await win(player, origines.levels[1].id, { resultId: firstResultId })).status, 409);
+    assert.equal((await win(player, jardin.levels[1].id, { resultId: firstResultId })).status, 409);
 });
 
 await check("rejouer sans indice ni fausse piste → les deux autres pétales s'ajoutent", async () => {
-    const { body } = await win(player, origines.levels[0].id);
+    const { body } = await win(player, jardin.levels[0].id);
     assert.equal(body.petals, 7);
     assert.equal(body.newPetals, 6);
     assert.equal(body.levelPetals, 7);
     assert.deepEqual(body.milestones, []);
 
     // Une partie moins harmonieuse ne retire rien.
-    const { body: again } = await win(player, origines.levels[0].id, { mistakes: 1 });
+    const { body: again } = await win(player, jardin.levels[0].id, { mistakes: 1 });
     assert.equal(again.petals, 3);
     assert.equal(again.levelPetals, 7);
     assert.equal(again.newPetals, 0);
@@ -173,10 +173,10 @@ await check("énigme 2 débloquée, progression, synchronisation et stats à jou
     const progress = (await player("GET", "/me/progress")).body;
     assert.equal(progress.completedLevels, 1);
     assert.equal(progress.resume.world.slug, worlds[0].slug);
-    assert.equal(progress.resume.levelId, origines.levels[1].id);
+    assert.equal(progress.resume.levelId, jardin.levels[1].id);
     const sync = (await player("GET", "/me/sync")).body;
-    assert.deepEqual(Object.keys(sync.levels), [origines.levels[0].id]);
-    assert.equal(sync.levels[origines.levels[0].id].petals, 7);
+    assert.deepEqual(Object.keys(sync.levels), [jardin.levels[0].id]);
+    assert.equal(sync.levels[jardin.levels[0].id].petals, 7);
     const stats = (await player("GET", "/me/stats")).body;
     assert.equal(stats.levels[0].completions, 3);
     assert.equal(stats.levels[0].worldTitle, worlds[0].title);
@@ -187,8 +187,8 @@ await check("énigme 2 débloquée, progression, synchronisation et stats à jou
 await check("monde suivant ouvert après 3 énigmes ; victoire hors ligne envoyée en retard", async () => {
     // Énigme 2 jouée hier (hors ligne), envoyée aujourd'hui : elle compte pour hier.
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    assert.equal((await win(player, origines.levels[1].id, { playedAt: yesterday })).status, 200);
-    assert.equal((await win(player, origines.levels[2].id)).status, 200);
+    assert.equal((await win(player, jardin.levels[1].id, { playedAt: yesterday })).status, 200);
+    assert.equal((await win(player, jardin.levels[2].id)).status, 200);
     const after = (await player("GET", "/worlds")).body;
     assert.equal(after[0].status, "available"); // pas encore restauré en entier…
     assert.equal(after[1].status, "available"); // …mais le monde suivant est ouvert
@@ -329,12 +329,12 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     await check("admin : connexion, aperçu d'énigmes scellées", async () => {
         const login = await admin("POST", "/auth/login", { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD });
         assert.equal(login.status, 200);
-        foret = (await admin("GET", "/worlds/foret-des-echos")).body;
+        foret = (await admin("GET", "/worlds/foret-des-connexions")).body;
         assert.equal((await admin("GET", `/levels/${foret.levels[0].id}`)).status, 200);
     });
 
     await check("statistiques de conception : fausses pistes et parties admin exclues", async () => {
-        const stats = (await admin("GET", `/admin/levels/${origines.levels[0].id}/stats`)).body;
+        const stats = (await admin("GET", `/admin/levels/${jardin.levels[0].id}/stats`)).body;
         assert.ok(stats.sessions >= 2);
         assert.ok(stats.completions >= 2);
         assert.ok(stats.attempts >= 3);
@@ -344,11 +344,11 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         assert.deepEqual(lead.symbols, ["○", "✦"]);
         assert.deepEqual(stats.harmony.map((h) => h.petals), [3, 2, 1]);
         assert.equal(stats.hints.length, 2);
-        assert.equal((await player("GET", `/admin/levels/${origines.levels[0].id}/stats`)).status, 403);
+        assert.equal((await player("GET", `/admin/levels/${jardin.levels[0].id}/stats`)).status, 403);
 
         const before = stats.sessions;
-        await win(admin, origines.levels[0].id, { attempts: [{ cells: [0, 3], correct: true }] });
-        const after = (await admin("GET", `/admin/levels/${origines.levels[0].id}/stats`)).body;
+        await win(admin, jardin.levels[0].id, { attempts: [{ cells: [0, 3], correct: true }] });
+        const after = (await admin("GET", `/admin/levels/${jardin.levels[0].id}/stats`)).body;
         assert.equal(after.sessions, before, "une partie admin a été comptée");
     });
 
@@ -400,7 +400,7 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     });
 
     await check("admin : mondes (création, identifiant unique, suppression protégée)", async () => {
-        const input = { slug: `essai-${unique}`, title: "Monde d'essai", tagline: "Test", description: "Test", theme: "cosmos", published: false };
+        const input = { slug: `essai-${unique}`, title: "Monde d'essai", tagline: "Test", description: "Test", theme: "sommet", published: false };
         assert.equal((await admin("POST", "/admin/worlds", { ...input, slug: "Pas Valide" })).status, 400);
         const created = await admin("POST", "/admin/worlds", input);
         assert.equal(created.status, 201);

@@ -68,8 +68,8 @@ try {
 
     await step("commencer → premier monde (invité créé)", async () => {
         await page.getByRole("link", { name: "Commencer" }).click();
-        await page.waitForURL("**/monde?m=origines");
-        await page.getByRole("heading", { name: "Jardin des Origines" }).waitFor();
+        await page.waitForURL("**/monde?m=jardin-des-echos");
+        await page.getByRole("heading", { name: "Le Jardin des Échos" }).waitFor();
         await page.waitForTimeout(900);
         await page.screenshot({ path: OUT + "02-monde.png", fullPage: true });
     });
@@ -123,15 +123,18 @@ try {
 
     await step("mondes : le premier entamé, les suivants scellés", async () => {
         await page.goto(BASE + "/mondes");
-        await page.getByRole("heading", { name: "Les mondes" }).waitFor();
+        await page.getByRole("heading", { name: "L'Atlas des Esprits" }).waitFor();
         await page.getByText(/^1 \/ \d+ énigmes/).first().waitFor();
-        await page.getByText("Résous trois énigmes du monde précédent pour l'ouvrir.").first().waitFor();
+        await page.getByText("Résous trois énigmes de la région précédente pour l'ouvrir.").first().waitFor();
+        const atlas = page.getByRole("group", { name: "Carte de l'Atlas des Esprits" });
+        await atlas.getByRole("link", { name: /Le Jardin des Échos — Observation/ }).waitFor();
+        await atlas.getByRole("img", { name: /La Bibliothèque Vivante — Mémoire \(scellé\)/ }).waitFor();
         await page.waitForTimeout(400);
         await page.screenshot({ path: OUT + "06-mondes.png", fullPage: true });
     });
 
     await step("énigme suivante depuis la carte du monde", async () => {
-        await page.getByRole("link", { name: /Jardin des Origines/ }).click();
+        await page.getByRole("group", { name: "Carte de l'Atlas des Esprits" }).getByRole("link", { name: /Le Jardin des Échos/ }).click();
         await page.getByRole("link", { name: /L'ombre et la lumière/ }).click();
         await page.getByRole("heading", { name: "L'ombre et la lumière" }).waitFor();
     });
@@ -153,7 +156,7 @@ try {
 
     await step("« mon jardin » mène au monde en cours, qui a poussé", async () => {
         await page.goto(BASE + "/jardin");
-        await page.waitForURL("**/monde?m=origines");
+        await page.waitForURL("**/monde?m=jardin-des-echos");
         await page.getByText("1 / 10 énigmes restaurées").waitFor();
         await page.waitForTimeout(2500);
         await page.screenshot({ path: OUT + "07-jardin-grown.png" });
@@ -233,7 +236,7 @@ try {
         await admin.getByRole("button", { name: "Me connecter" }).click();
         await admin.waitForURL("**/admin/niveaux");
         await admin.getByRole("link", { name: "Le premier lien" }).waitFor();
-        await admin.getByRole("heading", { name: "Rivage des Suites" }).waitFor();
+        await admin.getByRole("heading", { name: "Le Conservatoire" }).waitFor();
         await admin.screenshot({ path: OUT + "11-admin-list.png", fullPage: true });
     });
 
@@ -248,7 +251,7 @@ try {
     });
 
     await step("suite jouée dans l'ordre (aperçu admin)", async () => {
-        // Seed : Rivage 1 = cases 6 → 2 → 4 (glace, eau, nuage), numérotées à partir de 1.
+        // Seed : Conservatoire 1 = cases 6 → 2 → 4 (glace, eau, nuage), numérotées à partir de 1.
         await admin.getByRole("row", { name: /La glace et la vapeur/ }).getByRole("link", { name: "Tester" }).click();
         await admin.getByRole("heading", { name: "La glace et la vapeur" }).waitFor();
         await admin.getByRole("button", { name: /Recommencer/ }).click();
@@ -319,7 +322,7 @@ try {
         await finish("rouages");
 
         // Flux : chaque chemin de la solution est tracé en glissant d'une case à l'autre.
-        puzzle = await open("canaux-d-ether");
+        puzzle = await open("observatoire");
         const box = await admin.getByRole("application").boundingBox();
         const at = (cell) => ({
             x: box.x + ((cell % puzzle.columns) + 0.5) * (box.width / puzzle.columns),
@@ -334,7 +337,7 @@ try {
         await finish("flux");
 
         // Échos : une mauvaise proposition s'efface, puis la bonne.
-        puzzle = await open("salle-des-echos");
+        puzzle = await open("sommet-des-sages");
         const wrong = puzzle.options.findIndex((_, i) => i !== puzzle.answer);
         await admin.getByRole("button", { name: puzzle.options[wrong], exact: true }).click();
         await admin.getByText("Cet écho ne répond pas à la règle").waitFor();
@@ -345,7 +348,7 @@ try {
     await step("admin : mondes", async () => {
         await admin.goto(BASE + "/admin/mondes");
         await admin.getByRole("heading", { name: "Mondes" }).waitFor();
-        await admin.getByRole("heading", { name: "Forêt des Échos" }).waitFor();
+        await admin.getByRole("heading", { name: "La Forêt des Connexions" }).waitFor();
         await admin.screenshot({ path: OUT + "14-admin-mondes.png", fullPage: true });
     });
 
@@ -446,7 +449,7 @@ try {
 
     await step("réglages : le temps ne s'affiche que sur demande", async () => {
         await keyboard.getByRole("switch", { name: /Afficher le temps/ }).check({ force: true });
-        await keyboard.goto(BASE + "/monde?m=origines");
+        await keyboard.goto(BASE + "/monde?m=jardin-des-echos");
         await keyboard.getByRole("link", { name: /Le premier lien/ }).click();
         await keyboard.getByText("Temps", { exact: true }).waitFor();
         await keyboard.goto(BASE + "/reglages");
@@ -469,7 +472,7 @@ try {
         const offline = await context.newPage();
         watch(offline, "hors-ligne", { offline: true });
         await offline.goto(BASE + "/jardin");
-        await offline.waitForURL("**/monde?m=origines");
+        await offline.waitForURL("**/monde?m=jardin-des-echos");
         await offline.getByRole("link", { name: "Entrer dans le monde" }).waitFor();
         // Service worker installé (pages gardées) et cache de données écrit sur l'appareil.
         await offline.evaluate(() => navigator.serviceWorker.ready);

@@ -20,11 +20,11 @@ const level = (id: string): ContentLevel => ({
 const bundle: ContentBundle = {
     version: "v1",
     worlds: [
-        { id: "w1", slug: "un", title: "Un", tagline: "", description: "", theme: "origines", levels: ["a", "b", "c", "d"].map(level) },
+        { id: "w1", slug: "un", title: "Un", tagline: "", description: "", theme: "jardin", levels: ["a", "b", "c", "d"].map(level) },
         { id: "w2", slug: "deux", title: "Deux", tagline: "", description: "", theme: "foret", levels: ["e", "f"].map(level) },
-        { id: "empty", slug: "vide", title: "Vide", tagline: "", description: "", theme: "ocean", levels: [] },
+        { id: "empty", slug: "vide", title: "Vide", tagline: "", description: "", theme: "observatoire", levels: [] },
     ],
-    daily: { timeZone: "Europe/Paris", days: [{ date: "2026-10-04", world: { slug: "quotidien", title: "Jour", theme: "cosmos" }, level: level("jour") }] },
+    daily: { timeZone: "Europe/Paris", days: [{ date: "2026-10-04", world: { slug: "quotidien", title: "Jour", theme: "sommet" }, level: level("jour") }] },
 };
 
 const records = (ids: string[], petals: number = PETALS.SOLVED) => new Map<string, LevelRecord>(ids.map((id) => [id, { petals, bestTimeMs: 1000 }]));
@@ -35,7 +35,7 @@ describe("parcours calculé sur l'appareil", () => {
         expect(start.worlds.map((w) => w.status)).toEqual(["available", "locked"]);
         expect(start.status("a")).toBe("available");
         expect(start.status("b")).toBe("locked");
-        expect(start.summary.resume).toEqual({ world: { slug: "un", title: "Un", theme: "origines" }, levelId: "a" });
+        expect(start.summary.resume).toEqual({ world: { slug: "un", title: "Un", theme: "jardin" }, levelId: "a" });
 
         const three = buildJourney(bundle, records(["a", "b", "c"]));
         expect(three.worlds.map((w) => w.status)).toEqual(["available", "available"]);

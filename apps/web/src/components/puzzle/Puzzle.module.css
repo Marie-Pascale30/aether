@@ -16,7 +16,7 @@
     display: inline-flex;
     gap: 6px;
     font-size: 12px;
-    color: var(--cyan);
+    color: var(--sage);
     letter-spacing: .06em;
 }
 
@@ -110,10 +110,10 @@
     width: min(480px, 100%);
     padding: 36px 28px;
     text-align: center;
-    background: linear-gradient(160deg, #15323a, #0a1c22);
-    border: 1px solid #d9bd7255;
+    background: linear-gradient(160deg, #17294a, #0d1a2c);
+    border: 1px solid rgb(var(--gold-rgb) / 0.33);
     border-radius: var(--radius-lg);
-    box-shadow: 0 30px 120px #000000a0, 0 0 80px #d9bd7214;
+    box-shadow: 0 30px 120px #000000a0, 0 0 80px rgb(var(--gold-rgb) / 0.08);
     animation: rise .6s var(--ease);
 }
 
@@ -161,10 +161,10 @@
     margin: 14px auto 4px;
     padding: 14px 18px;
     max-width: 560px;
-    border: 1px solid #8ce5dc33;
+    border: 1px solid rgb(var(--sage-rgb) / 0.2);
     border-radius: 18px;
-    background: #8ce5dc0a;
-    color: #cbd8d3;
+    background: rgb(var(--sage-rgb) / 0.04);
+    color: var(--ivory-soft);
     animation: reveal .8s var(--ease);
 }
 
@@ -175,7 +175,7 @@
 .nudgeGlyph {
     font-size: 22px;
     line-height: 1.2;
-    color: var(--cyan);
+    color: var(--sage);
 }
 
 .nudgeSoft {
@@ -242,9 +242,9 @@
     list-style: none;
     margin: 14px 0 0;
     padding: 12px 14px;
-    border: 1px solid #d9bd7240;
+    border: 1px solid rgb(var(--gold-rgb) / 0.25);
     border-radius: 14px;
-    background: #d9bd720d;
+    background: rgb(var(--gold-rgb) / 0.05);
     text-align: left;
 }
 

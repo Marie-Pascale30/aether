@@ -4,6 +4,6 @@
     "rootDir": "."
   },
   "include": [
-    "prisma/seed.ts"
+    "prisma/*.ts"
   ]
 }

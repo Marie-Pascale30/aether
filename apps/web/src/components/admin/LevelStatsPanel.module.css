@@ -84,7 +84,7 @@
 .track {
     height: 14px;
     border-radius: 0 4px 4px 0;
-    background: #dcebdc0f;
+    background: rgb(var(--ivory-rgb) / 0.06);
 }
 
 .fill {
@@ -97,7 +97,7 @@
 }
 
 .bars li:hover .fill {
-    background: #e6cc86;
+    background: var(--gold-light);
 }
 
 .barValue {

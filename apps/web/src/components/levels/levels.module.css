@@ -2,7 +2,7 @@
     flex: 1 1 220px;
     height: 6px;
     border-radius: var(--radius-pill);
-    background: #dcebdc1a;
+    background: rgb(var(--ivory-rgb) / 0.1);
     overflow: hidden;
 }
 
@@ -40,14 +40,14 @@
 }
 
 a.card:hover {
-    border-color: #d9bd7280;
+    border-color: rgb(var(--gold-rgb) / 0.5);
     transform: translateY(-3px);
     box-shadow: 0 12px 40px #00000040;
 }
 
 .card[data-status="available"] {
-    border-color: #8ce5dc66;
-    box-shadow: 0 0 30px #8ce5dc12;
+    border-color: rgb(var(--sage-rgb) / 0.4);
+    box-shadow: 0 0 30px rgb(var(--sage-rgb) / 0.07);
 }
 
 .card[data-status="locked"] {
@@ -73,7 +73,7 @@ a.card:hover {
 .kind {
     font-size: 11px;
     letter-spacing: .06em;
-    color: var(--cyan);
+    color: var(--sage);
 }
 
 .card[data-status="locked"] .kind {

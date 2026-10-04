@@ -31,7 +31,11 @@ export const GROUP_SIZE: Record<"PAIRS" | "GROUPS" | "SEQUENCE", { min: number; 
 /** Énigmes à résoudre dans un monde pour ouvrir le suivant (ou toutes, s'il en a moins). */
 export const WORLD_UNLOCK_AFTER = 3;
 
-export const WORLD_THEMES = ["origines", "foret", "ocean", "cosmos"] as const;
+/**
+ * Régions de l'Atlas des Esprits : chacune a son paysage, sa palette et sa musique, et exerce
+ * une faculté de l'esprit. Un monde choisit l'une d'elles comme thème.
+ */
+export const WORLD_THEMES = ["jardin", "bibliotheque", "atelier", "observatoire", "conservatoire", "foret", "sommet"] as const;
 
 export const ACCOUNT_LIMITS = {
     displayNameMin: 2,

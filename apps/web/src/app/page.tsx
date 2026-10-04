@@ -15,9 +15,12 @@ export default function HomePage() {
     return (
         <section className={styles.hero}>
             <div className={styles.symbol} aria-hidden />
-            <div className="tag">Un monde attend ses connexions</div>
+            <div className="tag">Offrez à votre esprit un moment de plaisir</div>
             <h1>AETHER</h1>
-            <p>Une expérience contemplative de puzzles où chaque connexion restaure une partie du monde.</p>
+            <p>
+                L&apos;Atlas des Esprits, grande bibliothèque vivante, s&apos;est brisé en fragments. Énigme après énigme,
+                à ton rythme, rends-lui sa mémoire : sept régions, sept façons de penser.
+            </p>
 
             <div className="row" style={{ justifyContent: "center" }}>
                 {hasStarted ? (
@@ -35,7 +38,7 @@ export default function HomePage() {
                     </ButtonLink>
                 )}
             </div>
-            <div className={styles.footer}>Jardin des Origines</div>
+            <div className={styles.footer}>Observation · Mémoire · Logique · Vision · Rythme · Associations · Sagesse</div>
         </section>
     );
 }

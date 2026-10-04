@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { WorldTheme } from "@aether/shared";
 import { useSettings } from "@/lib/settings";
 import { SoundEngine, type Cue } from "./engine";
 
@@ -8,6 +9,8 @@ interface SoundContextValue {
     muted: boolean;
     toggleMuted: () => void;
     play: (cue: Cue) => void;
+    /** Région dont on entend l'ambiance (musique et nature). */
+    setTheme: (theme: WorldTheme) => void;
 }
 
 const SoundContext = createContext<SoundContextValue | null>(null);
@@ -56,8 +59,18 @@ export function SoundProvider({ children }: { children: ReactNode }) {
         [muted, settings.effects],
     );
 
-    const value = useMemo(() => ({ muted, toggleMuted, play }), [muted, toggleMuted, play]);
+    const setTheme = useCallback((theme: WorldTheme) => getEngine().setTheme(theme), []);
+
+    const value = useMemo(() => ({ muted, toggleMuted, play, setTheme }), [muted, toggleMuted, play, setTheme]);
     return <SoundContext.Provider value={value}>{children}</SoundContext.Provider>;
+}
+
+/** L'ambiance sonore suit la région affichée ; elle reste en place en quittant la page. */
+export function useAmbience(theme: WorldTheme | undefined) {
+    const { setTheme } = useSound();
+    useEffect(() => {
+        if (theme) setTheme(theme);
+    }, [theme, setTheme]);
 }
 
 export function useSound(): SoundContextValue {
