@@ -1,38 +1,65 @@
 import { Injectable } from "@nestjs/common";
-import { gardenStage, MAX_STARS_PER_LEVEL, type PlayerStats, type ProgressSummary } from "@aether/shared";
-import { LevelsService } from "../levels/levels.service";
+import { MAX_HARMONY_PER_LEVEL, petalCount, type SyncState, type LevelStats, type PlayerStats, type ProgressSummary } from "@aether/shared";
+import { DailyService } from "../levels/daily.service";
+import { JourneyService, type Journey } from "../levels/journey.service";
+import { toWorldRef } from "../levels/level.mapper";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class ProgressService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly levels: LevelsService,
+        private readonly journeys: JourneyService,
+        private readonly daily: DailyService,
     ) {}
 
-    async summary(userId: string): Promise<ProgressSummary> {
-        const { levels, statuses, progress } = await this.levels.journey(userId);
-        const completedLevels = progress.size;
-        const totalLevels = levels.length;
+    /** Progression brute : l'appareil en déduit le parcours à partir du contenu embarqué. */
+    async sync(userId: string): Promise<SyncState> {
+        const [levels, daily] = await Promise.all([
+            this.prisma.levelProgress.findMany({ where: { userId }, select: { levelId: true, petals: true, bestTimeMs: true } }),
+            this.daily.results(userId),
+        ]);
+        return {
+            levels: Object.fromEntries(levels.map((row) => [row.levelId, { petals: row.petals, bestTimeMs: row.bestTimeMs }])),
+            daily,
+        };
+    }
+
+    async summary(userId: string, journey?: Journey): Promise<ProgressSummary> {
+        const j = journey ?? (await this.journeys.load(userId));
+        const worlds = j.worlds.map((_, i) => this.journeys.worldSummary(j, i));
+        const totalLevels = j.worlds.reduce((sum, w) => sum + w.levels.length, 0);
+
+        const resumeIndex = worlds.findIndex((world) => world.status === "available");
+        const resume =
+            resumeIndex === -1
+                ? null
+                : {
+                      world: toWorldRef(j.worlds[resumeIndex]!.world),
+                      levelId: this.journeys.nextAvailableLevel(j, resumeIndex)?.id ?? null,
+                  };
 
         return {
-            garden: { stage: gardenStage(completedLevels, totalLevels), completedLevels, totalLevels },
-            totalStars: [...progress.values()].reduce((sum, row) => sum + row.bestStars, 0),
-            maxStars: totalLevels * MAX_STARS_PER_LEVEL,
-            nextLevelId: levels.find((level) => statuses.get(level.id) === "available")?.id ?? null,
+            worlds,
+            harmony: worlds.reduce((sum, world) => sum + world.harmony, 0),
+            maxHarmony: totalLevels * MAX_HARMONY_PER_LEVEL,
+            completedLevels: j.progress.size,
+            totalLevels,
+            resume,
         };
     }
 
     async stats(userId: string): Promise<PlayerStats> {
-        const { levels, progress } = await this.levels.journey(userId);
-        const levelIds = levels.map((level) => level.id);
+        const journey = await this.journeys.load(userId);
+        const levels = journey.worlds.flatMap(({ world, levels }) => levels.map((level, i) => ({ level, world, position: i + 1 })));
+        const levelIds = levels.map(({ level }) => level.id);
 
         const [allSessions, completedSessions] = await Promise.all([
             this.prisma.playSession.groupBy({
                 by: ["levelId"],
                 where: { userId, levelId: { in: levelIds } },
                 _count: { _all: true },
-                _sum: { mistakes: true, hintsUsed: true },
+                _sum: { hintsUsed: true },
             }),
             this.prisma.playSession.groupBy({
                 by: ["levelId"],
@@ -42,36 +69,34 @@ export class ProgressService {
         ]);
 
         const sessionsByLevel = new Map(allSessions.map((row) => [row.levelId, row]));
-        const playTimeByLevel = new Map(completedSessions.map((row) => [row.levelId, row._sum.durationMs ?? 0]));
+        const playTimeMs = completedSessions.reduce((sum, row) => sum + (row._sum.durationMs ?? 0), 0);
 
-        const levelStats = levels.map((level, i) => {
-            const best = progress.get(level.id);
+        const levelStats: LevelStats[] = levels.map(({ level, world, position }) => {
+            const best = journey.progress.get(level.id);
             const sessions = sessionsByLevel.get(level.id);
             return {
                 levelId: level.id,
-                position: i + 1,
+                worldTitle: world.title,
+                position,
                 title: level.title,
-                bestStars: best?.bestStars ?? null,
+                petals: best?.petals ?? 0,
                 bestTimeMs: best?.bestTimeMs ?? null,
                 completions: best?.completions ?? 0,
                 sessions: sessions?._count._all ?? 0,
-                mistakes: sessions?._sum.mistakes ?? 0,
                 hintsUsed: sessions?._sum.hintsUsed ?? 0,
             };
         });
 
-        const sum = (pick: (row: (typeof levelStats)[number]) => number) =>
-            levelStats.reduce((total, row) => total + pick(row), 0);
+        const sum = (pick: (row: LevelStats) => number) => levelStats.reduce((total, row) => total + pick(row), 0);
 
         return {
             levels: levelStats,
             totals: {
                 sessions: sum((row) => row.sessions),
                 completions: sum((row) => row.completions),
-                mistakes: sum((row) => row.mistakes),
                 hintsUsed: sum((row) => row.hintsUsed),
-                totalStars: sum((row) => row.bestStars ?? 0),
-                playTimeMs: [...playTimeByLevel.values()].reduce((a, b) => a + b, 0),
+                harmony: sum((row) => petalCount(row.petals)),
+                playTimeMs,
             },
         };
     }

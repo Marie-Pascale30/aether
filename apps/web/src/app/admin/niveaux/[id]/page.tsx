@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { LevelEditor } from "@/components/admin/LevelEditor";
+import { LevelStatsPanel } from "@/components/admin/LevelStatsPanel";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { useAdminLevel } from "@/lib/queries";
 
@@ -11,5 +12,10 @@ export default function EditLevelPage() {
 
     if (level.error) return <ErrorState error={level.error} />;
     if (!level.data) return <Loading />;
-    return <LevelEditor key={level.data.id} level={level.data} />;
+    return (
+        <div className="stack">
+            <LevelEditor key={level.data.id} level={level.data} />
+            <LevelStatsPanel levelId={level.data.id} kind={level.data.kind} />
+        </div>
+    );
 }

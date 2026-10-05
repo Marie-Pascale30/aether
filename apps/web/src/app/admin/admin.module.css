@@ -65,7 +65,7 @@
 }
 
 .badge[data-published="true"] {
-    border-color: #75b78a80;
+    border-color: rgb(var(--green-rgb) / 0.5);
     color: var(--green);
 }
 
@@ -81,4 +81,107 @@
 
 .rowActions > * {
     padding: 8px 14px;
+}
+
+/* ─── Mondes ──────────────────────────────────────────────────────────────── */
+
+.worldRow {
+    display: grid;
+    grid-template-columns: 180px 1fr auto;
+    align-items: center;
+    gap: 22px;
+    padding: 18px;
+}
+
+.worldThumb {
+    height: 110px;
+    border-radius: 14px;
+}
+
+.worldInfo h3 {
+    margin: 4px 0;
+}
+
+.worldInfo p {
+    margin: 0 0 8px;
+}
+
+.worldActions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: end;
+}
+
+.selectField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.selectField select {
+    padding: 11px 14px;
+    background: #0d1a2c;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    padding-bottom: 12px;
+}
+
+.checkbox input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--gold);
+}
+
+.preview {
+    height: 180px;
+}
+
+@media (max-width: 760px) {
+    .worldRow,
+    .formGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ─── Glisser-déposer ─────────────────────────────────────────────────────── */
+
+.handle {
+    width: 28px;
+    color: var(--faint);
+    cursor: grab;
+    user-select: none;
+}
+
+.row[data-dragging],
+.worldRow[data-dragging] {
+    opacity: .4;
+}
+
+.row[data-drop-target] td {
+    box-shadow: inset 0 2px 0 var(--gold);
+}
+
+.worldRow[draggable="true"] {
+    cursor: grab;
+}
+
+.worldRow[data-drop-target] {
+    border-color: var(--gold);
 }

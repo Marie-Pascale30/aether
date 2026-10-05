@@ -11,7 +11,7 @@
     position: relative;
     z-index: 1; /* le trait passe sous les cases, comme un fil entre elles */
     aspect-ratio: 1;
-    border: 1px solid #dcebdc2e;
+    border: 1px solid rgb(var(--ivory-rgb) / 0.18);
     border-radius: var(--radius-md);
     background: var(--surface);
     color: var(--text);
@@ -20,19 +20,19 @@
 }
 
 .node:hover:not([aria-disabled]) {
-    border-color: #dcebdc5c;
+    border-color: rgb(var(--ivory-rgb) / 0.36);
     transform: translateY(-2px);
 }
 
 .node[data-selected] {
-    border-color: var(--cyan);
-    box-shadow: 0 0 0 2px #8ce5dc1f, 0 0 30px #8ce5dc1f;
+    border-color: var(--sage);
+    box-shadow: 0 0 0 2px rgb(var(--sage-rgb) / 0.12), 0 0 30px rgb(var(--sage-rgb) / 0.12);
 }
 
 .node[data-linked] {
     cursor: default;
-    border-color: #d9bd7299;
-    background: #16302f; /* opaque : le fil ne doit pas traverser la case */
+    border-color: rgb(var(--gold-rgb) / 0.6);
+    background: #172a40; /* opaque : le fil ne doit pas traverser la case */
     animation: bloom .7s var(--ease);
 }
 
@@ -47,14 +47,39 @@
 
 .node[data-rejected] {
     border-color: var(--danger);
-    box-shadow: 0 0 24px #d8a58e26;
+    box-shadow: 0 0 24px rgb(var(--danger-rgb) / 0.15);
     animation: shake .4s;
+}
+
+/* Numéro d'étape d'une suite */
+.order {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: var(--sage);
+    color: #0c1828;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+.node[data-linked] .order {
+    background: var(--gold);
 }
 
 .shape {
     display: block;
     font-size: clamp(24px, 6vw, 34px);
     margin-top: 12px;
+}
+
+:global(:root[data-symbols="large"]) .shape {
+    font-size: clamp(32px, 9vw, 48px);
+    margin-top: 6px;
 }
 
 .label {
@@ -74,12 +99,14 @@
     overflow: visible;
 }
 
-.links line {
+.links polyline {
+    fill: none;
+    stroke-linejoin: round;
     stroke: var(--gold);
     stroke-width: 2;
     stroke-linecap: round;
     opacity: .75;
-    filter: drop-shadow(0 0 6px #d9bd7280);
+    filter: drop-shadow(0 0 6px rgb(var(--gold-rgb) / 0.5));
     stroke-dasharray: calc(var(--length) * 1px);
     stroke-dashoffset: calc(var(--length) * 1px);
     animation: draw .8s var(--ease) forwards;

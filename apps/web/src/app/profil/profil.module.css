@@ -77,3 +77,42 @@
     color: var(--gold);
     font-family: var(--font-serif);
 }
+
+.world {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.verified {
+    color: var(--green);
+}
+
+.reminder {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin: 8px 0 16px;
+    padding: 12px 16px;
+    border: 1px solid rgb(var(--gold-rgb) / 0.33);
+    border-radius: 12px;
+    background: rgb(var(--gold-rgb) / 0.06);
+    color: #e8d9ad;
+    font-size: 14px;
+}
+
+.passwordRow {
+    margin: 0 0 4px;
+}
+
+.passwordForm {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 420px;
+    margin: 4px 0 18px;
+}
+
+.formError {
+    color: var(--danger);
+}

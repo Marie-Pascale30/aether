@@ -1,24 +1,30 @@
 "use client";
 
 import { ButtonLink } from "@/components/ui/Button";
-import { useMe, useProgress } from "@/lib/queries";
+import { usePlayer } from "@/lib/offline/player";
+import { useMe } from "@/lib/queries";
+import { levelHref } from "@/lib/routes";
 import styles from "./home.module.css";
 
 export default function HomePage() {
     const { data: me } = useMe();
-    const { data: progress } = useProgress(Boolean(me));
-    const hasStarted = (progress?.garden.completedLevels ?? 0) > 0;
+    const progress = usePlayer().data?.journey.summary;
+    const hasStarted = (progress?.completedLevels ?? 0) > 0;
+    const resumeHref = progress?.resume?.levelId ? levelHref(progress.resume.levelId) : "/jardin";
 
     return (
         <section className={styles.hero}>
             <div className={styles.symbol} aria-hidden />
-            <div className="tag">Un monde attend ses connexions</div>
+            <div className="tag">Offrez à votre esprit un moment de plaisir</div>
             <h1>AETHER</h1>
-            <p>Une expérience contemplative de puzzles où chaque connexion restaure une partie du monde.</p>
+            <p>
+                L&apos;Atlas des Esprits, grande bibliothèque vivante, s&apos;est brisé en fragments. Énigme après énigme,
+                à ton rythme, rends-lui sa mémoire : sept régions, sept façons de penser.
+            </p>
 
             <div className="row" style={{ justifyContent: "center" }}>
                 {hasStarted ? (
-                    <ButtonLink href="/niveaux" variant="primary">
+                    <ButtonLink href={resumeHref} variant="primary">
                         Reprendre
                     </ButtonLink>
                 ) : (
@@ -32,7 +38,7 @@ export default function HomePage() {
                     </ButtonLink>
                 )}
             </div>
-            <div className={styles.footer}>Jardin des Origines</div>
+            <div className={styles.footer}>Observation · Mémoire · Logique · Vision · Rythme · Associations · Sagesse</div>
         </section>
     );
 }

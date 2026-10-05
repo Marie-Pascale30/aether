@@ -26,7 +26,8 @@ export function RequirePlayer({ children }: { children: ReactNode }) {
         if (needsGuest && guest.isIdle) guest.mutate();
     }, [needsGuest, guest]);
 
-    if (me.error) return <ErrorState error={me.error} onRetry={() => void me.refetch()} />;
+    // Hors ligne, le joueur gardé sur l'appareil suffit : l'échec du rafraîchissement n'importe pas.
+    if (me.error && me.data === undefined) return <ErrorState error={me.error} onRetry={() => void me.refetch()} />;
     if (guest.error) return <ErrorState error={guest.error} onRetry={() => guest.mutate()} />;
 
     if (afterSignOut) {

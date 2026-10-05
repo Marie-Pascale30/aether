@@ -2,19 +2,22 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { displayNameSchema } from "@aether/shared";
+import { changePasswordSchema, displayNameSchema } from "@aether/shared";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Panel } from "@/components/ui/Panel";
-import { Stars } from "@/components/ui/Stars";
+import { Harmony } from "@/components/ui/Harmony";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { formatDuration, pad2 } from "@/lib/format";
-import { useLogout, useMe, useStats, useUpdateDisplayName } from "@/lib/queries";
+import { ApiError } from "@/lib/api";
+import { useSettings } from "@/lib/settings";
+import { useChangePassword, useLogout, useMe, useResendVerification, useStats, useUpdateDisplayName } from "@/lib/queries";
 import styles from "./profil.module.css";
 
 export function ProfileView() {
     const { data: me } = useMe();
     const stats = useStats();
+    const { settings } = useSettings();
 
     return (
         <div className="stack">
@@ -26,41 +29,41 @@ export function ProfileView() {
             ) : (
                 <Panel>
                     <div className="tag">Carnet de route</div>
-                    <h2>Statistiques</h2>
+                    <h2>Ton chemin</h2>
+                    <p className="muted">Ici, on ne se compare qu&apos;à soi-même.</p>
 
                     <dl className={styles.totals}>
-                        <Total label="Étoiles" value={stats.data.totals.totalStars} />
+                        <Total label="Pétales d'harmonie" value={stats.data.totals.harmony} />
                         <Total label="Énigmes résolues" value={stats.data.levels.filter((level) => level.completions > 0).length} />
                         <Total label="Parties" value={stats.data.totals.sessions} />
-                        <Total label="Erreurs" value={stats.data.totals.mistakes} />
-                        <Total label="Indices" value={stats.data.totals.hintsUsed} />
-                        <Total label="Temps de jeu" value={formatDuration(stats.data.totals.playTimeMs)} />
+                        <Total label="Indices écoutés" value={stats.data.totals.hintsUsed} />
+                        <Total label="Temps passé à jouer" value={formatDuration(stats.data.totals.playTimeMs)} />
                     </dl>
 
                     <div className={styles.scroll}>
                         <table className={styles.table}>
                             <thead>
                                 <tr>
+                                    <th scope="col">Monde</th>
                                     <th scope="col">Énigme</th>
-                                    <th scope="col">Meilleur</th>
-                                    <th scope="col">Temps</th>
+                                    <th scope="col">Harmonie</th>
+                                    {settings.showTimer && <th scope="col">Meilleur temps</th>}
                                     <th scope="col">Résolue</th>
                                     <th scope="col">Parties</th>
-                                    <th scope="col">Erreurs</th>
                                     <th scope="col">Indices</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {stats.data.levels.map((level) => (
                                     <tr key={level.levelId}>
+                                        <td className={styles.world}>{level.worldTitle}</td>
                                         <td>
                                             <span className={styles.position}>{pad2(level.position)}</span> {level.title}
                                         </td>
-                                        <td>{level.bestStars === null ? "—" : <Stars count={level.bestStars} size="sm" />}</td>
-                                        <td>{level.bestTimeMs === null ? "—" : formatDuration(level.bestTimeMs)}</td>
+                                        <td>{level.petals === 0 ? "—" : <Harmony petals={level.petals} size="sm" />}</td>
+                                        {settings.showTimer && <td>{level.bestTimeMs === null ? "—" : formatDuration(level.bestTimeMs)}</td>}
                                         <td>{level.completions}×</td>
                                         <td>{level.sessions}</td>
-                                        <td>{level.mistakes}</td>
                                         <td>{level.hintsUsed}</td>
                                     </tr>
                                 ))}
@@ -89,7 +92,7 @@ function GuestCard() {
             <h2>Ta progression t&apos;attend</h2>
             <p>
                 Tu joues sans compte : ta progression est sauvegardée sur ce navigateur. Crée un compte pour la
-                retrouver partout et apparaître au classement.
+                retrouver sur tous tes appareils.
             </p>
             <div className="row">
                 <ButtonLink href="/inscription?next=/profil" variant="primary">
@@ -139,7 +142,11 @@ function AccountCard() {
         <Panel>
             <div className="tag">Gardien</div>
             <h2>{me.displayName}</h2>
-            <p className={styles.email}>{me.email}</p>
+            <p className={styles.email}>
+                {me.email}
+                {me.emailVerified && <span className={styles.verified}> · adresse confirmée ✓</span>}
+            </p>
+            {!me.emailVerified && <VerifyReminder />}
 
             <form className={styles.nameForm} onSubmit={onSubmit}>
                 <Field
@@ -147,16 +154,100 @@ function AccountCard() {
                     name="displayName"
                     defaultValue={me.displayName}
                     error={error}
-                    hint={saved ? "Enregistré ✓" : "Affiché au classement."}
+                    hint={saved ? "Enregistré ✓" : "Le nom que te donnera le Gardien."}
                 />
                 <Button type="submit" disabled={update.isPending}>
                     Enregistrer
                 </Button>
             </form>
 
+            <ChangePasswordForm />
+
             <Button variant="ghost" onClick={onLogout} disabled={logout.isPending}>
                 Se déconnecter
             </Button>
         </Panel>
+    );
+}
+
+function VerifyReminder() {
+    const resend = useResendVerification();
+    return (
+        <div className={styles.reminder} role="status">
+            <span>Ton adresse n&apos;est pas encore confirmée : sans elle, impossible de récupérer ton mot de passe.</span>
+            {resend.isSuccess ? (
+                <span className={styles.verified}>Lien envoyé ✓</span>
+            ) : (
+                <Button variant="ghost" onClick={() => resend.mutate()} disabled={resend.isPending}>
+                    Renvoyer le lien
+                </Button>
+            )}
+            {resend.error && <small className={styles.formError}>{resend.error.message}</small>}
+        </div>
+    );
+}
+
+type PasswordErrors = Partial<Record<"currentPassword" | "newPassword" | "form", string>>;
+
+function ChangePasswordForm() {
+    const change = useChangePassword();
+    const [open, setOpen] = useState(false);
+    const [errors, setErrors] = useState<PasswordErrors>({});
+    const [done, setDone] = useState(false);
+
+    async function onSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const parsed = changePasswordSchema.safeParse(Object.fromEntries(new FormData(form)));
+        if (!parsed.success) {
+            const next: PasswordErrors = {};
+            for (const issue of parsed.error.issues) next[issue.path[0] as keyof PasswordErrors] ??= issue.message;
+            setErrors(next);
+            return;
+        }
+        setErrors({});
+        try {
+            await change.mutateAsync(parsed.data);
+            form.reset();
+            setDone(true);
+            setOpen(false);
+        } catch (err) {
+            const issue = err instanceof ApiError ? err.issues[0] : undefined;
+            setErrors(issue ? { [issue.path[0] as keyof PasswordErrors]: issue.message } : { form: err instanceof Error ? err.message : "Échec." });
+        }
+    }
+
+    if (!open) {
+        return (
+            <p className={styles.passwordRow}>
+                {done && <span className={styles.verified}>Mot de passe changé ✓ Tes autres appareils ont été déconnectés. </span>}
+                <Button variant="ghost" onClick={() => setOpen(true)}>
+                    Changer de mot de passe
+                </Button>
+            </p>
+        );
+    }
+
+    return (
+        <form className={styles.passwordForm} onSubmit={onSubmit} noValidate>
+            <Field label="Mot de passe actuel" name="currentPassword" type="password" autoComplete="current-password" error={errors.currentPassword} />
+            <Field
+                label="Nouveau mot de passe"
+                name="newPassword"
+                type="password"
+                autoComplete="new-password"
+                error={errors.newPassword}
+                hint="8 caractères minimum. Tes autres appareils seront déconnectés."
+            />
+            {errors.form && <small className={styles.formError}>{errors.form}</small>}
+            <div className="row">
+                <Button type="submit" variant="primary" disabled={change.isPending}>
+                    Enregistrer
+                </Button>
+                <Button variant="ghost" onClick={() => setOpen(false)}>
+                    Annuler
+                </Button>
+            </div>
+        </form>
     );
 }

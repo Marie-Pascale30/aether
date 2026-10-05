@@ -1,0 +1,98 @@
+.bar {
+    flex: 1 1 220px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: rgb(var(--ivory-rgb) / 0.1);
+    overflow: hidden;
+}
+
+.bar span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--gold));
+    border-radius: inherit;
+    transition: width 1.2s var(--ease);
+}
+
+.grid {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 100%;
+    min-height: 132px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color .25s, transform .2s var(--ease), box-shadow .25s;
+}
+
+a.card:hover {
+    border-color: rgb(var(--gold-rgb) / 0.5);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px #00000040;
+}
+
+.card[data-status="available"] {
+    border-color: rgb(var(--sage-rgb) / 0.4);
+    box-shadow: 0 0 30px rgb(var(--sage-rgb) / 0.07);
+}
+
+.card[data-status="locked"] {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.number {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    color: var(--gold);
+}
+
+.card[data-status="locked"] .number {
+    color: var(--faint);
+}
+
+.title {
+    font-family: var(--font-serif);
+    font-size: 17px;
+}
+
+.kind {
+    font-size: 11px;
+    letter-spacing: .06em;
+    color: var(--sage);
+}
+
+.card[data-status="locked"] .kind {
+    color: var(--faint);
+}
+
+.meta {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.lock {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    color: var(--faint);
+}

@@ -4,7 +4,7 @@
 // Variables : E2E_BASE_URL (défaut http://localhost:3100), E2E_BROWSER (chemin de l'exécutable),
 //             ADMIN_EMAIL / ADMIN_PASSWORD (défaut : valeurs de apps/api/.env.example).
 import { chromium } from "playwright-core";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3100";
@@ -24,11 +24,23 @@ const BROWSERS = [
 const executablePath = BROWSERS.find((path) => existsSync(path));
 if (!executablePath) throw new Error("Aucun navigateur trouvé : définis E2E_BROWSER.");
 const errors = [];
+/** Boîte d'envoi locale de l'API (MAIL_TRANSPORT=log). */
+const OUTBOX = fileURLToPath(new URL("../../api/.mail-outbox/", import.meta.url));
+
+function lastMailLink(email, path) {
+    const slug = email.replace(/[^a-z0-9]+/gi, "_");
+    const files = existsSync(OUTBOX) ? readdirSync(OUTBOX).filter((f) => f.endsWith(`-${slug}.json`)).sort() : [];
+    const mail = files.map((f) => JSON.parse(readFileSync(OUTBOX + f, "utf8"))).filter((m) => m.text.includes(path)).at(-1);
+    return mail?.text.match(/https?:\/\/\S+/)?.[0] ?? null;
+}
+let playerEmail = "";
 
 const browser = await chromium.launch({ executablePath });
 
-function watch(page, name) {
-    page.on("console", (msg) => msg.type() === "error" && !msg.text().startsWith("Failed to load resource") && errors.push(`[${name}] console: ${msg.text()}`));
+/** Hors ligne, les requêtes refusées par le navigateur sont attendues : on ne les compte pas. */
+function watch(page, name, { offline = false } = {}) {
+    const expected = (text) => text.startsWith("Failed to load resource") || (offline && /ERR_INTERNET_DISCONNECTED|Failed to fetch/.test(text));
+    page.on("console", (msg) => msg.type() === "error" && !expected(msg.text()) && errors.push(`[${name}] console: ${msg.text()}`));
     page.on("response", (res) => res.status() >= 400 && errors.push(`[${name}] HTTP ${res.status()} ${res.request().method()} ${res.url()}`));
     page.on("pageerror", (err) => errors.push(`[${name}] pageerror: ${err.message}`));
 }
@@ -54,15 +66,16 @@ try {
         await page.screenshot({ path: OUT + "01-home.png" });
     });
 
-    await step("commencer → jardin (invité créé)", async () => {
+    await step("commencer → premier monde (invité créé)", async () => {
         await page.getByRole("link", { name: "Commencer" }).click();
-        await page.getByRole("heading", { name: "Les Liens" }).waitFor();
+        await page.waitForURL("**/monde?m=jardin-des-echos");
+        await page.getByRole("heading", { name: "Le Jardin des Échos" }).waitFor();
         await page.waitForTimeout(900);
-        await page.screenshot({ path: OUT + "02-jardin.png" });
+        await page.screenshot({ path: OUT + "02-monde.png", fullPage: true });
     });
 
     await step("entrer → énigme 1", async () => {
-        await page.getByRole("link", { name: "Entrer dans le jardin" }).click();
+        await page.getByRole("link", { name: "Entrer dans le monde" }).click();
         await page.getByRole("heading", { name: "Le premier lien" }).waitFor();
         await page.getByText("ÉNIGME 01 / 10").waitFor();
     });
@@ -75,12 +88,14 @@ try {
         if ((await e1.getAttribute("aria-pressed")) !== "false") throw new Error("pas désélectionné");
     });
 
-    await step("mauvaise paire → erreur affichée puis effacée", async () => {
+    await step("mauvaise paire → fausse piste signalée puis effacée, sans compteur", async () => {
         await page.getByRole("button", { name: /^Écho 1 :/ }).click();
         await page.getByRole("button", { name: /^Écho 2 :/ }).click();
         await page.getByText("Ce lien ne résonne pas").waitFor();
         await page.screenshot({ path: OUT + "03-mismatch.png" });
         await page.getByText("Essaie une autre relation.").waitFor({ timeout: 3000 });
+        if (await page.getByText("Erreurs", { exact: true }).count()) throw new Error("compteur d'erreurs encore affiché");
+        if (await page.getByText("Temps", { exact: true }).count()) throw new Error("chrono affiché par défaut");
     });
 
     await step("indice demandé", async () => {
@@ -91,7 +106,11 @@ try {
     await step("bonne paire → panneau de fin", async () => {
         await page.getByRole("button", { name: /^Écho 1 :/ }).click();
         await page.getByRole("button", { name: /^Écho 4 :/ }).click();
-        await page.getByRole("dialog").waitFor();
+        const dialog = page.getByRole("dialog");
+        await dialog.waitFor();
+        await dialog.getByText("Éclosion").waitFor();
+        await dialog.getByText("Il t'attendra.").first().waitFor();
+        await dialog.getByText("✦ Premiers pas").waitFor();
         await page.waitForTimeout(1300);
         await page.screenshot({ path: OUT + "04-completion.png" });
     });
@@ -102,17 +121,42 @@ try {
         await page.screenshot({ path: OUT + "05-board-linked.png" });
     });
 
-    await step("énigme suivante", async () => {
-        await page.goto(BASE + "/niveaux");
-        await page.getByRole("heading", { name: "Les énigmes" }).waitFor();
-        await page.waitForTimeout(500);
-        await page.screenshot({ path: OUT + "06-map.png" });
+    await step("mondes : le premier entamé, les suivants scellés", async () => {
+        await page.goto(BASE + "/mondes");
+        await page.getByRole("heading", { name: "L'Atlas des Esprits" }).waitFor();
+        await page.getByText(/^1 \/ \d+ énigmes/).first().waitFor();
+        await page.getByText("Résous trois énigmes de la région précédente pour l'ouvrir.").first().waitFor();
+        const atlas = page.getByRole("group", { name: "Carte de l'Atlas des Esprits" });
+        await atlas.getByRole("link", { name: /Le Jardin des Échos — Observation/ }).waitFor();
+        await atlas.getByRole("img", { name: /La Bibliothèque Vivante — Mémoire \(scellé\)/ }).waitFor();
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: OUT + "06-mondes.png", fullPage: true });
+    });
+
+    await step("énigme suivante depuis la carte du monde", async () => {
+        await page.getByRole("group", { name: "Carte de l'Atlas des Esprits" }).getByRole("link", { name: /Le Jardin des Échos/ }).click();
         await page.getByRole("link", { name: /L'ombre et la lumière/ }).click();
         await page.getByRole("heading", { name: "L'ombre et la lumière" }).waitFor();
     });
 
-    await step("jardin a poussé", async () => {
+    await step("Équilibre : un souffle d'aide après plusieurs fausses pistes, puis discret", async () => {
+        // Seed : seule la paire Écho 2 + Écho 3 est juste.
+        for (const [a, b] of [[1, 4], [5, 6], [7, 8]]) {
+            await page.getByRole("button", { name: new RegExp(`^Écho ${a} :`) }).click();
+            await page.getByRole("button", { name: new RegExp(`^Écho ${b} :`) }).click();
+            await page.getByText("Essaie une autre relation.").waitFor({ timeout: 3000 });
+        }
+        const nudge = page.getByRole("complementary", { name: "Équilibre" });
+        await nudge.getByText("Plusieurs chemins explorés").waitFor();
+        await page.screenshot({ path: OUT + "06b-equilibre.png" });
+        await nudge.getByRole("button", { name: /Écouter un murmure/ }).click();
+        await page.getByText("Indice 1 :").waitFor();
+        await nudge.waitFor({ state: "detached" });
+    });
+
+    await step("« mon jardin » mène au monde en cours, qui a poussé", async () => {
         await page.goto(BASE + "/jardin");
+        await page.waitForURL("**/monde?m=jardin-des-echos");
         await page.getByText("1 / 10 énigmes restaurées").waitFor();
         await page.waitForTimeout(2500);
         await page.screenshot({ path: OUT + "07-jardin-grown.png" });
@@ -125,47 +169,191 @@ try {
         await page.screenshot({ path: OUT + "08-register-errors.png" });
         const id = Date.now().toString(36);
         await page.getByLabel("Pseudo").fill(`Flore ${id.slice(-4)}`);
-        await page.getByLabel("Adresse e-mail").fill(`e2e-${id}@aether.local`);
+        playerEmail = `e2e-${id}@aether.local`;
+        await page.getByLabel("Adresse e-mail").fill(playerEmail);
         await page.getByLabel("Mot de passe").fill("motdepasse-solide");
         await page.getByRole("button", { name: "Créer mon compte" }).click();
-        await page.waitForURL("**/niveaux");
+        await page.waitForURL("**/mondes");
         await page.getByRole("link", { name: /Flore/ }).waitFor();
     });
 
-    await step("classement", async () => {
+    await step("repères personnels (l'ancien classement y mène)", async () => {
         await page.goto(BASE + "/classement");
-        await page.getByText("(toi)").waitFor();
-        await page.screenshot({ path: OUT + "09-leaderboard.png" });
+        await page.waitForURL("**/reperes");
+        await page.getByRole("heading", { name: "Repères" }).waitFor();
+        await page.getByRole("article").filter({ hasText: "Premiers pas" }).getByText(/^Atteint le/).waitFor();
+        await page.getByRole("progressbar", { name: "Dix lumières : 1 sur 10" }).waitFor();
+        await page.screenshot({ path: OUT + "09-reperes.png", fullPage: true });
     });
 
-    await step("profil & stats", async () => {
+    await step("profil & chemin", async () => {
         await page.goto(BASE + "/profil");
-        await page.getByRole("heading", { name: "Statistiques" }).waitFor();
+        await page.getByRole("heading", { name: "Ton chemin" }).waitFor();
         await page.screenshot({ path: OUT + "10-profile.png", fullPage: true });
+    });
+
+    await step("adresse confirmée par le lien reçu par e-mail", async () => {
+        await page.getByText("Ton adresse n'est pas encore confirmée").waitFor();
+        const link = lastMailLink(playerEmail, "/verifier-email");
+        if (!link) throw new Error("aucun e-mail de vérification dans la boîte d'envoi locale");
+        await page.goto(link.replace(/^https?:\/\/[^/]+/, BASE));
+        await page.getByRole("heading", { name: /Merci/ }).waitFor();
+        await page.goto(BASE + "/profil");
+        await page.getByText("adresse confirmée ✓").waitFor();
     });
 
     await step("déconnexion → pas de nouvel invité automatique", async () => {
         await page.getByRole("button", { name: "Se déconnecter" }).click();
         await page.waitForURL(BASE + "/");
-        await page.goto(BASE + "/niveaux");
+        await page.goto(BASE + "/mondes");
         await page.getByRole("heading", { name: "Session fermée" }).waitFor();
+    });
+
+    await step("mot de passe oublié → nouveau mot de passe → connecté", async () => {
+        await page.goto(BASE + "/connexion");
+        await page.getByRole("link", { name: "Mot de passe oublié ?" }).click();
+        await page.waitForURL("**/mot-de-passe-oublie");
+        await page.getByLabel("Adresse e-mail").fill(playerEmail);
+        await page.getByRole("button", { name: "Recevoir le lien" }).click();
+        await page.getByText("un lien pour choisir un nouveau mot de passe vient").waitFor();
+        const link = lastMailLink(playerEmail, "/reinitialiser");
+        if (!link) throw new Error("aucun e-mail de réinitialisation");
+        await page.goto(link.replace(/^https?:\/\/[^/]+/, BASE));
+        await page.getByLabel("Nouveau mot de passe").fill("nouveau-secret-e2e");
+        await page.getByLabel("Confirmation").fill("nouveau-secret-e2e");
+        await page.getByRole("button", { name: "Enregistrer et me connecter" }).click();
+        await page.waitForURL("**/mondes");
+        await page.getByRole("link", { name: /Flore/ }).waitFor();
     });
 
     const admin = await (await browser.newContext({ viewport: { width: 1280, height: 1000 } })).newPage();
     watch(admin, "admin");
 
-    await step("admin : connexion + liste", async () => {
+    await step("admin : connexion + liste par monde", async () => {
         await admin.goto(BASE + "/connexion?next=/admin/niveaux");
         await admin.getByLabel("Adresse e-mail").fill(ADMIN_EMAIL);
         await admin.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
         await admin.getByRole("button", { name: "Me connecter" }).click();
         await admin.waitForURL("**/admin/niveaux");
         await admin.getByRole("link", { name: "Le premier lien" }).waitFor();
-        await admin.screenshot({ path: OUT + "11-admin-list.png" });
+        await admin.getByRole("heading", { name: "Le Conservatoire" }).waitFor();
+        await admin.screenshot({ path: OUT + "11-admin-list.png", fullPage: true });
     });
 
-    await step("admin : éditeur (paire invalide refusée côté client)", async () => {
-        await admin.getByRole("link", { name: "+ Nouvelle énigme" }).click();
+    await step("admin : statistiques et fausses pistes d'une énigme", async () => {
+        await admin.getByRole("link", { name: "Le premier lien" }).click();
+        await admin.getByRole("heading", { name: "Comment les joueurs la vivent" }).waitFor();
+        // Le joueur de ce parcours a tenté Écho 1 + Écho 2.
+        await admin.getByText("cases 1, 2").first().waitFor();
+        await admin.getByRole("heading", { name: "Comment les joueurs la vivent" }).scrollIntoViewIfNeeded();
+        await admin.screenshot({ path: OUT + "11b-admin-stats.png", fullPage: true });
+        await admin.goto(BASE + "/admin/niveaux");
+    });
+
+    await step("suite jouée dans l'ordre (aperçu admin)", async () => {
+        // Seed : Conservatoire 1 = cases 6 → 2 → 4 (glace, eau, nuage), numérotées à partir de 1.
+        await admin.getByRole("row", { name: /La glace et la vapeur/ }).getByRole("link", { name: "Tester" }).click();
+        await admin.getByRole("heading", { name: "La glace et la vapeur" }).waitFor();
+        await admin.getByRole("button", { name: /Recommencer/ }).click();
+        await admin.getByText("Relie 3 éléments dans le bon ordre").waitFor();
+        await admin.getByRole("button", { name: /^Écho 6 :/ }).click();
+        await admin.getByRole("button", { name: /^Écho 2 :/ }).click();
+        await admin.getByRole("button", { name: /^Écho 2 :.*étape 2/ }).waitFor();
+        await admin.screenshot({ path: OUT + "12-sequence-selection.png" });
+        await admin.getByRole("button", { name: /^Écho 4 :/ }).click();
+        await admin.getByRole("dialog").waitFor();
+        await admin.getByRole("button", { name: "Voir le plateau" }).click();
+        await admin.waitForTimeout(900);
+        await admin.screenshot({ path: OUT + "13-sequence-linked.png" });
+    });
+
+    await step("énigme du jour : résolue puis résumé à partager", async () => {
+        const daily = await (await admin.request.get(BASE + "/api/daily")).json();
+        const { groups } = await (await admin.request.get(`${BASE}/api/admin/levels/${daily.level.id}`)).json();
+        await admin.goto(BASE + "/quotidien");
+        await admin.getByRole("heading", { name: daily.level.title }).waitFor();
+        await admin.getByRole("link", { name: /Découvrir l'énigme|Rejouer/ }).click();
+        await admin.getByText("ÉNIGME DU JOUR", { exact: true }).waitFor();
+        await admin.getByRole("button", { name: /Recommencer/ }).click();
+        await admin.waitForTimeout(300);
+        for (const group of groups) {
+            for (const cell of group) await admin.getByRole("button", { name: new RegExp(`^Écho ${cell + 1} :`) }).click();
+            await admin.waitForTimeout(250);
+        }
+        await admin.getByRole("dialog").getByText("Énigme du jour", { exact: true }).waitFor();
+        await admin.getByRole("dialog").getByRole("button", { name: "Partager mon résultat" }).waitFor();
+        await admin.waitForTimeout(1200);
+        await admin.screenshot({ path: OUT + "13b-daily-completion.png" });
+        await admin.getByRole("link", { name: "Résumé du jour" }).click();
+        await admin.getByText("Série en cours").waitFor();
+        await admin.getByText(/AETHER · Énigme du jour/).waitFor();
+        await admin.getByText(/harmonie/).first().waitFor();
+        await admin.screenshot({ path: OUT + "13c-daily.png", fullPage: true });
+    });
+
+    await step("les 4 mécaniques locales se jouent jusqu'au bout (souris)", async () => {
+        const api = async (path) => (await admin.request.get(BASE + "/api" + path)).json();
+        const firstLevel = async (slug) => (await api(`/worlds/${slug}`)).levels[0].id;
+        const open = async (slug) => {
+            const id = await firstLevel(slug);
+            await admin.goto(`${BASE}/enigme?id=${id}`);
+            return (await api(`/admin/levels/${id}`)).puzzle;
+        };
+        const finish = async (name) => {
+            await admin.getByRole("dialog").waitFor();
+            await admin.waitForTimeout(900);
+            await admin.screenshot({ path: OUT + `18-${name}.png` });
+            await admin.getByRole("button", { name: "Voir le plateau" }).click();
+        };
+
+        // Mémoires : observer, puis retrouver chaque case demandée.
+        let puzzle = await open("bibliotheque-vivante");
+        await admin.getByRole("button", { name: "J'ai mémorisé" }).click();
+        for (const cell of puzzle.targets) await admin.getByRole("button", { name: new RegExp(`^Case ${cell + 1}( :|$)`) }).click();
+        await finish("memoires");
+
+        // Rouages : chaque pièce mobile revient à sa rotation d'origine (quarts de tour horaires).
+        puzzle = await open("atelier-des-inventeurs");
+        for (const [i, tile] of puzzle.tiles.entries()) {
+            if (tile.fixed || tile.mask === 0) continue;
+            const piece = admin.getByRole("button", { name: new RegExp(`^Pièce ${i + 1}(,|$)`) });
+            for (let n = 0; n < (4 - tile.rotation) % 4; n++) await piece.click();
+        }
+        await finish("rouages");
+
+        // Flux : chaque chemin de la solution est tracé en glissant d'une case à l'autre.
+        puzzle = await open("observatoire");
+        const box = await admin.getByRole("application").boundingBox();
+        const at = (cell) => ({
+            x: box.x + ((cell % puzzle.columns) + 0.5) * (box.width / puzzle.columns),
+            y: box.y + (Math.floor(cell / puzzle.columns) + 0.5) * (box.height / puzzle.rows),
+        });
+        for (const path of puzzle.solution) {
+            await admin.mouse.move(at(path[0]).x, at(path[0]).y);
+            await admin.mouse.down();
+            for (const cell of path.slice(1)) await admin.mouse.move(at(cell).x, at(cell).y, { steps: 3 });
+            await admin.mouse.up();
+        }
+        await finish("flux");
+
+        // Échos : une mauvaise proposition s'efface, puis la bonne.
+        puzzle = await open("sommet-des-sages");
+        const wrong = puzzle.options.findIndex((_, i) => i !== puzzle.answer);
+        await admin.getByRole("button", { name: puzzle.options[wrong], exact: true }).click();
+        await admin.getByText("Cet écho ne répond pas à la règle").waitFor();
+        await admin.getByRole("button", { name: puzzle.options[puzzle.answer], exact: true }).click();
+        await finish("echos");
+    });
+
+    await step("admin : mondes", async () => {
+        await admin.goto(BASE + "/admin/mondes");
+        await admin.getByRole("heading", { name: "Mondes" }).waitFor();
+        await admin.getByRole("heading", { name: "La Forêt des Connexions" }).waitFor();
+        await admin.screenshot({ path: OUT + "14-admin-mondes.png", fullPage: true });
+    });
+
+    await step("admin : éditeur d'une famille (validation en direct)", async () => {
+        await admin.goto(BASE + "/admin/niveaux/nouveau");
         await admin.getByRole("heading", { name: "Nouvelle énigme" }).waitFor();
         await admin.getByRole("button", { name: "Enregistrer" }).click();
         await admin.getByText("Le titre est requis.").first().waitFor();
@@ -173,14 +361,41 @@ try {
         if (await admin.getByText("Le titre est requis.").count()) throw new Error("erreur de titre toujours affichée après correction");
         await admin.getByRole("textbox", { name: "Description" }).fill("Brouillon de test");
         await admin.getByRole("textbox", { name: "Indice 1" }).fill("Regarde bien.");
-        const relier = admin.getByRole("button", { name: "relier" });
-        await relier.nth(0).click();
-        await admin.getByRole("button", { name: "relier" }).nth(3).click(); // case 5 (4e bouton « relier » restant)
-        await admin.getByText("Paire 1 :").waitFor();
-        await admin.screenshot({ path: OUT + "12-editor.png", fullPage: true });
+        // Palette : case 1 active, puis deux symboles placés d'affilée (cases 1 et 2).
+        await admin.getByRole("textbox", { name: "Symbole de la case 1" }).click();
+        await admin.getByRole("tab", { name: "Vivant" }).click();
+        await admin.getByRole("button", { name: /^Placer 🦊/ }).click();
+        await admin.getByRole("button", { name: /^Placer 🦉/ }).click();
+        if ((await admin.getByRole("textbox", { name: "Symbole de la case 1" }).inputValue()) !== "🦊") throw new Error("palette : case 1 non remplie");
+        if ((await admin.getByRole("textbox", { name: "Symbole de la case 2" }).inputValue()) !== "🦉") throw new Error("palette : passage à la case suivante raté");
+        await admin.getByRole("radio", { name: /Familles/ }).click();
+        // Cases 1, 4 et 5 : chaque case choisie quitte la liste des boutons « relier ».
+        for (const nth of [0, 2, 2]) await admin.getByRole("button", { name: "relier" }).nth(nth).click();
+        await admin.getByText("Lien 1 :").waitFor();
+        await admin.screenshot({ path: OUT + "15-editor.png", fullPage: true });
         await admin.getByRole("button", { name: "Enregistrer" }).click();
         await admin.waitForURL(/\/admin\/niveaux\/[a-z0-9]+$/);
         await admin.getByRole("heading", { name: "Modifier l'énigme" }).waitFor();
+    });
+
+    await step("admin : glisser-déposer pour réordonner (puis rétablir)", async () => {
+        await admin.goto(BASE + "/admin/niveaux");
+        const order = async () =>
+            (await (await admin.request.get(BASE + "/api/admin/levels")).json())
+                .filter((l) => l.title === "Les trois sœurs" || l.title === "Le voyage de l'eau")
+                .map((l) => l.title);
+        const before = await order();
+        const first = admin.getByRole("row", { name: /Les trois sœurs/ });
+        const second = admin.getByRole("row", { name: /Le voyage de l'eau/ });
+        const reordered = () => admin.waitForResponse((res) => res.url().endsWith("/api/admin/levels/reorder") && res.ok());
+        await Promise.all([reordered(), second.dragTo(first)]);
+        const after = await order();
+        if (after[0] !== "Le voyage de l'eau") throw new Error(`ordre inchangé : ${after.join(", ")}`);
+        await Promise.all([
+            reordered(),
+            admin.getByRole("row", { name: /Les trois sœurs/ }).dragTo(admin.getByRole("row", { name: /Le voyage de l'eau/ })),
+        ]);
+        if ((await order()).join() !== before.join()) throw new Error("ordre non rétabli");
     });
 
     await step("admin : suppression du brouillon", async () => {
@@ -191,15 +406,100 @@ try {
         await row.waitFor({ state: "detached" });
     });
 
+    const keyboard = await (await browser.newContext({ viewport: { width: 1200, height: 900 } })).newPage();
+    watch(keyboard, "clavier");
+
+    await step("clavier seul : lien d'évitement, flèches et Entrée sur le plateau", async () => {
+        await keyboard.goto(BASE + "/jardin");
+        await keyboard.getByRole("link", { name: "Entrer dans le monde" }).click();
+        await keyboard.getByRole("heading", { name: "Le premier lien" }).waitFor();
+        // Arrivée directe sur la page : le premier Tab doit atteindre le lien d'évitement.
+        await keyboard.reload();
+        await keyboard.getByRole("heading", { name: "Le premier lien" }).waitFor();
+        await keyboard.keyboard.press("Tab");
+        if (!(await keyboard.getByRole("link", { name: "Aller au contenu" }).evaluate((el) => el === document.activeElement))) {
+            throw new Error("le lien d'évitement n'est pas le premier élément focalisable");
+        }
+        // Une seule case dans l'ordre de tabulation, puis les flèches. Seed : énigme 1 = Écho 1 + Écho 4.
+        await keyboard.getByRole("button", { name: /^Écho 1 :/ }).focus();
+        for (let i = 0; i < 3; i++) await keyboard.keyboard.press("ArrowRight");
+        const focused = await keyboard.evaluate(() => document.activeElement?.getAttribute("aria-label"));
+        if (!focused?.startsWith("Écho 4")) throw new Error(`focus attendu sur Écho 4, obtenu : ${focused}`);
+        await keyboard.keyboard.press("Enter");
+        await keyboard.keyboard.press("Home");
+        await keyboard.keyboard.press(" ");
+        await keyboard.getByRole("dialog").waitFor();
+        await keyboard.keyboard.press("Escape");
+        await keyboard.getByRole("dialog").waitFor({ state: "detached" });
+    });
+
+    await step("réglages : animations réduites et grands symboles, conservés au rechargement", async () => {
+        await keyboard.goto(BASE + "/reglages");
+        await keyboard.getByRole("heading", { name: "Réglages" }).waitFor();
+        await keyboard.getByRole("radio", { name: /Réduire/ }).check();
+        await keyboard.getByRole("radio", { name: "Grande" }).check();
+        await keyboard.getByRole("switch", { name: "Nappe d'ambiance" }).uncheck({ force: true });
+        await keyboard.screenshot({ path: OUT + "17-reglages.png", fullPage: true });
+        await keyboard.reload();
+        await keyboard.getByRole("radio", { name: "Grande" }).waitFor();
+        const html = await keyboard.evaluate(() => ({ ...document.documentElement.dataset }));
+        if (html.motion !== "reduce" || html.symbols !== "large") throw new Error(`réglages non appliqués : ${JSON.stringify(html)}`);
+        if (await keyboard.getByRole("switch", { name: "Nappe d'ambiance" }).isChecked()) throw new Error("ambiance réactivée au rechargement");
+    });
+
+    await step("réglages : le temps ne s'affiche que sur demande", async () => {
+        await keyboard.getByRole("switch", { name: /Afficher le temps/ }).check({ force: true });
+        await keyboard.goto(BASE + "/monde?m=jardin-des-echos");
+        await keyboard.getByRole("link", { name: /Le premier lien/ }).click();
+        await keyboard.getByText("Temps", { exact: true }).waitFor();
+        await keyboard.goto(BASE + "/reglages");
+        await keyboard.getByRole("switch", { name: /Afficher le temps/ }).uncheck({ force: true });
+    });
+
     await step("mobile : énigme lisible à 390 px", async () => {
         const mobile = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true })).newPage();
         watch(mobile, "mobile");
         await mobile.goto(BASE + "/jardin");
-        await mobile.getByRole("link", { name: "Entrer dans le jardin" }).click();
+        await mobile.getByRole("link", { name: "Entrer dans le monde" }).click();
         await mobile.getByRole("heading", { name: "Le premier lien" }).waitFor();
-        await mobile.screenshot({ path: OUT + "13-mobile.png", fullPage: true });
+        await mobile.screenshot({ path: OUT + "16-mobile.png", fullPage: true });
         const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
         if (overflow) throw new Error("défilement horizontal sur mobile");
+    });
+
+    await step("hors ligne : jouer, débloquer la suite, puis tout envoyer au retour du réseau", async () => {
+        const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+        const offline = await context.newPage();
+        watch(offline, "hors-ligne", { offline: true });
+        await offline.goto(BASE + "/jardin");
+        await offline.waitForURL("**/monde?m=jardin-des-echos");
+        await offline.getByRole("link", { name: "Entrer dans le monde" }).waitFor();
+        // Service worker installé (pages gardées) et cache de données écrit sur l'appareil.
+        await offline.evaluate(() => navigator.serviceWorker.ready);
+        await offline.waitForTimeout(1500);
+        const content = await (await offline.request.get(BASE + "/api/content")).json();
+        const [first, second] = content.worlds[0].levels;
+
+        await context.setOffline(true);
+        await offline.goto(`${BASE}/enigme?id=${first.id}`);
+        await offline.getByRole("heading", { name: first.title }).waitFor();
+        await offline.getByText("Hors ligne : le jeu continue").waitFor();
+        for (const cell of first.groups[0]) await offline.getByRole("button", { name: new RegExp(`^Écho ${cell + 1} :`) }).click();
+        const dialog = offline.getByRole("dialog");
+        await dialog.getByText("Éclosion").waitFor();
+        await offline.getByText("1 victoire en attente").waitFor();
+        await offline.screenshot({ path: OUT + "19-offline-completion.png" });
+
+        // L'énigme suivante s'ouvre sans réseau : le parcours est calculé sur l'appareil.
+        await dialog.getByRole("link", { name: "Énigme suivante" }).click();
+        await offline.getByRole("heading", { name: second.title }).waitFor();
+        await offline.screenshot({ path: OUT + "20-offline-next.png" });
+
+        await context.setOffline(false);
+        await offline.getByText(/en attente|Enregistrement/).waitFor({ state: "detached", timeout: 15000 });
+        const sync = await (await offline.request.get(BASE + "/api/me/sync")).json();
+        if (!sync.levels[first.id]) throw new Error("la victoire hors ligne n'a pas été enregistrée");
+        await context.close();
     });
 } catch {
     process.exitCode = 1;

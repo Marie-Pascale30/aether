@@ -27,7 +27,7 @@ function toErrors(issues: Issue[]): Errors {
 
 /** N'accepte qu'une redirection interne (évite les redirections ouvertes vers un autre site). */
 function safeNext(next: string | null): string {
-    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/niveaux";
+    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/mondes";
 }
 
 export function AuthForm({ mode }: { mode: Mode }) {
@@ -89,7 +89,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
             <form className="stack" onSubmit={onSubmit} noValidate>
                 {isRegister && (
-                    <Field label="Pseudo" name="displayName" autoComplete="nickname" error={errors.displayName} hint="Affiché au classement." />
+                    <Field label="Pseudo" name="displayName" autoComplete="nickname" error={errors.displayName} hint="Le nom que te donnera le Gardien." />
                 )}
                 <Field label="Adresse e-mail" name="email" type="email" autoComplete="email" error={errors.email} />
                 <Field
@@ -100,6 +100,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
                     error={errors.password}
                     hint={isRegister ? "8 caractères minimum." : undefined}
                 />
+                {!isRegister && (
+                    <Link href="/mot-de-passe-oublie" className={styles.forgot}>
+                        Mot de passe oublié ?
+                    </Link>
+                )}
 
                 {errors.form && (
                     <p className={styles.formError} role="alert">

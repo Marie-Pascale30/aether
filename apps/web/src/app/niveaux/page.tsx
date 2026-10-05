@@ -1,13 +1,6 @@
-import type { Metadata } from "next";
-import { RequirePlayer } from "@/components/shell/RequirePlayer";
-import { LevelMap } from "./LevelMap";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Énigmes" };
-
+/** Ancienne carte des énigmes : les énigmes sont désormais rangées par monde. */
 export default function LevelsPage() {
-    return (
-        <RequirePlayer>
-            <LevelMap />
-        </RequirePlayer>
-    );
+    redirect("/mondes");
 }

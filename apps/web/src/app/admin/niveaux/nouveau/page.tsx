@@ -1,7 +1,6 @@
-"use client";
-
 import { LevelEditor } from "@/components/admin/LevelEditor";
 
-export default function NewLevelPage() {
-    return <LevelEditor />;
+export default async function NewLevelPage({ searchParams }: { searchParams: Promise<{ monde?: string }> }) {
+    const { monde } = await searchParams;
+    return <LevelEditor initialWorldId={monde} />;
 }

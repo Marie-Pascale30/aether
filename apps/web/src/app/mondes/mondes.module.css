@@ -1,0 +1,114 @@
+.total,
+.cardProgress {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 18px;
+}
+
+.card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(145deg, #15263eee, #0b1729ee);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color .25s, transform .2s var(--ease), box-shadow .25s;
+}
+
+a.card:hover {
+    border-color: rgb(var(--gold-rgb) / 0.5);
+    transform: translateY(-3px);
+    box-shadow: 0 16px 50px #00000050;
+}
+
+.card[data-status="available"] {
+    border-color: rgb(var(--sage-rgb) / 0.33);
+}
+
+.card[data-status="locked"] {
+    cursor: not-allowed;
+}
+
+.card[data-status="locked"] .garden,
+.card[data-status="locked"] .body {
+    opacity: .45;
+    filter: grayscale(.6);
+}
+
+.garden {
+    height: 170px;
+    border-radius: 0;
+}
+
+.body {
+    padding: 18px 22px 22px;
+}
+
+.body h3 {
+    margin: 6px 0 4px;
+}
+
+.body p {
+    margin: 0 0 14px;
+    font-size: 14px;
+}
+
+.sealed {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    background: #040b10cc;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+/* ─── Page d'un monde ─────────────────────────────────────────────────────── */
+
+.intro {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: center;
+}
+
+.count {
+    font-size: 14px;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+}
+
+.levelsHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+@media (max-width: 760px) {
+    .intro {
+        grid-template-columns: 1fr;
+    }
+}

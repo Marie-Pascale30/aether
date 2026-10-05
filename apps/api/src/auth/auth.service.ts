@@ -1,18 +1,26 @@
-import { ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { User } from "@prisma/client";
 import type { CookieOptions, Request, Response } from "express";
-import { isBetterResult, type LoginInput, type Me, type RegisterInput } from "@aether/shared";
+import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
+import { type LoginInput, type Me, type RegisterInput } from "@aether/shared";
 import type { AuthUser } from "../common/auth.decorators";
 import { ENV, type Env } from "../config/env";
+import { MailService } from "../mail/mail.service";
+import { resetPasswordMail, verifyEmailMail } from "../mail/templates";
 import { PrismaService } from "../prisma/prisma.service";
+import { AccountTokensService } from "./account-tokens.service";
 import { hashPassword, verifyPassword } from "./password";
 
 export const SESSION_COOKIE = "aether_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** `lastSeenAt` n'est réécrit qu'au-delà de ce délai : pas d'écriture en base à chaque requête. */
+const LAST_SEEN_PRECISION_MS = 60 * 60 * 1000;
 
 interface SessionPayload {
     sub: string;
+    /** Version de session du compte à l'émission : un changement de mot de passe la périme. */
+    v: number;
 }
 
 @Injectable()
@@ -20,27 +28,40 @@ export class AuthService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwt: JwtService,
+        private readonly tokens: AccountTokensService,
+        private readonly mail: MailService,
         @Inject(ENV) private readonly env: Env,
+        @InjectPinoLogger(AuthService.name) private readonly logger: PinoLogger,
     ) {}
 
     // ─── Session ───────────────────────────────────────────────────────────
 
-    /** Utilisateur porté par le cookie de session, ou `null` (absent, invalide, expiré, supprimé). */
+    /** Utilisateur porté par le cookie de session, ou `null` (absent, invalide, expiré, périmé, supprimé). */
     async userFromRequest(req: Request): Promise<AuthUser | null> {
         const token: unknown = req.cookies?.[SESSION_COOKIE];
         if (typeof token !== "string" || !token) return null;
 
         try {
-            const { sub } = await this.jwt.verifyAsync<SessionPayload>(token);
+            const { sub, v } = await this.jwt.verifyAsync<SessionPayload>(token);
             const user = await this.prisma.user.findUnique({ where: { id: sub } });
-            return user ? toAuthUser(user) : null;
+            if (!user || (v ?? 0) !== user.sessionVersion) return null;
+            this.touch(user);
+            return toAuthUser(user);
         } catch {
             return null;
         }
     }
 
-    async openSession(res: Response, user: Pick<User, "id">): Promise<void> {
-        const token = await this.jwt.signAsync({ sub: user.id } satisfies SessionPayload);
+    /** Note l'activité du joueur (sans faire attendre la requête, ni la faire échouer). */
+    private touch(user: Pick<User, "id" | "lastSeenAt">) {
+        if (Date.now() - user.lastSeenAt.getTime() < LAST_SEEN_PRECISION_MS) return;
+        this.prisma.user
+            .update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
+            .catch((error: unknown) => this.logger.warn({ err: error, userId: user.id }, "Mise à jour de lastSeenAt impossible"));
+    }
+
+    async openSession(res: Response, user: Pick<User, "id" | "sessionVersion">): Promise<void> {
+        const token = await this.jwt.signAsync({ sub: user.id, v: user.sessionVersion } satisfies SessionPayload);
         res.cookie(SESSION_COOKIE, token, { ...this.cookieOptions(), maxAge: SESSION_TTL_MS });
     }
 
@@ -75,9 +96,12 @@ export class AuthService {
             isGuest: false,
         };
 
-        return current?.isGuest
-            ? this.prisma.user.update({ where: { id: current.id }, data })
-            : this.prisma.user.create({ data });
+        const user = current?.isGuest
+            ? await this.prisma.user.update({ where: { id: current.id }, data })
+            : await this.prisma.user.create({ data });
+
+        await this.sendVerification(user);
+        return user;
     }
 
     /** Connecte un compte existant. Un invité qui se connecte y rapporte sa progression. */
@@ -94,7 +118,78 @@ export class AuthService {
         return this.prisma.user.update({ where: { id: userId }, data: { displayName } });
     }
 
-    /** Garde, énigme par énigme, le meilleur des deux résultats, puis supprime le compte invité. */
+    // ─── Adresse e-mail ────────────────────────────────────────────────────
+
+    async verifyEmail(token: string): Promise<User> {
+        const userId = await this.tokens.consume(token, "VERIFY_EMAIL");
+        return this.prisma.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });
+    }
+
+    async resendVerification(user: AuthUser): Promise<void> {
+        if (user.isGuest || !user.email) throw new BadRequestException("Crée d'abord un compte avec une adresse e-mail.");
+        if (user.emailVerified) return;
+        const record = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+        await this.sendVerification(record);
+    }
+
+    /** Un échec d'envoi ne doit pas faire échouer l'inscription : on le journalise, le joueur pourra renvoyer le lien. */
+    private async sendVerification(user: User): Promise<void> {
+        if (!user.email) return;
+        try {
+            const token = await this.tokens.issue(user.id, "VERIFY_EMAIL");
+            await this.mail.send(verifyEmailMail(user.email, user.displayName, `${this.env.APP_URL}/verifier-email?token=${token}`));
+        } catch (error) {
+            this.logger.error({ err: error, userId: user.id }, "Envoi du lien de vérification impossible");
+        }
+    }
+
+    // ─── Mot de passe ──────────────────────────────────────────────────────
+
+    /** Toujours silencieux : la réponse ne révèle pas si un compte existe pour cette adresse. */
+    async forgotPassword(email: string): Promise<void> {
+        const user = await this.prisma.user.findUnique({ where: { email } });
+        if (!user?.passwordHash || !user.email) return;
+        try {
+            const token = await this.tokens.issue(user.id, "RESET_PASSWORD");
+            await this.mail.send(resetPasswordMail(user.email, user.displayName, `${this.env.APP_URL}/reinitialiser?token=${token}`));
+        } catch (error) {
+            this.logger.error({ err: error, userId: user.id }, "Envoi du lien de réinitialisation impossible");
+        }
+    }
+
+    /**
+     * Nouveau mot de passe via le lien reçu : les autres sessions sont fermées, et l'adresse
+     * est considérée comme confirmée (le lien prouve qu'on la reçoit).
+     */
+    async resetPassword(token: string, password: string): Promise<User> {
+        const userId = await this.tokens.consume(token, "RESET_PASSWORD");
+        const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+        return this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                passwordHash: await hashPassword(password),
+                sessionVersion: { increment: 1 },
+                emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+            },
+        });
+    }
+
+    async changePassword(user: AuthUser, currentPassword: string, newPassword: string): Promise<User> {
+        const record = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+        if (!record.passwordHash || !(await verifyPassword(currentPassword, record.passwordHash))) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: ["Mot de passe actuel incorrect."],
+                issues: [{ path: ["currentPassword"], message: "Mot de passe actuel incorrect." }],
+            });
+        }
+        return this.prisma.user.update({
+            where: { id: user.id },
+            data: { passwordHash: await hashPassword(newPassword), sessionVersion: { increment: 1 } },
+        });
+    }
+
+    /** Réunit, énigme par énigme, les pétales des deux comptes, puis supprime le compte invité. */
     private async mergeGuestInto(guestId: string, userId: string): Promise<void> {
         await this.prisma.$transaction(async (tx) => {
             const guestProgress = await tx.levelProgress.findMany({ where: { userId: guestId } });
@@ -108,10 +203,6 @@ export class AuthService {
                     continue;
                 }
 
-                const guestIsBetter = isBetterResult(
-                    { stars: progress.bestStars, durationMs: progress.bestTimeMs },
-                    { stars: existing.bestStars, durationMs: existing.bestTimeMs },
-                );
                 await tx.levelProgress.update({
                     where: key,
                     data: {
@@ -120,12 +211,28 @@ export class AuthService {
                             progress.firstCompletedAt < existing.firstCompletedAt
                                 ? progress.firstCompletedAt
                                 : existing.firstCompletedAt,
-                        ...(guestIsBetter && { bestStars: progress.bestStars, bestTimeMs: progress.bestTimeMs }),
+                        petals: existing.petals | progress.petals,
+                        bestTimeMs: Math.min(existing.bestTimeMs, progress.bestTimeMs),
                     },
                 });
             }
 
+            // Résultats du jour : on garde ceux du compte, on reprend ceux de l'invité pour les autres jours.
+            const ownDays = await tx.dailyResult.findMany({ where: { userId }, select: { date: true } });
+            await tx.dailyResult.deleteMany({ where: { userId: guestId, date: { in: ownDays.map((row) => row.date) } } });
+            await tx.dailyResult.updateMany({ where: { userId: guestId }, data: { userId } });
+
             await tx.playSession.updateMany({ where: { userId: guestId }, data: { userId } });
+
+            // Repères : on garde la date la plus ancienne de chacun.
+            const ownMilestones = await tx.milestone.findMany({ where: { userId } });
+            for (const milestone of await tx.milestone.findMany({ where: { userId: guestId } })) {
+                const own = ownMilestones.find((row) => row.key === milestone.key);
+                if (!own) await tx.milestone.create({ data: { ...milestone, userId } });
+                else if (milestone.reachedAt < own.reachedAt) {
+                    await tx.milestone.update({ where: { userId_key: { userId, key: own.key } }, data: { reachedAt: milestone.reachedAt } });
+                }
+            }
             await tx.user.delete({ where: { id: guestId } });
         });
     }
@@ -136,6 +243,7 @@ export function toAuthUser(user: User): AuthUser {
         id: user.id,
         displayName: user.displayName,
         email: user.email,
+        emailVerified: user.emailVerifiedAt !== null,
         role: user.role,
         isGuest: user.isGuest,
     };
@@ -146,6 +254,7 @@ export function toMe(user: User | AuthUser): Me {
         id: user.id,
         displayName: user.displayName,
         email: user.email,
+        emailVerified: "emailVerified" in user ? user.emailVerified : user.emailVerifiedAt !== null,
         role: user.role,
         isGuest: user.isGuest,
     };

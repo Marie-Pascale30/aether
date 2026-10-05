@@ -1,0 +1,165 @@
+.head {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-bottom: 18px;
+}
+
+.head h3 {
+    margin: 4px 0 0;
+}
+
+.panel h4 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* ─── Chiffres clés ───────────────────────────────────────────────────────── */
+
+.tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 0 0 28px;
+}
+
+.tile {
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.tile dt {
+    font-size: 12px;
+    color: var(--faint);
+}
+
+.tile dd {
+    margin: 4px 0 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+/* ─── Barres (une seule série, couleur d'accent) ──────────────────────────── */
+
+.columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    margin-bottom: 28px;
+}
+
+.bars {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bars li {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    /* Zone de survol plus haute que la barre elle-même */
+    padding: 4px 0;
+}
+
+.barLabel {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.track {
+    height: 14px;
+    border-radius: 0 4px 4px 0;
+    background: rgb(var(--ivory-rgb) / 0.06);
+}
+
+.fill {
+    display: block;
+    height: 100%;
+    min-width: 4px;
+    background: var(--gold);
+    /* Carré côté ligne de base, arrondi au bout de la donnée */
+    border-radius: 0 4px 4px 0;
+}
+
+.bars li:hover .fill {
+    background: var(--gold-light);
+}
+
+.barValue {
+    min-width: 72px;
+    font-size: 13px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.barValue small {
+    color: var(--faint);
+}
+
+/* ─── Fausses pistes ──────────────────────────────────────────────────────── */
+
+.leads ol {
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.leads li {
+    display: grid;
+    grid-template-columns: minmax(120px, auto) 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+.combo {
+    font-size: 22px;
+}
+
+.sep {
+    font-size: 14px;
+    color: var(--faint);
+}
+
+.cells {
+    font-size: 12px;
+    color: var(--faint);
+}
+
+.count {
+    font-size: 13px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+    .columns {
+        grid-template-columns: 1fr;
+    }
+
+    .leads li {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+}

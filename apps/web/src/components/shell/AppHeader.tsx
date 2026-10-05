@@ -7,9 +7,9 @@ import { useSound } from "@/lib/sound/SoundProvider";
 import styles from "./AppHeader.module.css";
 
 const LINKS = [
-    { href: "/jardin", label: "Jardin" },
-    { href: "/niveaux", label: "Énigmes" },
-    { href: "/classement", label: "Classement" },
+    { href: "/mondes", label: "Atlas" },
+    { href: "/quotidien", label: "Énigme du jour" },
+    { href: "/reperes", label: "Repères" },
 ];
 
 export function AppHeader() {
@@ -48,6 +48,16 @@ export function AppHeader() {
                     <span aria-hidden>{muted ? "🔇" : "🔊"}</span>
                     <span className="visually-hidden">Son</span>
                 </button>
+
+                <Link
+                    href="/reglages"
+                    className={styles.sound}
+                    aria-current={isActive("/reglages") ? "page" : undefined}
+                    title="Réglages"
+                >
+                    <span aria-hidden>⚙</span>
+                    <span className="visually-hidden">Réglages</span>
+                </Link>
 
                 {me && !me.isGuest ? (
                     <Link href="/profil" className={styles.account} aria-current={isActive("/profil") ? "page" : undefined}>

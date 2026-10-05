@@ -1,18 +1,21 @@
 import type {
     AdminLevel,
+    AdminWorld,
     ApiErrorBody,
-    AttemptResult,
-    HintResult,
-    Leaderboard,
+    CompletionResult,
+    ContentBundle,
+    DailyState,
+    LevelResultInput,
+    MilestonesView,
     LevelDetail,
+    LevelDesignStats,
     LevelInput,
-    LevelSummary,
     LoginInput,
     Me,
     PlayerStats,
-    ProgressSummary,
     RegisterInput,
-    SessionState,
+    SyncState,
+    WorldInput,
 } from "@aether/shared";
 
 export type ApiIssue = NonNullable<ApiErrorBody["issues"]>[number];
@@ -61,29 +64,41 @@ export const api = {
         login: (input: LoginInput) => request<Me>("POST", "/auth/login", input),
         logout: () => request<void>("POST", "/auth/logout"),
         updateMe: (displayName: string) => request<Me>("PATCH", "/auth/me", { displayName }),
+        verifyEmail: (token: string) => request<Me>("POST", "/auth/email/verify", { token }),
+        resendVerification: () => request<void>("POST", "/auth/email/resend"),
+        forgotPassword: (email: string) => request<void>("POST", "/auth/password/forgot", { email }),
+        resetPassword: (token: string, password: string) => request<Me>("POST", "/auth/password/reset", { token, password }),
+        changePassword: (currentPassword: string, newPassword: string) =>
+            request<Me>("PATCH", "/auth/password", { currentPassword, newPassword }),
     },
     levels: {
-        list: () => request<LevelSummary[]>("GET", "/levels"),
         get: (id: string) => request<LevelDetail>("GET", `/levels/${id}`),
     },
+    /** Tout le contenu publié, gardé sur l'appareil pour jouer hors ligne. */
+    content: () => request<ContentBundle>("GET", "/content"),
     play: {
-        start: (levelId: string, restart = false) =>
-            request<SessionState>("POST", `/levels/${levelId}/sessions`, { restart }),
-        attempt: (sessionId: string, a: number, b: number) =>
-            request<AttemptResult>("POST", `/sessions/${sessionId}/attempts`, { a, b }),
-        hint: (sessionId: string) => request<HintResult>("POST", `/sessions/${sessionId}/hints`),
+        /** Victoire sur une énigme jouée sur l'appareil (renvoi idempotent grâce à `resultId`). */
+        result: (levelId: string, input: LevelResultInput) => request<CompletionResult>("POST", `/levels/${levelId}/results`, input),
     },
     me: {
-        progress: () => request<ProgressSummary>("GET", "/me/progress"),
+        sync: () => request<SyncState>("GET", "/me/sync"),
         stats: () => request<PlayerStats>("GET", "/me/stats"),
+        milestones: () => request<MilestonesView>("GET", "/me/milestones"),
     },
-    leaderboard: (limit = 20) => request<Leaderboard>("GET", `/leaderboard?limit=${limit}`),
+    daily: () => request<DailyState>("GET", "/daily"),
     admin: {
         levels: () => request<AdminLevel[]>("GET", "/admin/levels"),
         level: (id: string) => request<AdminLevel>("GET", `/admin/levels/${id}`),
+        levelStats: (id: string) => request<LevelDesignStats>("GET", `/admin/levels/${id}/stats`),
         create: (input: LevelInput) => request<AdminLevel>("POST", "/admin/levels", input),
         update: (id: string, input: LevelInput) => request<AdminLevel>("PUT", `/admin/levels/${id}`, input),
         remove: (id: string) => request<void>("DELETE", `/admin/levels/${id}`),
-        reorder: (ids: string[]) => request<AdminLevel[]>("POST", "/admin/levels/reorder", { ids }),
+        duplicate: (id: string) => request<AdminLevel>("POST", `/admin/levels/${id}/duplicate`),
+        reorder: (worldId: string, ids: string[]) => request<AdminLevel[]>("POST", "/admin/levels/reorder", { worldId, ids }),
+        worlds: () => request<AdminWorld[]>("GET", "/admin/worlds"),
+        createWorld: (input: WorldInput) => request<AdminWorld>("POST", "/admin/worlds", input),
+        updateWorld: (id: string, input: WorldInput) => request<AdminWorld>("PUT", `/admin/worlds/${id}`, input),
+        removeWorld: (id: string) => request<void>("DELETE", `/admin/worlds/${id}`),
+        reorderWorlds: (ids: string[]) => request<AdminWorld[]>("POST", "/admin/worlds/reorder", { ids }),
     },
 };

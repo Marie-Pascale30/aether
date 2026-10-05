@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  /// native : la machine de développement ; musl : l'image Docker (Alpine).
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -13,47 +15,128 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id              String    @id @default(cuid())
   /// `null` tant que le joueur est invité.
-  email        String?  @unique
-  passwordHash String?
-  displayName  String
-  role         Role     @default(PLAYER)
-  isGuest      Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  email           String?   @unique
+  passwordHash    String?
+  displayName     String
+  role            Role      @default(PLAYER)
+  isGuest         Boolean   @default(true)
+  /// Adresse confirmée par le lien reçu par e-mail.
+  emailVerifiedAt DateTime?
+  /// Incrémenté à chaque changement de mot de passe : invalide les sessions ouvertes ailleurs.
+  sessionVersion  Int       @default(0)
+  /// Dernière activité (mise à jour au plus une fois par heure) : sert au nettoyage des invités.
+  lastSeenAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   progress LevelProgress[]
   sessions PlaySession[]
+  daily      DailyResult[]
+  tokens     AuthToken[]
+  milestones Milestone[]
+
+  @@index([isGuest, lastSeenAt])
+}
+
+enum AuthTokenKind {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+/// Jeton à usage unique envoyé par e-mail. Seule son empreinte SHA-256 est stockée.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  kind      AuthTokenKind
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind])
+}
+
+/// Mécanique de jeu. LINKS est validée par le serveur coup par coup ; les autres se jouent
+/// sur l'appareil à partir de `Level.puzzle` (prêtes pour le hors ligne).
+enum Mechanic {
+  LINKS
+  MEMORY
+  GEARS
+  FLOW
+  ECHOES
+}
+
+/// Genre de Liens : paires, groupes (3–4 cases) ou suites ordonnées (3–5 cases).
+enum LevelKind {
+  PAIRS
+  GROUPS
+  SEQUENCE
+}
+
+/// Un monde regroupe des énigmes et possède son propre jardin.
+/// Il s'ouvre quand le monde précédent est entièrement restauré.
+model World {
+  id          String   @id @default(cuid())
+  /// Identifiant d'URL (`/mondes/<slug>`).
+  slug        String   @unique
+  order       Int
+  title       String
+  tagline     String
+  description String
+  /// Palette du jardin : origines | foret | ocean | cosmos.
+  theme       String   @default("origines")
+  published   Boolean  @default(true)
+  /// Réserve de l'énigme du jour : hors du parcours et de la progression des mondes.
+  isDaily     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  levels Level[]
+
+  @@index([published, order])
 }
 
 model Level {
-  id          String   @id @default(cuid())
-  /// Position dans le parcours (tri croissant). Les trous sont permis.
+  id          String    @id @default(cuid())
+  worldId     String
+  /// Position dans le monde (tri croissant). Les trous sont permis.
   order       Int
   title       String
   description String
   /// Révélés un par un, à la demande du joueur.
   hints       String[]
   symbols     String[]
-  columns     Int      @default(4)
-  /// Réponses : tableau de paires d'indices `[[a, b], …]`. Jamais envoyé au joueur.
-  pairs       Json
-  published   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  columns     Int       @default(4)
+  mechanic    Mechanic  @default(LINKS)
+  /// Plateau complet (solution comprise) des mécaniques jouées sur l'appareil ; null pour LINKS.
+  puzzle      Json?
+  kind        LevelKind @default(PAIRS)
+  /// Réponses : tableau de groupes d'indices `[[a, b, …], …]` (ordonnés pour une suite).
+  /// Jamais envoyé au joueur.
+  groups      Json
+  published   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
+  world    World            @relation(fields: [worldId], references: [id], onDelete: Cascade)
   progress LevelProgress[]
   sessions PlaySession[]
+  attempts Attempt[]
+  daily    DailyChallenge[]
 
-  @@index([published, order])
+  @@index([worldId, published, order])
 }
 
-/// Meilleur résultat d'un joueur sur une énigme.
+/// Ce qu'un joueur a accompli sur une énigme : les pétales s'additionnent d'une partie à l'autre.
 model LevelProgress {
   userId           String
   levelId          String
-  bestStars        Int
+  /// Pétales d'harmonie cueillis (masque : 1 résolue, 2 sans indice, 4 sans fausse piste).
+  petals           Int
   bestTimeMs       Int
   completions      Int      @default(1)
   firstCompletedAt DateTime @default(now())
@@ -66,22 +149,84 @@ model LevelProgress {
   @@index([levelId])
 }
 
-/// Une tentative de résolution d'une énigme, validée coup par coup par le serveur.
+/// Une partie résolue, jouée sur l'appareil (éventuellement hors ligne) puis envoyée.
 model PlaySession {
-  id          String    @id @default(cuid())
-  userId      String
-  levelId     String
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
-  /// Indices (dans `Level.pairs`) des paires déjà trouvées.
-  foundPairs  Int[]
-  mistakes    Int       @default(0)
+  id             String    @id @default(cuid())
+  userId         String
+  levelId        String
+  /// Identifiant choisi par l'appareil : un renvoi du même résultat n'est compté qu'une fois.
+  clientResultId String?   @unique
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  mistakes       Int       @default(0)
   hintsUsed   Int       @default(0)
-  stars       Int?
+  /// Pétales cueillis par cette partie, une fois terminée.
+  petals      Int?
   durationMs  Int?
 
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level    Level     @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  attempts Attempt[]
 
   @@index([userId, levelId, completedAt])
+}
+
+/// Chaque coup joué sur une énigme de Liens, juste ou faux : sert aux statistiques de conception
+/// (taux de réussite, fausses pistes les plus fréquentes).
+model Attempt {
+  id        String   @id @default(cuid())
+  sessionId String
+  /// Copié depuis la partie pour agréger par énigme sans jointure.
+  levelId   String
+  /// Cases choisies, dans l'ordre de sélection.
+  cells     Int[]
+  correct   Boolean
+  createdAt DateTime @default(now())
+
+  session PlaySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  level   Level       @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@index([levelId, correct])
+}
+
+/// Énigme tirée pour un jour donné (fuseau DAILY_TIMEZONE), identique pour tous les joueurs.
+/// Les jours suivants sont tirés d'avance, pour être jouables hors ligne.
+model DailyChallenge {
+  date      DateTime @id @db.Date
+  levelId   String
+  createdAt DateTime @default(now())
+
+  level   Level         @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  results DailyResult[]
+
+  @@index([levelId, date])
+}
+
+/// Première victoire d'un joueur sur l'énigme du jour : la seule qui compte pour la série.
+model DailyResult {
+  userId     String
+  date       DateTime  @db.Date
+  sessionId  String
+  petals     Int
+  durationMs Int
+  mistakes   Int
+  hintsUsed  Int
+  createdAt  DateTime  @default(now())
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge DailyChallenge @relation(fields: [date], references: [date], onDelete: Cascade)
+
+  @@id([userId, date])
+  @@index([date])
+}
+
+/// Repère personnel atteint (voir `MILESTONES` dans @aether/shared) : jamais comparé aux autres joueurs.
+model Milestone {
+  userId    String
+  key       String
+  reachedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
 }

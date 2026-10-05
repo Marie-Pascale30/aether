@@ -5,8 +5,8 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    border: 1px solid #d9bd7280;
-    background: #d9bd7214;
+    border: 1px solid rgb(var(--gold-rgb) / 0.5);
+    background: rgb(var(--gold-rgb) / 0.08);
     color: var(--text);
     padding: 12px 22px;
     border-radius: var(--radius-pill);
@@ -16,7 +16,7 @@
 }
 
 .btn:hover:not(:disabled) {
-    background: #d9bd7226;
+    background: rgb(var(--gold-rgb) / 0.15);
 }
 
 .btn:active:not(:disabled) {
@@ -30,13 +30,13 @@
 
 .primary {
     background: var(--gold);
-    color: #132019;
+    color: var(--on-gold);
     border-color: var(--gold);
     font-weight: 700;
 }
 
 .primary:hover:not(:disabled) {
-    background: #e6cc86;
+    background: var(--gold-light);
 }
 
 .ghost {
@@ -51,15 +51,15 @@
 }
 
 .danger {
-    border-color: #d8a58e80;
-    background: #d8a58e14;
+    border-color: rgb(var(--danger-rgb) / 0.5);
+    background: rgb(var(--danger-rgb) / 0.08);
     color: var(--danger);
 }
 
 /* ─── Panneaux ────────────────────────────────────────────────────────────── */
 
 .panel {
-    background: linear-gradient(145deg, #122b32ee, #091a21ee);
+    background: linear-gradient(145deg, #15263eee, #0b1729ee);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     padding: 34px;
@@ -74,52 +74,52 @@
 
 .callout {
     padding: 14px 16px;
-    border-left: 2px solid var(--cyan);
-    background: #8ce5dc0b;
+    border-left: 2px solid var(--sage);
+    background: rgb(var(--sage-rgb) / 0.04);
     border-radius: var(--radius-sm);
     margin: 16px 0;
-    color: #cbd8d3;
+    color: var(--ivory-soft);
 }
 
-/* ─── Étoiles ─────────────────────────────────────────────────────────────── */
+/* ─── Harmonie ─────────────────────────────────────────────────────────────── */
 
-.stars {
+.harmony {
     display: inline-flex;
     gap: 2px;
     line-height: 1;
 }
 
-.stars_sm {
+.harmony_sm {
     font-size: 13px;
 }
 
-.stars_md {
+.harmony_md {
     font-size: 18px;
 }
 
-.stars_lg {
+.harmony_lg {
     font-size: 44px;
     gap: 10px;
 }
 
-.starOn {
+.petalOn {
     color: var(--gold);
-    text-shadow: 0 0 12px #d9bd7266;
+    text-shadow: 0 0 12px rgb(var(--gold-rgb) / 0.4);
 }
 
-.starOff {
-    color: #dcebdc26;
+.petalOff {
+    color: rgb(var(--ivory-rgb) / 0.15);
 }
 
-.starOn[data-animate],
-.starOff[data-animate] {
-    animation: starPop .6s var(--ease) both;
+.petalOn[data-animate],
+.petalOff[data-animate] {
+    animation: petalOpen .6s var(--ease) both;
 }
 
-@keyframes starPop {
+@keyframes petalOpen {
     from {
         opacity: 0;
-        transform: scale(.3) rotate(-30deg);
+        transform: scale(.3) rotate(-60deg);
     }
 
     to {
@@ -145,7 +145,7 @@
 .field textarea {
     width: 100%;
     padding: 11px 14px;
-    background: #0a1c22;
+    background: #0d1a2c;
     border: 1px solid var(--line-strong);
     border-radius: 12px;
     transition: border-color .2s;
@@ -158,7 +158,7 @@
 
 .field input:focus,
 .field textarea:focus {
-    border-color: var(--cyan);
+    border-color: var(--sage);
     outline: none;
 }
 

@@ -5,17 +5,20 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { Loading } from "@/components/ui/States";
 import { useGrowingStage } from "@/hooks/useGrowingStage";
-import { useMe, useProgress } from "@/lib/queries";
+import { usePlayer } from "@/lib/offline/player";
+import { useMe } from "@/lib/queries";
 import styles from "./fin.module.css";
 
 export function Ending() {
     const { data: me } = useMe();
-    const { data: progress } = useProgress();
-    const garden = useGrowingStage(progress?.garden.stage);
+    const progress = usePlayer().data?.journey.summary;
+    // Le jardin du dernier monde, celui qui vient de s'épanouir.
+    const lastWorld = progress?.worlds.at(-1);
+    const garden = useGrowingStage(lastWorld?.garden.stage, lastWorld?.slug ?? "fin");
 
     if (!progress) return <Loading />;
 
-    const { completedLevels, totalLevels } = progress.garden;
+    const { completedLevels, totalLevels } = progress;
     const finished = totalLevels > 0 && completedLevels === totalLevels;
 
     if (!finished) {
@@ -23,10 +26,10 @@ export function Ending() {
             <Panel className={styles.story}>
                 <div className="tag">Pas encore</div>
                 <p>
-                    Le jardin attend encore {totalLevels - completedLevels} lien{totalLevels - completedLevels > 1 ? "s" : ""}{" "}
+                    Le monde attend encore {totalLevels - completedLevels} énigme{totalLevels - completedLevels > 1 ? "s" : ""}{" "}
                     avant de se souvenir de lui-même.
                 </p>
-                <ButtonLink href="/niveaux" variant="primary">
+                <ButtonLink href="/jardin" variant="primary">
                     Reprendre les énigmes
                 </ButtonLink>
             </Panel>
@@ -41,17 +44,17 @@ export function Ending() {
                 <br />
                 Il s&apos;est souvenu de lui-même. »
             </blockquote>
-            <Garden stage={garden.stage} instant={garden.instant} className={styles.garden} />
+            <Garden stage={garden.stage} instant={garden.instant} theme={lastWorld?.theme} className={styles.garden} />
             <p>
                 Tu viens de terminer la première boucle d&apos;AETHER : observer, comprendre, relier, restaurer.
                 <br />
-                {progress.totalStars} étoiles sur {progress.maxStars}
-                {progress.totalStars < progress.maxStars && " — certaines énigmes peuvent encore briller davantage."}
+                {progress.harmony} pétales d&apos;harmonie sur {progress.maxHarmony}
+                {progress.harmony < progress.maxHarmony && " — d'autres t'attendent, quand tu voudras revenir les cueillir."}
             </p>
 
             {me?.isGuest && (
                 <p className={styles.invite}>
-                    Crée un compte pour inscrire ton nom au classement : ta progression est conservée.
+                    Crée un compte pour retrouver ton jardin sur tous tes appareils : ta progression est conservée.
                 </p>
             )}
 
@@ -62,7 +65,7 @@ export function Ending() {
                 {me?.isGuest ? (
                     <ButtonLink href="/inscription">Créer un compte</ButtonLink>
                 ) : (
-                    <ButtonLink href="/classement">Voir le classement</ButtonLink>
+                    <ButtonLink href="/reperes">Revoir ton chemin</ButtonLink>
                 )}
             </div>
         </Panel>

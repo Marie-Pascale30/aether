@@ -1,0 +1,72 @@
+.panel {
+    max-width: 680px;
+    margin: 20px auto 0;
+    text-align: center;
+}
+
+.panel p {
+    margin-inline: auto;
+}
+
+.kind {
+    color: var(--sage);
+    font-size: 14px;
+}
+
+.streak {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 24px 0;
+}
+
+.streak div {
+    padding: 14px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.streak dt {
+    font-size: 12px;
+    color: var(--faint);
+}
+
+.streak dd {
+    margin: 4px 0 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.share {
+    margin: 8px 0;
+    padding: 14px 18px;
+    border: 1px dashed var(--line-strong);
+    border-radius: 12px;
+    background: #0d1a2c;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: left;
+    white-space: pre-wrap;
+}
+
+.next {
+    margin-top: 22px;
+    font-size: 13px;
+    color: var(--faint);
+}
+
+@media (max-width: 560px) {
+    .streak {
+        grid-template-columns: 1fr;
+    }
+}

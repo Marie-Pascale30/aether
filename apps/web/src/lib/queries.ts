@@ -1,19 +1,25 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LevelInput, LoginInput, Me, RegisterInput } from "@aether/shared";
+import type { LevelInput, LoginInput, Me, RegisterInput, WorldInput } from "@aether/shared";
 import { api, ApiError } from "./api";
+import { outbox } from "./offline/outbox";
 import { signedOut } from "./signedOut";
 
 export const keys = {
     me: ["me"] as const,
-    levels: ["levels"] as const,
+    /** Contenu publié (persisté sur l'appareil). */
+    content: ["content"] as const,
+    /** Progression connue du serveur (persistée sur l'appareil). */
+    sync: ["me", "sync"] as const,
     level: (id: string) => ["levels", id] as const,
-    progress: ["me", "progress"] as const,
     stats: ["me", "stats"] as const,
-    leaderboard: ["leaderboard"] as const,
+    milestones: ["me", "milestones"] as const,
+    daily: ["daily"] as const,
     adminLevels: ["admin", "levels"] as const,
     adminLevel: (id: string) => ["admin", "levels", id] as const,
+    adminWorlds: ["admin", "worlds"] as const,
+    adminLevelStats: (id: string) => ["admin", "levels", id, "stats"] as const,
 };
 
 // ─── Session ────────────────────────────────────────────────────────────────
@@ -27,6 +33,9 @@ export function useMe() {
 function useSwitchIdentity() {
     const qc = useQueryClient();
     return (me: Me | null) => {
+        // Les victoires d'un invité encore en attente suivent le compte auquel il se connecte.
+        const previous = qc.getQueryData<Me | null>(keys.me);
+        if (previous?.isGuest && me) outbox.reassign(previous.id, me.id);
         signedOut.set(me === null);
         qc.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] });
         qc.setQueryData(keys.me, me);
@@ -65,42 +74,61 @@ export function useUpdateDisplayName() {
         mutationFn: (displayName: string) => api.auth.updateMe(displayName),
         onSuccess: (me) => {
             qc.setQueryData(keys.me, me);
-            void qc.invalidateQueries({ queryKey: keys.leaderboard });
         },
+    });
+}
+
+export function useVerifyEmail() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (token: string) => api.auth.verifyEmail(token),
+        // Le lien peut être ouvert sur un autre appareil : on ne met à jour que si c'est le même joueur.
+        onSuccess: (me) => {
+            const current = qc.getQueryData<Me | null>(keys.me);
+            if (current?.id === me.id) qc.setQueryData(keys.me, me);
+        },
+    });
+}
+
+export const useResendVerification = () => useMutation({ mutationFn: api.auth.resendVerification });
+
+export const useForgotPassword = () => useMutation({ mutationFn: (email: string) => api.auth.forgotPassword(email) });
+
+/** La réinitialisation ouvre une session sur ce compte : comme une connexion. */
+export function useResetPassword() {
+    const switchIdentity = useSwitchIdentity();
+    return useMutation({
+        mutationFn: ({ token, password }: { token: string; password: string }) => api.auth.resetPassword(token, password),
+        onSuccess: switchIdentity,
+    });
+}
+
+export function useChangePassword() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+            api.auth.changePassword(currentPassword, newPassword),
+        onSuccess: (me) => qc.setQueryData(keys.me, me),
     });
 }
 
 // ─── Jeu ────────────────────────────────────────────────────────────────────
 
-export function useLevels(enabled = true) {
-    return useQuery({ queryKey: keys.levels, queryFn: api.levels.list, enabled });
-}
-
-export function useLevel(id: string) {
-    return useQuery({ queryKey: keys.level(id), queryFn: () => api.levels.get(id), retry: noRetryOn4xx });
-}
-
-export function useProgress(enabled = true) {
-    return useQuery({ queryKey: keys.progress, queryFn: api.me.progress, enabled });
+/** Énigme hors contenu embarqué (brouillon d'administrateur, énigme du jour) : demandée au serveur. */
+export function useLevel(id: string, enabled = true) {
+    return useQuery({ queryKey: keys.level(id), queryFn: () => api.levels.get(id), retry: noRetryOn4xx, enabled });
 }
 
 export function useStats() {
     return useQuery({ queryKey: keys.stats, queryFn: api.me.stats });
 }
 
-export function useLeaderboard(limit = 20) {
-    return useQuery({ queryKey: [...keys.leaderboard, limit], queryFn: () => api.leaderboard(limit) });
+export function useDaily() {
+    return useQuery({ queryKey: keys.daily, queryFn: api.daily });
 }
 
-/** À appeler quand une énigme est résolue : tout ce qui dépend de la progression est périmé. */
-export function useInvalidateProgress() {
-    const qc = useQueryClient();
-    return () =>
-        Promise.all(
-            [keys.levels, keys.progress, keys.stats, keys.leaderboard].map((queryKey) =>
-                qc.invalidateQueries({ queryKey }),
-            ),
-        );
+export function useMilestones() {
+    return useQuery({ queryKey: keys.milestones, queryFn: api.me.milestones });
 }
 
 // ─── Administration ─────────────────────────────────────────────────────────
@@ -113,12 +141,19 @@ export function useAdminLevel(id: string) {
     return useQuery({ queryKey: keys.adminLevel(id), queryFn: () => api.admin.level(id), retry: noRetryOn4xx });
 }
 
+export function useAdminLevelStats(id: string) {
+    return useQuery({ queryKey: keys.adminLevelStats(id), queryFn: () => api.admin.levelStats(id), staleTime: 60_000 });
+}
+
 function useAdminMutation<TArgs, TResult>(mutationFn: (args: TArgs) => Promise<TResult>) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn,
         // Le parcours des joueurs dépend aussi des niveaux : on invalide les deux côtés.
-        onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ["admin"] }), qc.invalidateQueries({ queryKey: keys.levels })]),
+        onSuccess: () =>
+            Promise.all(
+                [["admin"], keys.content, ["levels"]].map((queryKey) => qc.invalidateQueries({ queryKey })),
+            ),
     });
 }
 
@@ -126,7 +161,19 @@ export const useCreateLevel = () => useAdminMutation((input: LevelInput) => api.
 export const useUpdateLevel = () =>
     useAdminMutation(({ id, input }: { id: string; input: LevelInput }) => api.admin.update(id, input));
 export const useDeleteLevel = () => useAdminMutation((id: string) => api.admin.remove(id));
-export const useReorderLevels = () => useAdminMutation((ids: string[]) => api.admin.reorder(ids));
+export const useDuplicateLevel = () => useAdminMutation((id: string) => api.admin.duplicate(id));
+export const useReorderLevels = () =>
+    useAdminMutation(({ worldId, ids }: { worldId: string; ids: string[] }) => api.admin.reorder(worldId, ids));
+
+export function useAdminWorlds() {
+    return useQuery({ queryKey: keys.adminWorlds, queryFn: api.admin.worlds });
+}
+
+export const useCreateWorld = () => useAdminMutation((input: WorldInput) => api.admin.createWorld(input));
+export const useUpdateWorld = () =>
+    useAdminMutation(({ id, input }: { id: string; input: WorldInput }) => api.admin.updateWorld(id, input));
+export const useDeleteWorld = () => useAdminMutation((id: string) => api.admin.removeWorld(id));
+export const useReorderWorlds = () => useAdminMutation((ids: string[]) => api.admin.reorderWorlds(ids));
 
 function noRetryOn4xx(failureCount: number, error: Error) {
     if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;

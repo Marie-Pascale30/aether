@@ -27,9 +27,9 @@
 .issues {
     margin: 0 0 12px;
     padding: 12px 12px 12px 32px;
-    border: 1px solid #d8a58e55;
+    border: 1px solid rgb(var(--danger-rgb) / 0.33);
     border-radius: 12px;
-    background: #d8a58e0f;
+    background: rgb(var(--danger-rgb) / 0.06);
     color: var(--danger);
 }
 
@@ -91,7 +91,7 @@
     margin: 0;
 }
 
-.columns {
+.select {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -99,11 +99,11 @@
     color: var(--muted);
 }
 
-.columns select {
+.select select {
     padding: 6px 10px;
     border-radius: 8px;
     border: 1px solid var(--line-strong);
-    background: #0a1c22;
+    background: #0d1a2c;
 }
 
 .board {
@@ -127,9 +127,13 @@
     transition: box-shadow .2s, border-color .2s;
 }
 
+.cell[data-active] {
+    border-color: rgb(var(--gold-rgb) / 0.67);
+}
+
 .cell[data-picking] {
-    border-color: var(--cyan);
-    box-shadow: 0 0 0 2px #8ce5dc40;
+    border-color: var(--sage);
+    box-shadow: 0 0 0 2px rgb(var(--sage-rgb) / 0.25);
 }
 
 .cell[data-invalid] {
@@ -147,7 +151,7 @@
 
 .cell input:focus {
     outline: none;
-    border-bottom-color: var(--cyan);
+    border-bottom-color: var(--sage);
 }
 
 .pairButton {
@@ -199,4 +203,96 @@
     color: var(--pair);
     font-weight: 400;
     font-size: 18px;
+}
+
+.kindRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.kinds {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+}
+
+.kindButton {
+    padding: 6px 14px;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.kindButton[aria-checked="true"] {
+    background: rgb(var(--gold-rgb) / 0.15);
+    color: var(--gold);
+}
+
+.pairList small {
+    color: var(--faint);
+}
+
+/* ─── Mécaniques locales ──────────────────────────────────────────────────── */
+
+.generator {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+}
+
+.generator input[type="range"] {
+    accent-color: var(--gold);
+}
+
+.seed {
+    width: 110px;
+    padding: 6px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: #0d1a2c;
+    font-family: ui-monospace, monospace;
+}
+
+.preview {
+    padding: 14px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-md);
+}
+
+.previewHead {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.jsonBox summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.jsonBox textarea {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: #0d1a2c;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+}
+
+.formError {
+    color: var(--danger);
 }
