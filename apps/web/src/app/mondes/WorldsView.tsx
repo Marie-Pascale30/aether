@@ -8,6 +8,7 @@ import { Panel } from "@/components/ui/Panel";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { usePlayer } from "@/lib/offline/player";
 import { AtlasMap } from "@/components/atlas/AtlasMap";
+import { MindBalance } from "@/components/mind/MindProfile";
 import { REGIONS } from "@/lib/regions";
 import { worldHref } from "@/lib/routes";
 import styles from "./mondes.module.css";
@@ -36,6 +37,7 @@ export function WorldsView() {
                     </span>
                 </div>
                 {worlds.length > 0 && <AtlasMap worlds={worlds} />}
+                <MindBalance />
             </Panel>
 
             {worlds.length === 0 ? (

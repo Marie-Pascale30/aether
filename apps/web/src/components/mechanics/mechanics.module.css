@@ -40,12 +40,12 @@
     display: grid;
     grid-template-columns: repeat(var(--columns, 4), minmax(0, 1fr));
     gap: 10px;
-    width: min(100%, calc(var(--columns, 4) * 110px));
+    width: min(100%, calc(var(--columns, 4) * 110px * var(--loupe, 1)));
 }
 
 .grid[data-tight] {
     gap: 4px;
-    width: min(100%, calc(var(--columns, 4) * 84px));
+    width: min(100%, calc(var(--columns, 4) * 84px * var(--loupe, 1)));
 }
 
 /* ─── Mémoires ────────────────────────────────────────────────────────────── */
@@ -58,7 +58,7 @@
     border-radius: var(--radius-md);
     background: var(--surface);
     color: var(--text);
-    font-size: clamp(24px, 6vw, 36px);
+    font-size: calc(clamp(24px, 6vw, 36px) * var(--loupe, 1));
     cursor: pointer;
     transition: border-color .25s, background .25s, transform .2s var(--ease);
 }
@@ -161,7 +161,7 @@
 /* ─── Flux ────────────────────────────────────────────────────────────────── */
 
 .flow {
-    width: min(100%, calc(var(--columns) * 64px));
+    width: min(100%, calc(var(--columns) * 64px * var(--loupe, 1)));
     /* Le glissement ne doit pas sélectionner les symboles des sources. */
     user-select: none;
     -webkit-user-select: none;
@@ -222,7 +222,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    width: min(100%, 520px);
+    width: min(100%, calc(520px * var(--loupe, 1)));
 }
 
 .examples li {
@@ -242,7 +242,7 @@
 }
 
 .echo {
-    font-size: clamp(20px, 5vw, 28px);
+    font-size: calc(clamp(20px, 5vw, 28px) * var(--loupe, 1));
     text-align: center;
     letter-spacing: .08em;
     word-break: break-all;

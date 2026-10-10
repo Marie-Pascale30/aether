@@ -33,6 +33,7 @@ const silentReport = (onSolved: () => void): PuzzleReport => ({
     advance: () => {},
     note: () => {},
     attempt: () => {},
+    provide: () => {},
     progress: () => {},
     select: () => {},
     solved: onSolved,

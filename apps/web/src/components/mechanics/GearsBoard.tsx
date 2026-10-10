@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { gearsSolved, litTiles, type GearsPuzzle } from "@aether/shared";
-import type { PuzzleReport } from "@/hooks/useLocalPuzzle";
+import { useBoardTool, type PuzzleReport } from "@/hooks/useLocalPuzzle";
 import styles from "./mechanics.module.css";
 
 /** Extrémité de chaque ouverture (N, E, S, O) dans une pièce de 100 × 100. */
@@ -19,6 +19,8 @@ export function GearsBoard({ puzzle, report }: { puzzle: GearsPuzzle; report: Pu
     // Quarts de tour cumulés (pas de modulo) : l'animation continue toujours dans le même sens.
     const [turns, setTurns] = useState(() => puzzle.tiles.map((tile) => tile.rotation));
     const [done, setDone] = useState(false);
+    /** Orientations avant chaque quart de tour, pour « Retour ». */
+    const [history, setHistory] = useState<number[][]>([]);
     const rotations = useMemo(() => turns.map((t) => ((t % 4) + 4) % 4), [turns]);
     const lit = useMemo(() => litTiles(puzzle, rotations), [puzzle, rotations]);
     const playable = puzzle.tiles.filter((tile) => tile.mask !== 0).length;
@@ -27,6 +29,7 @@ export function GearsBoard({ puzzle, report }: { puzzle: GearsPuzzle; report: Pu
     const rotate = (index: number, delta: 1 | -1) => {
         if (done || puzzle.tiles[index]!.fixed) return;
         const next = turns.map((t, i) => (i === index ? t + delta : t));
+        setHistory((past) => [...past.slice(-99), turns]);
         setTurns(next);
         const nextRotations = next.map((t) => ((t % 4) + 4) % 4);
         if (gearsSolved(puzzle, nextRotations)) {
@@ -41,6 +44,17 @@ export function GearsBoard({ puzzle, report }: { puzzle: GearsPuzzle; report: Pu
             }
         }
     };
+
+    useBoardTool(
+        report,
+        "undo",
+        () => {
+            // Les quarts de tour sont cumulés : revenir à l'état d'avant fait tourner la pièce en sens inverse.
+            setTurns(history.at(-1)!);
+            setHistory((past) => past.slice(0, -1));
+        },
+        history.length > 0 && !done,
+    );
 
     const onContextMenu = (event: MouseEvent, index: number) => {
         event.preventDefault();

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ContentBundle, ContentLevel, LevelRecord } from "../types";
 import { dailyOutcome } from "./daily";
 import { buildJourney, describeWin, recordWin } from "./journey";
+import { facultyOf, mentalProfile } from "./mind";
 import { PETALS } from "./scoring";
 
 const level = (id: string): ContentLevel => ({
@@ -82,5 +83,44 @@ describe("série du jour", () => {
         const again = dailyOutcome(new Map([["2026-10-04", 1]]), "2026-10-04", "2026-10-04", 7);
         expect(again.firstToday).toBe(false);
         expect(again.share).toContain("✿○○");
+    });
+});
+
+describe("profil mental", () => {
+    const mixed: ContentBundle = {
+        ...bundle,
+        worlds: [
+            { ...bundle.worlds[0]!, levels: ["a", "b", "c", "d"].map(level) },
+            {
+                ...bundle.worlds[1]!,
+                levels: [
+                    { ...level("m1"), mechanic: "MEMORY" },
+                    { ...level("m2"), mechanic: "MEMORY" },
+                ],
+            },
+        ],
+    };
+
+    it("décrit chaque faculté par un mot, jamais par un nombre", () => {
+        const records = new Map<string, LevelRecord>([
+            ["a", { petals: PETALS.SOLVED, bestTimeMs: 1 }],
+            ["b", { petals: 7, bestTimeMs: 1 }],
+            ["c", { petals: PETALS.SOLVED, bestTimeMs: 1 }],
+        ]);
+        const profile = mentalProfile(mixed, records, buildJourney(mixed, records));
+        const observation = profile.faculties.find((f) => f.faculty === "observation")!;
+        expect(observation.growth).toBe("grandit");
+        expect(profile.faculties.find((f) => f.faculty === "memoire")!.growth).toBe("en sommeil");
+    });
+    it("suggère la faculté la moins pratiquée parmi celles qu'on peut exercer", () => {
+        const records = new Map<string, LevelRecord>(["a", "b", "c"].map((id) => [id, { petals: 1, bestTimeMs: 1 }]));
+        const profile = mentalProfile(mixed, records, buildJourney(mixed, records));
+        expect(profile.suggestion).toMatchObject({ faculty: "memoire", levelId: "m1" });
+    });
+    it("rattache chaque mécanique à sa faculté", () => {
+        expect(facultyOf({ mechanic: "LINKS", kind: "SEQUENCE" })).toBe("rythme");
+        expect(facultyOf({ mechanic: "LINKS", kind: "GROUPS" })).toBe("associations");
+        expect(facultyOf({ mechanic: "FLOW", kind: "PAIRS" })).toBe("espace");
+        expect(facultyOf({ mechanic: "ECHOES", kind: "PAIRS" })).toBe("logique");
     });
 });

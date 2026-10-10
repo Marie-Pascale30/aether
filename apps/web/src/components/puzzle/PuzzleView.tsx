@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState, type CSSProperties } from "react";
 import type { EchoesPuzzle, FlowPuzzle, GearsPuzzle, LevelDetail, MemoryPuzzle } from "@aether/shared";
 import { EchoesBoard } from "@/components/mechanics/EchoesBoard";
 import { FlowBoard } from "@/components/mechanics/FlowBoard";
@@ -18,6 +19,7 @@ import { useSettings } from "@/lib/settings";
 import { useAmbience } from "@/lib/sound/SoundProvider";
 import { CompletionPanel } from "./CompletionPanel";
 import { EquilibriumNudge } from "./EquilibriumNudge";
+import { Notebook } from "./Notebook";
 import styles from "./Puzzle.module.css";
 
 /** Plateau de la mécanique, remonté à chaque « Recommencer » (via `key`). */
@@ -39,10 +41,25 @@ function MechanicBoard({ detail, report }: { detail: LevelDetail; report: Puzzle
 /** Une énigme, quelle que soit sa mécanique : jouée sur l'appareil, réseau ou pas. */
 export function PuzzleView({ detail }: { detail: LevelDetail }) {
     const puzzle = useLocalPuzzle(detail);
-    const { settings } = useSettings();
-    const elapsed = useElapsed(puzzle.startedAt, settings.showTimer && !puzzle.completion);
+    const { settings, update } = useSettings();
+    const [notebookOpen, setNotebookOpen] = useState(false);
+    const { applyTool } = puzzle;
+
+    // Ctrl/Cmd + Z : revenir sur le dernier geste (sauf en écrivant dans le carnet).
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            const typing = event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement;
+            if (!typing && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+                event.preventDefault();
+                applyTool("undo");
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [applyTool]);
+    const elapsed = useElapsed(puzzle.startedAt, settings.showTimer && !puzzle.finished);
     const label = levelLabel(detail.mechanic, detail.kind);
-    const equilibrium = useEquilibrium({ active: !puzzle.completion, progress: puzzle.advances, mistakes: puzzle.mistakes });
+    const equilibrium = useEquilibrium({ active: !puzzle.finished, progress: puzzle.advances, mistakes: puzzle.mistakes });
     const pauseHref = detail.isDaily ? "/quotidien" : worldHref(detail.world.slug);
     useAmbience(detail.world.theme);
 
@@ -74,25 +91,49 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
 
                 <p>{detail.description}</p>
 
-                <section className={styles.hints} aria-label="Indices">
+                <section className={styles.hints} aria-label="Inspirations">
                     {puzzle.hints.map((hint, i) => (
-                        <Callout key={i} label={`Indice ${i + 1} :`}>
+                        <Callout key={i} label={`Inspiration ${i + 1} :`}>
                             {hint}
                         </Callout>
                     ))}
-                    {puzzle.hintsRemaining > 0 && !puzzle.completion && (
-                        <div className={styles.hintAsk}>
-                            <Button variant="ghost" onClick={puzzle.revealHint}>
-                                ✧ Demander un indice ({puzzle.hintsRemaining})
-                            </Button>
-                            {puzzle.hints.length === 0 && (
-                                <small>Sans indice, le pétale Autonomie s&apos;ouvre ; il pourra toujours être cueilli une autre fois.</small>
-                            )}
-                        </div>
-                    )}
                 </section>
 
-                <MechanicBoard key={puzzle.round} detail={detail} report={puzzle.report} />
+                {!puzzle.finished && (
+                    <div className={styles.tools} role="toolbar" aria-label="Aides">
+                        {puzzle.hintsRemaining > 0 && (
+                            <Button variant="ghost" onClick={puzzle.revealHint}>
+                                ✧ Inspiration ({puzzle.hintsRemaining})
+                            </Button>
+                        )}
+                        <Button variant="ghost" onClick={() => update({ loupe: !settings.loupe })} aria-pressed={settings.loupe}>
+                            ⌕ Loupe
+                        </Button>
+                        {puzzle.tools.undo && (
+                            <Button variant="ghost" onClick={() => applyTool("undo")} title="Ctrl + Z">
+                                ↶ Retour
+                            </Button>
+                        )}
+                        {puzzle.tools.shuffle && (
+                            <Button variant="ghost" onClick={() => applyTool("shuffle")}>
+                                ⤨ Mélanger
+                            </Button>
+                        )}
+                        <Button variant="ghost" onClick={() => setNotebookOpen((open) => !open)} aria-pressed={notebookOpen}>
+                            ✎ Carnet
+                        </Button>
+                    </div>
+                )}
+                {!puzzle.finished && puzzle.hints.length === 0 && puzzle.hintsRemaining > 0 && (
+                    <p className={styles.toolsNote}>
+                        Les aides sont libres ; sans inspiration, le pétale Autonomie s&apos;ouvre. Il pourra toujours être cueilli une autre fois.
+                    </p>
+                )}
+                {notebookOpen && <Notebook levelId={detail.id} />}
+
+                <div className={styles.boardFrame} style={{ "--loupe": settings.loupe ? 1.35 : 1 } as CSSProperties}>
+                    <MechanicBoard key={puzzle.round} detail={detail} report={puzzle.report} />
+                </div>
 
                 <div className={styles.status} data-tone={puzzle.status?.tone} role="status" aria-live="polite">
                     {puzzle.status?.text ?? ""}
@@ -106,6 +147,14 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
                             equilibrium.accept();
                             puzzle.revealHint();
                         }}
+                        onClarify={
+                            puzzle.tools.clarify
+                                ? () => {
+                                      equilibrium.accept();
+                                      applyTool("clarify");
+                                  }
+                                : undefined
+                        }
                         onDismiss={equilibrium.dismiss}
                         pauseHref={pauseHref}
                     />

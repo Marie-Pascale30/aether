@@ -51,17 +51,6 @@
     animation: reveal .5s var(--ease);
 }
 
-.hintAsk {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 4px 12px;
-}
-
-.hintAsk small {
-    color: var(--faint);
-}
-
 @keyframes reveal {
     from {
         opacity: 0;
@@ -261,4 +250,59 @@
     margin: 10px 0 0;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+}
+
+/* ─── Aides ───────────────────────────────────────────────────────────────── */
+
+.tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 4px;
+    margin: 4px 0 2px -12px;
+}
+
+.tools button[aria-pressed="true"] {
+    color: var(--gold);
+    background: rgb(var(--gold-rgb) / 0.1);
+}
+
+.toolsNote {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: var(--faint);
+}
+
+.notebook {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0 4px;
+    max-width: 560px;
+    animation: reveal .4s var(--ease);
+}
+
+.notebook label {
+    font-size: 12px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+.notebook textarea {
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-family: var(--font-serif);
+    line-height: 1.5;
+}
+
+.notebook small {
+    color: var(--faint);
+}
+
+/* Avec la loupe, le plateau peut dépasser l'écran : on le fait défiler plutôt que de le couper. */
+.boardFrame {
+    overflow-x: auto;
 }

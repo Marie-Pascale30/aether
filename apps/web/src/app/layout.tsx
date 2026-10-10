@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                         <main id="contenu" tabIndex={-1} className={styles.main}>
                             {children}
                         </main>
-                        <footer className={styles.footer}>L&apos;Atlas des Esprits · Prototype 0.4</footer>
+                        <footer className={styles.footer}>L&apos;Atlas des Esprits · Prototype 0.5</footer>
                     </div>
                 </Providers>
             </body>

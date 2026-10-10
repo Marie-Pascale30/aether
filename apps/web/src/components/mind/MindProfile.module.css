@@ -1,0 +1,90 @@
+.faculties {
+    list-style: none;
+    margin: 18px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.tile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.tile h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.tile p {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+/* Une seule teinte (or ancien) : la pousse grandit, la couleur ne classe rien. */
+.sprout {
+    flex: none;
+    width: 40px;
+    height: 48px;
+}
+
+.soil {
+    stroke: rgb(var(--ivory-rgb) / 0.25);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.seed {
+    fill: var(--faint);
+}
+
+.stem {
+    stroke: var(--sage);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+}
+
+.leaf {
+    fill: var(--sage);
+}
+
+.bloom ellipse {
+    fill: var(--gold);
+}
+
+.heart {
+    fill: var(--on-gold);
+}
+
+.tile[data-stage="0"] h3 {
+    color: var(--muted);
+}
+
+.suggestion {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    margin: 18px 0 0;
+    padding: 12px 16px;
+    border: 1px solid rgb(var(--sage-rgb) / 0.3);
+    border-radius: var(--radius-md);
+    background: rgb(var(--sage-rgb) / 0.06);
+    color: var(--ivory-soft);
+}
+
+.suggestion > span:first-child {
+    color: var(--sage);
+}
+
+.suggestion strong {
+    color: var(--text);
+    font-weight: 600;
+}

@@ -97,6 +97,16 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
 - **Comptes** : on joue tout de suite en invité ; créer un compte garde la progression, se connecter
   depuis un invité la fusionne. Vérification d'adresse, mot de passe oublié (lien 1 h, réponse muette),
   changement de mot de passe (déconnecte les autres appareils). Pétales et repères suivent la fusion.
+- **Aides** (libres, sauf l'inspiration) : *Inspiration* (les indices, un par un ; sans elle, le pétale
+  Autonomie s'ouvre), *Loupe* (plateaux et symboles agrandis, réglage de l'appareil), *Retour* (dernier
+  lien, quart de tour ou tracé ; Ctrl + Z), *Mélanger* (disposition des Liens, propositions des Échos) et
+  *Carnet* de notes par énigme, gardé sur l'appareil. Quand on bloque, l'Équilibre peut aussi
+  *éclaircir* le plateau (des leurres s'estompent). Chaque plateau déclare ses aides (`useBoardTool`).
+- **Profil mental** (`/profil`) : six facultés (observation, mémoire, logique, vision spatiale, rythme,
+  associations), chacune décrite par un stade de croissance — « en sommeil », « s'éveille »,
+  « grandit », « s'épanouit », « rayonne » — et une pousse dessinée, jamais par un nombre. Une
+  suggestion douce (aussi sur l'Atlas) propose une énigme ouverte pour la faculté la moins pratiquée
+  (`packages/shared/src/rules/mind.ts`).
 - **Accessibilité** : plateau jouable au clavier (flèches, Entrée/Espace, Début/Fin), lien d'évitement,
   annonces pour lecteurs d'écran. **Réglages** (`/reglages`) : volume, effets, ambiance, animations
   (suivre le système / réduire / toujours), grands symboles, Équilibre, affichage du temps.
