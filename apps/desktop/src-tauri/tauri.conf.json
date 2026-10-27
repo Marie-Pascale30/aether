@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "AETHER",
+  "version": "0.1.0",
+  "identifier": "fr.aether.atlas",
+  "build": {
+    "frontendDist": "../../web/out",
+    "devUrl": "http://localhost:3100"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "AETHER",
+        "width": 1200,
+        "height": 860,
+        "minWidth": 380,
+        "minHeight": 560,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false,
+        "backgroundColor": "#0b1626"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "shortDescription": "Offrez à votre esprit un moment de plaisir.",
+    "longDescription": "AETHER : des énigmes paisibles qui restaurent l'Atlas des Esprits.",
+    "category": "PuzzleGame",
+    "copyright": "AETHER"
+  }
+}

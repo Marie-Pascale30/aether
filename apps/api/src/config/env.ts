@@ -12,6 +12,15 @@ const envSchema = z
         JWT_SECRET: z.string().min(32, "JWT_SECRET doit contenir au moins 32 caractères."),
         WEB_ORIGIN: z.string().default("http://localhost:3100"),
         /**
+         * Origines des applications (séparées par des virgules) : Capacitor sur Android
+         * (https://localhost) et iOS (capacitor://localhost), Tauri sur Windows (http://tauri.localhost)
+         * et macOS / Linux (tauri://localhost).
+         */
+        APP_ORIGINS: z
+            .string()
+            .default("https://localhost,capacitor://localhost,http://tauri.localhost,tauri://localhost")
+            .transform((value) => value.split(",").map((origin) => origin.trim()).filter(Boolean)),
+        /**
          * Proxys autorisés à transmettre l'IP du joueur (X-Forwarded-For), au format Express :
          * « loopback » en local, « loopback,uniquelocal » quand le front tourne dans un autre conteneur.
          * Ne jamais exposer l'API directement sur Internet avec une valeur trop large.

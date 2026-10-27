@@ -23,7 +23,7 @@ import { ApiError, type ApiIssue } from "@/lib/api";
 import { KIND_COPY, MECHANIC_COPY } from "@/lib/kinds";
 import { useAdminWorlds, useCreateLevel, useUpdateLevel } from "@/lib/queries";
 import styles from "./LevelEditor.module.css";
-import { levelHref } from "@/lib/routes";
+import { adminLevelHref, levelHref } from "@/lib/routes";
 
 const GROUP_COLORS = ["#cfae5f", "#a6c39a", "#8fbf8a", "#e59ab5", "#b49cf0", "#f0a860", "#9fd3f0", "#e6e38a"];
 const KINDS: LevelKind[] = ["PAIRS", "GROUPS", "SEQUENCE"];
@@ -203,7 +203,7 @@ export function LevelEditor({ level, initialWorldId }: Props) {
                 setSaved(true);
             } else {
                 const created = await create.mutateAsync(parsed.data);
-                router.replace(`/admin/niveaux/${created.id}`);
+                router.replace(adminLevelHref(created.id));
             }
         } catch (error) {
             if (error instanceof ApiError && error.issues.length) setIssues(error.issues);

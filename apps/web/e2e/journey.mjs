@@ -38,7 +38,11 @@ let playerEmail = "";
 const browser = await chromium.launch({ executablePath });
 
 /** Hors ligne, les requêtes refusées par le navigateur sont attendues : on ne les compte pas. */
+/** Pages suivies (nom → page), capturées en cas d'échec. */
+const watched = new Map();
+
 function watch(page, name, { offline = false } = {}) {
+    watched.set(name, page);
     const expected = (text) => text.startsWith("Failed to load resource") || (offline && /ERR_INTERNET_DISCONNECTED|Failed to fetch/.test(text));
     page.on("console", (msg) => msg.type() === "error" && !expected(msg.text()) && errors.push(`[${name}] console: ${msg.text()}`));
     page.on("response", (res) => res.status() >= 400 && errors.push(`[${name}] HTTP ${res.status()} ${res.request().method()} ${res.url()}`));
@@ -51,6 +55,11 @@ const step = async (label, fn) => {
         console.log("✓", label);
     } catch (e) {
         console.log("✗", label, "\n   ", e.message.split("\n")[0]);
+        // Capture de chaque page ouverte au moment de l'échec, pour comprendre sans relancer.
+        for (const [name, open] of watched) {
+            await open.screenshot({ path: OUT + `00-echec-${name}.png`, fullPage: true }).catch(() => {});
+            console.log(`    ${name} :`, open.url());
+        }
         throw e;
     }
 };
@@ -410,7 +419,7 @@ try {
         await admin.getByText("Lien 1 :").waitFor();
         await admin.screenshot({ path: OUT + "15-editor.png", fullPage: true });
         await admin.getByRole("button", { name: "Enregistrer" }).click();
-        await admin.waitForURL(/\/admin\/niveaux\/[a-z0-9]+$/);
+        await admin.waitForURL(/\/admin\/niveaux\/edition\?id=[a-z0-9]+$/);
         await admin.getByRole("heading", { name: "Modifier l'énigme" }).waitFor();
     });
 

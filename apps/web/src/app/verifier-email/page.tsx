@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { Loading } from "@/components/ui/States";
 import { VerifyEmail } from "./VerifyEmail";
 
 export const metadata: Metadata = { title: "Confirmation d'adresse" };
 
-export default async function VerifyEmailPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
-    const { token } = await searchParams;
-    return <VerifyEmail token={token ?? ""} />;
+export default function VerifyEmailPage() {
+    return (
+        <Suspense fallback={<Loading />}>
+            <VerifyEmail />
+        </Suspense>
+    );
 }

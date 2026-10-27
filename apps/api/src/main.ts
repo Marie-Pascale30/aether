@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
 import { ENV, type Env } from "./config/env";
+import { SESSION_TOKEN_HEADER } from "./auth/auth.service";
 
 async function bootstrap() {
     // Journaux mis en tampon jusqu'à ce que pino soit prêt : rien n'est perdu au démarrage.
@@ -17,7 +18,12 @@ async function bootstrap() {
     app.set("trust proxy", env.TRUST_PROXY.split(",").map((value) => value.trim()));
     app.setGlobalPrefix("api");
     app.use(cookieParser());
-    app.enableCors({ origin: env.WEB_ORIGIN, credentials: true, exposedHeaders: ["x-request-id"] });
+    // Le site (même origine via le proxy de Next) et les applications (Capacitor, Tauri).
+    app.enableCors({
+        origin: [env.WEB_ORIGIN, ...env.APP_ORIGINS],
+        credentials: true,
+        exposedHeaders: ["x-request-id", SESSION_TOKEN_HEADER],
+    });
     app.enableShutdownHooks();
 
     await app.listen(env.PORT);

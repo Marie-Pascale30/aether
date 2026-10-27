@@ -1,0 +1,15 @@
+{
+  "name": "@aether/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application de bureau d'AETHER (Tauri : Windows, macOS, Linux), autour de l'export statique du site.",
+  "scripts": {
+    "tauri": "tauri",
+    "icons": "tauri icon app-icon.png",
+    "build": "tauri build",
+    "dev": "tauri dev"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4"
+  }
+}

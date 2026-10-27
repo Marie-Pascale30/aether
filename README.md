@@ -168,6 +168,33 @@ La composition enchaîne `db` → `migrate` (migrations + seed, tâche ponctuell
 session est `Secure`. L'API n'est pas exposée hors du réseau Docker ; ne l'exposez pas directement avec
 `TRUST_PROXY=loopback,uniquelocal`, sinon l'IP transmise pourrait être falsifiée.
 
+## Applications (Android, iOS, Windows, macOS, Linux)
+
+Les applications embarquent un **export statique** du site (`apps/web/out`) et appellent l'API à
+distance ; le jeu y fonctionne hors ligne comme sur le site. Elles s'authentifient par **jeton**
+(`X-Aether-Client: app` → en-tête `X-Session-Token`, renvoyé en `Authorization: Bearer`), car une vue
+web d'application ne garde pas fiablement un cookie tiers ; le site garde son cookie httpOnly.
+L'API doit autoriser leurs origines (`APP_ORIGINS`, valeurs par défaut correctes).
+
+```bash
+AETHER_API_URL=https://api.exemple.fr npm run build:app -w @aether/web   # export → apps/web/out
+```
+
+- **Android et iOS** (`apps/mobile`, Capacitor 8) : `npm run sync -w @aether/mobile` copie l'export dans
+  les projets natifs ; `npm run android -w @aether/mobile` ouvre Android Studio. APK de test en ligne de
+  commande : `cd apps/mobile/android && ./gradlew assembleDebug` (JDK 21 requis : celui d'Android Studio,
+  `JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"`). Pour l'émulateur avec l'API locale :
+  `AETHER_API_URL=http://10.0.2.2:4100` (le http n'est alors autorisé que pour cette construction).
+  iOS : Mac avec Xcode (`npm run ios -w @aether/mobile`), puis un compte Apple Developer pour publier.
+  Icônes et écrans de démarrage : `npm run assets -w @aether/mobile` (sources dans `apps/mobile/assets`).
+- **Bureau** (`apps/desktop`, Tauri 2) : `npm run build -w @aether/desktop` produit les installateurs
+  (Rust requis : https://rustup.rs). Icônes : `npm run icons -w @aether/desktop`.
+- **Sans rien installer** : le workflow GitHub « Applications » (onglet Actions → Run workflow, avec
+  l'adresse de l'API) construit l'APK Android, les installateurs Windows / macOS / Linux et vérifie la
+  compilation iOS ; les fichiers sont à télécharger dans les « artifacts » de l'exécution.
+- Identifiant des applications : `fr.aether.atlas` (`capacitor.config.ts`, `tauri.conf.json`), à fixer
+  définitivement avant la première publication dans un magasin.
+
 ## Intégration continue
 
 `.github/workflows/ci.yml`, à chaque push sur `main` et chaque pull request :

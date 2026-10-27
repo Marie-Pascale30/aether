@@ -1,0 +1,130 @@
+name: Applications
+
+# Construit les applications à la demande (onglet « Actions » → « Applications » → « Run workflow »)
+# ou à chaque étiquette de version (v0.6.0…). L'adresse de l'API vient du champ de lancement, sinon de
+# la variable de dépôt AETHER_API_URL (Settings → Secrets and variables → Actions → Variables).
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "Adresse de l'API (sans /api), par exemple https://api.exemple.fr"
+        required: false
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  AETHER_API_URL: ${{ inputs.api_url || vars.AETHER_API_URL }}
+
+jobs:
+  web-export:
+    name: Export statique des applications
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Adresse de l'API
+        run: test -n "$AETHER_API_URL" || { echo "::error::Renseigne api_url au lancement, ou la variable de dépôt AETHER_API_URL."; exit 1; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @aether/shared
+      - run: npm run build:app -w @aether/web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out/
+          include-hidden-files: true
+
+  android:
+    name: Android (APK de test)
+    needs: web-export
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out/
+      - name: Copie des pages dans le projet Android
+        run: npx cap sync android
+        working-directory: apps/mobile
+      - name: Compilation
+        run: ./gradlew assembleDebug --console=plain
+        working-directory: apps/mobile/android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aether-android-debug
+          path: apps/mobile/android/app/build/outputs/apk/debug/*.apk
+
+  ios:
+    name: iOS (compilation pour simulateur, sans signature)
+    needs: web-export
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out/
+      - name: Copie des pages dans le projet iOS
+        run: npx cap sync ios
+        working-directory: apps/mobile
+      - name: Compilation (simulateur)
+        run: xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO build
+        working-directory: apps/mobile/ios/App
+
+  desktop:
+    name: Bureau (${{ matrix.name }})
+    needs: web-export
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows, os: windows-latest }
+          - { name: macOS, os: macos-latest }
+          - { name: Linux, os: ubuntu-22.04 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Bibliothèques système (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out/
+      - name: Compilation et installateurs
+        run: npm run build -w @aether/desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aether-desktop-${{ matrix.name }}
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/**/*.msi
+            apps/desktop/src-tauri/target/release/bundle/**/*.exe
+            apps/desktop/src-tauri/target/release/bundle/**/*.dmg
+            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage
+            apps/desktop/src-tauri/target/release/bundle/**/*.deb

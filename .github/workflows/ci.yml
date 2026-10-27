@@ -54,6 +54,8 @@ jobs:
       ADMIN_EMAIL: admin@aether.local
       ADMIN_PASSWORD: ci-admin-mot-de-passe
       E2E_BROWSER: /usr/bin/google-chrome
+      # Origine de test de l'export des applications (servi à part, comme dans Capacitor ou Tauri).
+      APP_ORIGINS: https://localhost,capacitor://localhost,http://tauri.localhost,tauri://localhost,http://localhost:3120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -80,6 +82,13 @@ jobs:
         run: npm run smoke -w @aether/api
       - name: Parcours navigateur
         run: npm run e2e -w @aether/web
+      - name: Export des applications (session par jeton, autre origine)
+        working-directory: apps/web
+        run: |
+          AETHER_API_URL=http://localhost:4100 npm run build:app
+          (cd out && python3 -m http.server 3120 > /dev/null 2>&1 &)
+          sleep 1
+          node e2e/app-export.mjs
       - name: Journaux des serveurs
         if: failure()
         run: cat api.log web.log

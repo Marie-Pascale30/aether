@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { resetPasswordSchema } from "@aether/shared";
 import { Button } from "@/components/ui/Button";
@@ -9,7 +9,9 @@ import { Field } from "@/components/ui/Field";
 import { Panel } from "@/components/ui/Panel";
 import { useResetPassword } from "@/lib/queries";
 
-export function ResetPasswordForm({ token }: { token: string }) {
+/** `/reinitialiser?token=…` : le lien reçu par e-mail. */
+export function ResetPasswordForm() {
+    const token = useSearchParams().get("token") ?? "";
     const router = useRouter();
     const reset = useResetPassword();
     const [errors, setErrors] = useState<{ password?: string; confirm?: string; form?: string }>({});

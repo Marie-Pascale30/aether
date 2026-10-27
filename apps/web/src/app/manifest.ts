@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+/** Fichier fixe (aussi dans l'export statique des applications). */
+export const dynamic = "force-static";
+
 /** Application installable (écran d'accueil, bureau) : s'ouvre sur le jardin en cours. */
 export default function manifest(): MetadataRoute.Manifest {
     return {

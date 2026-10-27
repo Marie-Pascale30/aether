@@ -1,6 +1,6 @@
-import { permanentRedirect } from "next/navigation";
+import { Redirect } from "@/components/shell/Redirect";
 
 /** L'ancien classement a laissé place aux repères personnels. */
 export default function LegacyLeaderboardPage() {
-    permanentRedirect("/reperes");
+    return <Redirect to="/reperes" />;
 }
