@@ -4,7 +4,7 @@ import { useEffect, useId, useRef } from "react";
 import { hasPetal, PETAL_COPY, PETAL_KEYS, type CompletionResult } from "@aether/shared";
 import { ShareButton } from "@/components/daily/ShareButton";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { Harmony } from "@/components/ui/Harmony";
+import { HarmonyBloom } from "@/components/ui/HarmonyBloom";
 import { formatDuration } from "@/lib/format";
 import { levelHref, worldHref } from "@/lib/routes";
 import { useSettings } from "@/lib/settings";
@@ -53,7 +53,7 @@ export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Pr
             >
                 <div className="tag">{daily ? "Énigme du jour" : worldJustDone ? "Monde restauré" : "Énigme restaurée"}</div>
                 <h2 id={titleId}>{worldJustDone ? "Le monde se souvient" : "Le lien est juste"}</h2>
-                <Harmony petals={levelPetals} size="lg" animate />
+                <HarmonyBloom petals={levelPetals} fresh={newPetals} />
 
                 <ul className={styles.petals} aria-label="Pétales d'harmonie">
                     {PETAL_KEYS.map((key) => {

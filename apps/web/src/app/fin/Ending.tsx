@@ -44,7 +44,7 @@ export function Ending() {
                 <br />
                 Il s&apos;est souvenu de lui-même. »
             </blockquote>
-            <Garden stage={garden.stage} instant={garden.instant} theme={lastWorld?.theme} className={styles.garden} />
+            <Garden stage={garden.stage} instant={garden.instant} theme={lastWorld?.theme} className={styles.garden} parallax />
             <p>
                 Tu viens de terminer la première boucle d&apos;AETHER : observer, comprendre, relier, restaurer.
                 <br />

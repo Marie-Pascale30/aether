@@ -37,7 +37,7 @@ export function WorldView({ slug }: { slug: string }) {
         : null;
 
     return (
-        <div className="stack">
+        <div className={`stack ${styles.arrive}`}>
             <Panel>
                 <div className={styles.intro}>
                     <div>
@@ -69,7 +69,7 @@ export function WorldView({ slug }: { slug: string }) {
                             </ButtonLink>
                         </div>
                     </div>
-                    <Garden stage={garden.stage} instant={garden.instant} theme={w.theme} />
+                    <Garden stage={garden.stage} instant={garden.instant} theme={w.theme} parallax />
                 </div>
             </Panel>
 

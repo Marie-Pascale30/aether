@@ -224,3 +224,11 @@
         transform: scaleX(.35);
     }
 }
+
+/* ─── Profondeur (parallaxe) ──────────────────────────────────────────────── */
+
+/* --px / --py (de -1 à 1) sont posés par useParallax ; --depth : 0 lointain, 1 proche. */
+.depth {
+    transform: translate(calc(var(--px, 0) * var(--depth) * -9px), calc(var(--py, 0) * var(--depth) * -5px));
+    transition: transform .9s var(--ease);
+}

@@ -1,0 +1,37 @@
+/* Taille : 1em, donc celle du texte qui l'entoure (les plateaux règlent déjà la taille des symboles). */
+.glyph {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.12em;
+    overflow: visible;
+}
+
+.glyph :global(.s) {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.glyph :global(.f) {
+    fill: currentColor;
+}
+
+/* Teinte légère sous le trait : un peu de volume, sans couleur imposée. */
+.glyph :global(.t) {
+    fill: currentColor;
+    fill-opacity: .16;
+}
+
+.text {
+    display: inline-block;
+    line-height: 1;
+}
+
+.row {
+    display: inline-flex;
+    align-items: center;
+    gap: .12em;
+}

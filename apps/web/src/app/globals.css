@@ -29,8 +29,8 @@
     --line: rgb(var(--ivory-rgb) / 0.14);
     --line-strong: rgb(var(--ivory-rgb) / 0.24);
 
-    --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-    --font-serif: Georgia, "Times New Roman", serif;
+    --font-sans: var(--font-text), system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-serif: var(--font-display), Georgia, "Times New Roman", serif;
 
     --radius-sm: 8px;
     --radius-md: 18px;
@@ -79,18 +79,19 @@ h1,
 h2,
 h3 {
     font-family: var(--font-serif);
-    font-weight: 400;
+    /* Cormorant a un petit œil : un peu plus de graisse et de taille pour rester lisible. */
+    font-weight: 500;
     line-height: 1.2;
 }
 
 h1 {
-    font-size: clamp(42px, 8vw, 62px);
+    font-size: clamp(46px, 8.6vw, 68px);
     letter-spacing: .18em;
     margin: 0 0 10px;
 }
 
 h2 {
-    font-size: clamp(30px, 5vw, 42px);
+    font-size: clamp(33px, 5.4vw, 46px);
     margin: 12px 0;
 }
 

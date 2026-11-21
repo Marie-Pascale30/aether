@@ -2,6 +2,7 @@
 
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import type { Group } from "@aether/shared";
+import { Glyph } from "@/components/glyphs/Glyph";
 import styles from "./Board.module.css";
 
 interface BoardProps {
@@ -124,7 +125,7 @@ export function Board({ symbols, columns, selected, linked, rejected, faded, ord
                             </span>
                         )}
                         <span className={styles.shape} aria-hidden>
-                            {symbol}
+                            <Glyph symbol={symbol} />
                         </span>
                         <small className={styles.label} aria-hidden>
                             ÉCHO {i + 1}

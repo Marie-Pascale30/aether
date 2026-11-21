@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { memoryAnswer, memoryBeginRecall, memoryPrompt, memoryStart, type MemoryPuzzle } from "@aether/shared";
 import { Button } from "@/components/ui/Button";
 import type { PuzzleReport } from "@/hooks/useLocalPuzzle";
+import { Glyph, GlyphRow } from "@/components/glyphs/Glyph";
 import styles from "./mechanics.module.css";
 
 /** Délai entre deux effacements en variante progressive (le joueur peut passer à la suite avant). */
@@ -57,7 +58,11 @@ export function MemoryBoard({ puzzle, report }: { puzzle: MemoryPuzzle; report: 
                     <span>{puzzle.progressive ? "Observe : les symboles vont s'effacer un à un." : "Observe le plateau aussi longtemps que tu le souhaites."}</span>
                 ) : prompt ? (
                     <span>
-                        Où se trouvait <span className={styles.promptSymbol}>{prompt}</span> ?
+                        Où se trouvait{" "}
+                        <span className={styles.promptSymbol}>
+                            <GlyphRow text={prompt ?? ""} />
+                        </span>{" "}
+                        ?
                     </span>
                 ) : (
                     <span>Tout est revenu.</span>
@@ -87,7 +92,7 @@ export function MemoryBoard({ puzzle, report }: { puzzle: MemoryPuzzle; report: 
                                 data-fading={delay !== null || undefined}
                                 style={delay !== null ? { animationDelay: `${delay}ms` } : undefined}
                             >
-                                {visible ? symbol : ""}
+                                {visible && symbol ? <Glyph symbol={symbol} /> : ""}
                             </span>
                         </button>
                     );

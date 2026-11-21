@@ -7,7 +7,7 @@ interface Note {
     freq: number;
     delay?: number;
     duration: number;
-    instrument?: Instrument | "soft";
+    instrument?: Instrument | "soft" | "bell";
     peak?: number;
 }
 
@@ -30,6 +30,10 @@ const CUES: Record<Cue, Note[]> = {
         { freq: 659.25, delay: 0.12, duration: 1.8, instrument: "harp" },
         { freq: 783.99, delay: 0.24, duration: 1.8, instrument: "harp" },
         { freq: 1046.5, delay: 0.36, duration: 2.4, instrument: "piano", peak: 0.12 },
+        // Le scintillement cristallin qui accompagne la lumière.
+        { freq: 2093, delay: 0.62, duration: 2.6, instrument: "bell", peak: 0.035 },
+        { freq: 2637, delay: 0.74, duration: 2.6, instrument: "bell", peak: 0.03 },
+        { freq: 3136, delay: 0.86, duration: 3, instrument: "bell", peak: 0.028 },
     ],
     hint: [
         { freq: 880, duration: 0.8, instrument: "harp", peak: 0.05 },
@@ -38,10 +42,12 @@ const CUES: Record<Cue, Note[]> = {
 };
 
 /** Partiels de chaque timbre : (multiple de la fondamentale, amplitude relative). */
-const TIMBRES: Record<Instrument | "soft", { partials: [number, number][]; attack: number; type: OscillatorType }> = {
+const TIMBRES: Record<Instrument | "soft" | "bell", { partials: [number, number][]; attack: number; type: OscillatorType }> = {
     piano: { partials: [[1, 1], [2, 0.42], [3, 0.16], [4, 0.07]], attack: 0.008, type: "sine" },
     harp: { partials: [[1, 1], [2, 0.3], [3, 0.08]], attack: 0.004, type: "triangle" },
     soft: { partials: [[1, 1]], attack: 0.04, type: "sine" },
+    // Partiels inharmoniques d'une petite cloche de verre.
+    bell: { partials: [[1, 1], [2.76, 0.35], [5.4, 0.15]], attack: 0.002, type: "sine" },
 };
 
 const random = (min: number, max: number) => min + Math.random() * (max - min);

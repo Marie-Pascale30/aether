@@ -15,10 +15,12 @@ import { useLocalPuzzle, type PuzzleReport } from "@/hooks/useLocalPuzzle";
 import { formatDuration, pad2 } from "@/lib/format";
 import { levelLabel } from "@/lib/kinds";
 import { worldHref } from "@/lib/routes";
+import { prefersReducedMotion } from "@/lib/motion";
 import { useSettings } from "@/lib/settings";
 import { useAmbience } from "@/lib/sound/SoundProvider";
 import { CompletionPanel } from "./CompletionPanel";
 import { EquilibriumNudge } from "./EquilibriumNudge";
+import { VictoryBloom } from "./VictoryBloom";
 import { Notebook } from "./Notebook";
 import styles from "./Puzzle.module.css";
 
@@ -43,6 +45,21 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
     const puzzle = useLocalPuzzle(detail);
     const { settings, update } = useSettings();
     const [notebookOpen, setNotebookOpen] = useState(false);
+    // À la victoire, la lumière s'étend d'abord sur le plateau ; le panneau de fin s'ouvre ensuite.
+    const [panelReady, setPanelReady] = useState(false);
+    const hasCompletion = Boolean(puzzle.completion);
+    useEffect(() => {
+        if (!hasCompletion) {
+            setPanelReady(false);
+            return;
+        }
+        if (prefersReducedMotion()) {
+            setPanelReady(true);
+            return;
+        }
+        const timer = setTimeout(() => setPanelReady(true), 1300);
+        return () => clearTimeout(timer);
+    }, [hasCompletion]);
     const { applyTool } = puzzle;
 
     // Ctrl/Cmd + Z : revenir sur le dernier geste (sauf en écrivant dans le carnet).
@@ -133,6 +150,7 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
 
                 <div className={styles.boardFrame} style={{ "--loupe": settings.loupe ? 1.35 : 1 } as CSSProperties}>
                     <MechanicBoard key={puzzle.round} detail={detail} report={puzzle.report} />
+                    {puzzle.finished && hasCompletion && !panelReady && <VictoryBloom key={puzzle.round} />}
                 </div>
 
                 <div className={styles.status} data-tone={puzzle.status?.tone} role="status" aria-live="polite">
@@ -170,7 +188,7 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
                 </div>
             </Panel>
 
-            {puzzle.completion && (
+            {puzzle.completion && panelReady && (
                 <CompletionPanel
                     completion={puzzle.completion}
                     worldSlug={detail.world.slug}

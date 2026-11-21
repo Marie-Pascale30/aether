@@ -1,5 +1,8 @@
-import { useId, type ReactNode } from "react";
+"use client";
+
+import { useId, useRef, type CSSProperties, type ReactNode } from "react";
 import { GARDEN_STAGE_COUNT, type WorldTheme } from "@aether/shared";
+import { useParallax } from "@/hooks/useParallax";
 import { REGIONS } from "@/lib/regions";
 import styles from "./Garden.module.css";
 
@@ -132,6 +135,8 @@ interface GardenProps {
     /** Place le jardin sans transition (premier affichage avant l'animation de croissance). */
     instant?: boolean;
     className?: string;
+    /** Plans qui bougent avec la souris ou l'inclinaison (grands jardins seulement). */
+    parallax?: boolean;
 }
 
 /**
@@ -139,15 +144,18 @@ interface GardenProps {
  * l'aube se lève, l'arbre grandit, le lieu (fontaine, coupole, rouages…) reprend vie, le
  * Gardien apparaît, puis les papillons et les lucioles.
  */
-export function Garden({ stage, theme = "jardin", instant = false, className }: GardenProps) {
+export function Garden({ stage, theme = "jardin", instant = false, className, parallax = false }: GardenProps) {
     const id = useId(); // plusieurs jardins par page : identifiants de dégradés uniques
     const p = PALETTES[theme] ?? PALETTES.jardin;
     const on = (minStage: number) => String(stage >= minStage);
     const percent = Math.round((stage / LAST_STAGE) * 100);
     const dawn = stage / LAST_STAGE;
+    // Profondeur : les plans lointains bougent moins que les plans proches (souris, inclinaison).
+    const frame = useRef<HTMLDivElement>(null);
+    useParallax(frame, parallax);
 
     return (
-        <div className={[styles.garden, className].filter(Boolean).join(" ")} data-instant={instant || undefined} style={{ background: p.sky[1] }}>
+        <div ref={frame} className={[styles.garden, className].filter(Boolean).join(" ")} data-instant={instant || undefined} style={{ background: p.sky[1] }}>
             <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" role="img" aria-label={`${REGIONS[theme]?.name ?? "Jardin"} restauré à ${percent} %`}>
                 <defs>
                     <linearGradient id={`${id}-sky`} x1="0" y1="0" x2="0.4" y2="1">
@@ -168,6 +176,7 @@ export function Garden({ stage, theme = "jardin", instant = false, className }: 
                 <rect width="400" height="300" fill={`url(#${id}-sky)`} />
                 {/* L'aube se lève avec la restauration ; les étoiles pâlissent un peu. */}
                 <ellipse className={styles.fade} cx="200" cy="240" rx="300" ry="150" fill={`url(#${id}-dawn)`} style={{ opacity: dawn }} />
+                <g className={styles.depth} style={{ "--depth": 0.35 } as CSSProperties}>
                 <g className={styles.stars} style={{ opacity: 1 - dawn * 0.45 }}>
                     {STARS.map((star, i) => (
                         <circle key={i} cx={star.x} cy={star.y} r={star.r} style={{ animationDelay: `${star.delay}s` }} />
@@ -175,10 +184,13 @@ export function Garden({ stage, theme = "jardin", instant = false, className }: 
                 </g>
 
                 <Backdrop theme={theme} stage={stage} p={p} on={on} />
+                </g>
+
+                <g className={styles.depth} style={{ "--depth": 0.65 } as CSSProperties}>
 
                 <circle className={styles.layer} data-on={on(5)} cx="130" cy="150" r="130" fill={`url(#${id}-glow)`} />
 
-                <path d="M0 232 Q 100 200 205 224 T 400 214 V300 H0Z" fill={p.hillBack} />
+                <path d="M-24 236 Q 100 200 205 224 T 424 212 V300 H-24Z" fill={p.hillBack} />
 
                 <Landmark theme={theme} stage={stage} p={p} on={on} />
 
@@ -189,7 +201,10 @@ export function Garden({ stage, theme = "jardin", instant = false, className }: 
                     </g>
                 </g>
 
-                <path d="M0 252 Q 120 228 232 247 T 400 240 V300 H0Z" fill={p.hillFront} />
+                </g>
+
+                <g className={styles.depth} style={{ "--depth": 1 } as CSSProperties}>
+                <path d="M-24 256 Q 120 228 232 247 T 424 238 V300 H-24Z" fill={p.hillFront} />
 
                 {/* Pousse initiale */}
                 <g className={styles.layer} data-on={String(stage === 0)} transform="translate(130 250)">
@@ -243,6 +258,7 @@ export function Garden({ stage, theme = "jardin", instant = false, className }: 
                     {FIREFLIES.map((fly, i) => (
                         <circle key={i} cx={fly.x} cy={fly.y} r="2.2" style={{ animationDelay: `${fly.delay}s` }} />
                     ))}
+                </g>
                 </g>
             </svg>
         </div>

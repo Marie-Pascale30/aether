@@ -1,10 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import type { ReactNode } from "react";
 import { AppHeader } from "@/components/shell/AppHeader";
 import { OfflineStatus } from "@/components/shell/OfflineStatus";
 import { Providers } from "./providers";
 import "./globals.css";
 import styles from "./layout.module.css";
+
+/**
+ * Polices embarquées avec le site (aucune requête vers Google, disponibles hors ligne et dans les
+ * applications) : un serif élégant pour les titres, un sans-serif très lisible pour le texte.
+ */
+const display = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-display", display: "swap" });
+const text = Source_Sans_3({ subsets: ["latin"], variable: "--font-text", display: "swap" });
 
 export const metadata: Metadata = {
     title: { default: "AETHER", template: "%s · AETHER" },
@@ -20,7 +28,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
     return (
-        <html lang="fr">
+        <html lang="fr" className={`${display.variable} ${text.variable}`}>
             <body>
                 <Providers>
                     <a href="#contenu" className="skip-link">

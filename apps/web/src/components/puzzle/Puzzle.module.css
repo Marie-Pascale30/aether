@@ -304,5 +304,6 @@
 
 /* Avec la loupe, le plateau peut dépasser l'écran : on le fait défiler plutôt que de le couper. */
 .boardFrame {
+    position: relative;
     overflow-x: auto;
 }

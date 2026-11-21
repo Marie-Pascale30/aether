@@ -1,5 +1,7 @@
 .atlas {
     margin: 22px 0 0;
+    /* Le zoom vers une région reste dans le cadre de la carte. */
+    overflow: hidden;
     padding: 8px 0;
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
@@ -133,5 +135,40 @@
     .label,
     .faculty {
         display: none;
+    }
+}
+
+/* ─── Entrer dans une région ──────────────────────────────────────────────── */
+
+.atlas[data-entering] .node:not([data-entering]),
+.atlas[data-entering] .trail,
+.atlas[data-entering] .lit {
+    opacity: 0;
+    transition: opacity .35s var(--ease);
+}
+
+.node[data-entering] .disc {
+    fill: #17294a;
+    stroke-width: 1;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: enter .42s var(--ease) forwards;
+}
+
+.node[data-entering] .halo {
+    display: none;
+}
+
+.node[data-entering] .label,
+.node[data-entering] .faculty,
+.node[data-entering] .glyph {
+    opacity: 0;
+    transition: opacity .2s;
+}
+
+@keyframes enter {
+    to {
+        transform: scale(16);
+        stroke-opacity: 0;
     }
 }

@@ -112,3 +112,16 @@ a.card:hover {
         grid-template-columns: 1fr;
     }
 }
+
+/* Arrivée dans une région : le paysage se précise, comme au bout d'un zoom depuis la carte. */
+.arrive {
+    animation: arrive .7s var(--ease) both;
+}
+
+@keyframes arrive {
+    from {
+        opacity: 0;
+        transform: scale(1.04);
+        filter: blur(6px);
+    }
+}

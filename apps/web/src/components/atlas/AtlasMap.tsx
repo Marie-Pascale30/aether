@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import type { WorldSummary } from "@aether/shared";
 import { REGIONS } from "@/lib/regions";
+import { prefersReducedMotion } from "@/lib/motion";
 import { worldHref } from "@/lib/routes";
 import styles from "./AtlasMap.module.css";
 
@@ -34,13 +35,22 @@ export function AtlasMap({ worlds }: { worlds: WorldSummary[] }) {
     const points = layout(worlds.length);
     const current = worlds.findIndex((world) => world.status === "available");
 
-    const go = (event: MouseEvent, href: string) => {
+    const [entering, setEntering] = useState<string | null>(null);
+
+    // On « entre » dans la région : son cercle grandit et la carte s'efface, puis la région s'ouvre.
+    const go = (event: MouseEvent, slug: string) => {
         event.preventDefault();
-        router.push(href);
+        if (entering) return;
+        if (prefersReducedMotion()) {
+            router.push(worldHref(slug));
+            return;
+        }
+        setEntering(slug);
+        setTimeout(() => router.push(worldHref(slug)), 420);
     };
 
     return (
-        <figure className={styles.atlas}>
+        <figure className={styles.atlas} data-entering={entering ? true : undefined}>
             <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="group" aria-label="Carte de l'Atlas des Esprits">
                 <path className={styles.trail} d={`M${points.map(([x, y]) => `${x} ${y}`).join(" L")}`} />
                 {points.slice(1).map(([x, y], i) => (
@@ -59,7 +69,7 @@ export function AtlasMap({ worlds }: { worlds: WorldSummary[] }) {
                     const region = REGIONS[world.theme];
                     const locked = world.status === "locked";
                     const node = (
-                        <g className={styles.node} data-status={world.status} data-current={i === current || undefined} style={{ ["--accent" as string]: region.accent }}>
+                        <g className={styles.node} data-status={world.status} data-current={i === current || undefined} data-entering={entering === world.slug || undefined} style={{ ["--accent" as string]: region.accent }}>
                             <circle className={styles.halo} cx={x} cy={y} r="30" />
                             <circle className={styles.disc} cx={x} cy={y} r="22" />
                             <text className={styles.glyph} x={x} y={y + 1}>
@@ -79,7 +89,7 @@ export function AtlasMap({ worlds }: { worlds: WorldSummary[] }) {
                             {node}
                         </g>
                     ) : (
-                        <a key={world.id} className={styles.link} href={worldHref(world.slug)} onClick={(event) => go(event, worldHref(world.slug))} aria-label={label}>
+                        <a key={world.id} className={styles.link} href={worldHref(world.slug)} onClick={(event) => go(event, world.slug)} aria-label={label}>
                             {node}
                         </a>
                     );

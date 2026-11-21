@@ -1,0 +1,67 @@
+.bloom {
+    display: block;
+    width: 148px;
+    height: 148px;
+    margin: 4px auto 0;
+    overflow: visible;
+}
+
+.aura {
+    animation: aura 3.2s ease-in-out infinite;
+}
+
+@keyframes aura {
+    50% {
+        opacity: .55;
+    }
+}
+
+.sepal {
+    fill: rgb(var(--sage-rgb) / 0.55);
+    stroke: rgb(var(--sage-rgb) / 0.8);
+    stroke-width: 1;
+}
+
+.stamen {
+    fill: #fbecc0;
+}
+
+.petal {
+    fill: url(#harmony-petal);
+    stroke: rgb(var(--ivory-rgb) / 0.35);
+    stroke-width: 1;
+    filter: drop-shadow(0 0 6px rgb(var(--gold-rgb) / 0.45));
+}
+
+/* Un pétale cueilli à l'instant éclot depuis le cœur de la fleur. */
+.petal[data-fresh] {
+    transform-box: view-box;
+    transform-origin: 0 0;
+    animation: open 1s var(--ease) both;
+}
+
+@keyframes open {
+    from {
+        transform: scale(0) rotate(-25deg);
+        opacity: 0;
+    }
+
+    70% {
+        transform: scale(1.08) rotate(3deg);
+        opacity: 1;
+    }
+}
+
+/* Un pétale encore à cueillir : esquissé en pointillés, il attend. */
+.open {
+    fill: rgb(var(--ivory-rgb) / 0.04);
+    stroke: rgb(var(--ivory-rgb) / 0.3);
+    stroke-width: 1.2;
+    stroke-dasharray: 3 4;
+}
+
+.heart {
+    fill: #f3dc92;
+    stroke: var(--gold);
+    stroke-width: 2;
+}

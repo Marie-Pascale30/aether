@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { echoesCorrect, type EchoesPuzzle } from "@aether/shared";
 import { useBoardTool, type PuzzleReport } from "@/hooks/useLocalPuzzle";
+import { GlyphRow } from "@/components/glyphs/Glyph";
 import styles from "./mechanics.module.css";
 
 export function EchoesBoard({ puzzle, report }: { puzzle: EchoesPuzzle; report: PuzzleReport }) {
@@ -44,20 +45,26 @@ export function EchoesBoard({ puzzle, report }: { puzzle: EchoesPuzzle; report: 
             <ol className={styles.examples} aria-label="Exemples">
                 {puzzle.examples.map((example, i) => (
                     <li key={i}>
-                        <span className={styles.echo}>{example.from}</span>
+                        <span className={styles.echo}>
+                            <GlyphRow text={example.from} />
+                        </span>
                         <span className={styles.arrow} aria-label="devient">
                             ⟹
                         </span>
-                        <span className={styles.echo}>{example.to}</span>
+                        <span className={styles.echo}>
+                            <GlyphRow text={example.to} />
+                        </span>
                     </li>
                 ))}
                 <li className={styles.question}>
-                    <span className={styles.echo}>{puzzle.question}</span>
+                    <span className={styles.echo}>
+                        <GlyphRow text={puzzle.question} />
+                    </span>
                     <span className={styles.arrow} aria-label="devient">
                         ⟹
                     </span>
                     <span className={styles.echo} data-answer={found || undefined}>
-                        {found ? puzzle.options[puzzle.answer] : "?"}
+                        {found ? <GlyphRow text={puzzle.options[puzzle.answer]!} /> : "?"}
                     </span>
                 </li>
             </ol>
@@ -73,9 +80,10 @@ export function EchoesBoard({ puzzle, report }: { puzzle: EchoesPuzzle; report: 
                         data-ruled-out={ruledOut.includes(i) || undefined}
                         data-correct={(found && i === puzzle.answer) || undefined}
                         disabled={found || ruledOut.includes(i)}
+                        aria-label={puzzle.options[i]}
                         onClick={() => choose(i)}
                     >
-                        {puzzle.options[i]}
+                        <GlyphRow text={puzzle.options[i]!} silent />
                     </button>
                 ))}
             </div>
