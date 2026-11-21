@@ -1,0 +1,57 @@
+/* Les fleurs prennent la couleur de leur région (`color`), comme de l'encre sur papier. */
+.flower {
+    display: block;
+    width: 100%;
+    max-width: 92px;
+    margin: 0 auto;
+    overflow: visible;
+    color: var(--accent);
+}
+
+/* Sur le papier ivoire, les couleurs claires des régions sont foncées comme une encre. */
+:global(:root[data-theme="ivoire"]) .flower {
+    color: color-mix(in oklab, var(--accent), #1f2a3a 42%);
+}
+
+.stem {
+    fill: none;
+    stroke: #6f8f5e;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+}
+
+.leaf {
+    fill: #6f8f5e;
+    opacity: .75;
+}
+
+.petal {
+    fill: currentColor;
+    fill-opacity: .82;
+    stroke: currentColor;
+    stroke-width: .8;
+}
+
+.petalOff {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: .9;
+    stroke-dasharray: 2.4 2.4;
+    opacity: .5;
+}
+
+.heart {
+    fill: #e8c872;
+}
+
+.bud {
+    fill: none;
+    stroke: currentColor;
+    stroke-dasharray: 2 2;
+    opacity: .55;
+}
+
+.flower[data-waiting] .stem,
+.flower[data-waiting] .leaf {
+    opacity: .35;
+}

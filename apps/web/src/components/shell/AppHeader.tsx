@@ -10,6 +10,7 @@ const LINKS = [
     { href: "/mondes", label: "Atlas" },
     { href: "/quotidien", label: "Énigme du jour" },
     { href: "/promenade", label: "Promenade" },
+    { href: "/livre", label: "Livre" },
     { href: "/reperes", label: "Repères" },
 ];
 

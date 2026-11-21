@@ -72,6 +72,13 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
   Toutes se jouent **entièrement sur l'appareil** : leurs moteurs et générateurs procéduraux vivent dans
   `packages/shared/src/mechanics/`, et seul le résultat est envoyé. Une même graine donne le même
   plateau partout.
+- **Livre de l'Atlas** (`/livre`) : un chapitre de récit par région (`lib/book.ts`), dont les trois
+  pages reviennent par tiers d'énigmes résolues ; la dernière ligne s'écrit quand la région est
+  restaurée. **Herbier** (`/herbier`) : une fleur pressée par énigme résolue (pétales d'harmonie pleins
+  ou esquissés) et une frise des fleurs du jour sur 28 jours. Tout se calcule sur l'appareil.
+- **Carte postale du jour** : après l'énigme du jour, une image dessinée sur canvas (ciel du moment,
+  fleur d'harmonie, série) à partager (`navigator.share` avec fichier) ou enregistrer
+  (`lib/postcard.ts`).
 - **Promenade** (`/promenade`) : des énigmes générées sans fin sur l'appareil, sans rien enregistrer.
   La difficulté de chaque mécanique monte après une énigme résolue sans inspiration ni fausse piste,
   redescend après une énigme qui a résisté ; la mécanique proposée penche vers la faculté la moins

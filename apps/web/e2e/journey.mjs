@@ -327,6 +327,10 @@ try {
         await admin.getByText("Série en cours").waitFor();
         await admin.getByText(/AETHER · Énigme du jour/).waitFor();
         await admin.getByText(/harmonie/).first().waitFor();
+        // La carte postale du jour, dessinée sur l'appareil.
+        await admin.getByRole("img", { name: /Carte postale du jour/ }).waitFor();
+        await admin.getByRole("button", { name: "Envoyer la carte postale" }).waitFor();
+        await admin.waitForTimeout(900);
         await admin.screenshot({ path: OUT + "13c-daily.png", fullPage: true });
     });
 
@@ -408,6 +412,26 @@ try {
         await admin.getByText("PROMENADE", { exact: true }).waitFor();
         await admin.getByRole("heading", { name: /une énigme pour toi$/ }).waitFor();
         await admin.screenshot({ path: OUT + "18-promenade.png" });
+    });
+
+    await step("Livre de l'Atlas et herbier", async () => {
+        await admin.goto(BASE + "/livre");
+        await admin.getByRole("heading", { name: "Ce que l'Atlas se rappelle" }).waitFor();
+        // Le premier chapitre (Jardin des Échos, en partie restauré) se lit déjà.
+        await admin.getByRole("button", { name: /^Chapitre 1 :/ }).click();
+        await admin.getByRole("heading", { name: "Où les choses se répondent" }).waitFor();
+        await admin.getByText(/Au commencement de l'Atlas/).waitFor();
+        // Flèche droite : chapitre suivant (scellé ou non selon la progression de l'admin).
+        await admin.keyboard.press("ArrowRight");
+        await admin.getByText(/Chapitre 2 · Mémoire/i).waitFor();
+        await admin.waitForTimeout(900);
+        await admin.screenshot({ path: OUT + "18b-livre.png", fullPage: true });
+
+        await admin.getByRole("link", { name: "une fleur pour chaque énigme" }).click();
+        await admin.getByRole("heading", { name: "Les fleurs du chemin" }).waitFor();
+        await admin.getByRole("link", { name: / : \d pétales? sur 3$/ }).first().waitFor();
+        await admin.getByRole("heading", { name: /Fleurs du jour/ }).waitFor();
+        await admin.screenshot({ path: OUT + "18c-herbier.png", fullPage: true });
     });
 
     await step("admin : mondes", async () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { buildShareText, computeStreak, goalCountOf } from "@aether/shared";
+import { Postcard } from "@/components/daily/Postcard";
 import { ShareButton } from "@/components/daily/ShareButton";
 import { ButtonLink } from "@/components/ui/Button";
 import { Harmony } from "@/components/ui/Harmony";
@@ -11,6 +12,7 @@ import { plural } from "@/lib/format";
 import { goalLabel, levelLabel } from "@/lib/kinds";
 import { todayDaily, usePlayer } from "@/lib/offline/player";
 import { useDaily } from "@/lib/queries";
+import { REGIONS } from "@/lib/regions";
 import { levelHref } from "@/lib/routes";
 import { useAmbience } from "@/lib/sound/SoundProvider";
 import styles from "./quotidien.module.css";
@@ -80,6 +82,7 @@ export function DailyView() {
                             Rejouer (sans effet sur la série)
                         </ButtonLink>
                     </div>
+                    <Postcard date={today} petals={petals} streak={streak.current} region={REGIONS[entry.world.theme].name} />
                 </section>
             ) : (
                 <section className={styles.result}>

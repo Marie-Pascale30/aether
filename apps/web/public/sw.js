@@ -11,7 +11,7 @@ const PAGES = `aether-pages-${VERSION}`;
 const ASSETS = `aether-assets-${VERSION}`;
 
 /** Pages fixes du jeu (les mondes et énigmes passent par un paramètre : une seule page chacune). */
-const SHELL = ["/", "/jardin", "/mondes", "/monde", "/enigme", "/quotidien", "/reperes", "/profil", "/reglages", "/promenade"];
+const SHELL = ["/", "/jardin", "/mondes", "/monde", "/enigme", "/quotidien", "/reperes", "/profil", "/reglages", "/promenade", "/livre", "/herbier"];
 
 const STATIC_URL = /\/_next\/static\/[^"'\s)\\]+/g;
 
