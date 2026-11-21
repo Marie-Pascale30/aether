@@ -33,9 +33,16 @@ export const echoesPuzzleSchema = z.object({
     explanation: z.string().max(200),
 });
 
+export const chimesPuzzleSchema = z.object({
+    bells: z.number().int(),
+    sequence: z.array(index),
+    mode: z.enum(["repeat", "progressive"]),
+});
+
 export const PUZZLE_SCHEMAS = {
     MEMORY: memoryPuzzleSchema,
     GEARS: gearsPuzzleSchema,
     FLOW: flowPuzzleSchema,
     ECHOES: echoesPuzzleSchema,
+    CHIMES: chimesPuzzleSchema,
 } as const;

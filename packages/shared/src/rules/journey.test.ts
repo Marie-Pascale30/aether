@@ -3,6 +3,7 @@ import type { ContentBundle, ContentLevel, LevelRecord } from "../types";
 import { dailyOutcome } from "./daily";
 import { buildJourney, describeWin, recordWin } from "./journey";
 import { facultyOf, mentalProfile } from "./mind";
+import { adaptDifficulty, nextPromenadeMechanic, promenadeStart, recordPromenadeWin } from "./promenade";
 import { PETALS } from "./scoring";
 
 const level = (id: string): ContentLevel => ({
@@ -122,5 +123,29 @@ describe("profil mental", () => {
         expect(facultyOf({ mechanic: "LINKS", kind: "GROUPS" })).toBe("associations");
         expect(facultyOf({ mechanic: "FLOW", kind: "PAIRS" })).toBe("espace");
         expect(facultyOf({ mechanic: "ECHOES", kind: "PAIRS" })).toBe("logique");
+    });
+});
+
+describe("Promenade", () => {
+    it("ajuste la difficulté à la façon de jouer, entre 1 et 10", () => {
+        expect(adaptDifficulty(4, { mistakes: 0, hintsUsed: 0 })).toBe(5);
+        expect(adaptDifficulty(4, { mistakes: 1, hintsUsed: 0 })).toBe(4);
+        expect(adaptDifficulty(4, { mistakes: 3, hintsUsed: 0 })).toBe(3);
+        expect(adaptDifficulty(4, { mistakes: 0, hintsUsed: 1 })).toBe(3);
+        expect(adaptDifficulty(10, { mistakes: 0, hintsUsed: 0 })).toBe(10);
+        expect(adaptDifficulty(1, { mistakes: 5, hintsUsed: 2 })).toBe(1);
+    });
+    it("propose la faculté la moins pratiquée, jamais deux fois la même mécanique", () => {
+        const state = { ...promenadeStart(), last: "CHIMES" as const };
+        expect(nextPromenadeMechanic(state, { memoire: 5, logique: 5, espace: 0, rythme: 0 })).toBe("FLOW");
+        let current = promenadeStart();
+        const seen = new Set<string>();
+        for (let i = 0; i < 10; i++) {
+            const mechanic = nextPromenadeMechanic(current);
+            expect(mechanic).not.toBe(current.last);
+            seen.add(mechanic);
+            current = recordPromenadeWin(current, mechanic, { mistakes: 1, hintsUsed: 0 });
+        }
+        expect(seen.size).toBe(5);
     });
 });

@@ -317,3 +317,44 @@
         transform: translateX(5px);
     }
 }
+
+/* ─── Carillon ────────────────────────────────────────────────────────────── */
+
+.chimes {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 26px 0 6px;
+}
+
+.bell {
+    display: grid;
+    place-items: center;
+    width: calc(clamp(54px, 13vw, 76px) * var(--loupe, 1));
+    aspect-ratio: 1;
+    border: 2px solid color-mix(in srgb, var(--bell) 70%, transparent);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--bell) 14%, var(--surface));
+    color: var(--text);
+    font-size: calc(clamp(22px, 5vw, 30px) * var(--loupe, 1));
+    transform: translateY(var(--lift, 0));
+    cursor: pointer;
+    transition: background .25s, box-shadow .35s, transform .2s var(--ease);
+}
+
+.bell:not([aria-disabled]):hover {
+    transform: translateY(calc(var(--lift, 0) - 3px));
+}
+
+.bell[aria-disabled] {
+    cursor: default;
+}
+
+/* La cloche qui sonne s'illumine de sa couleur. */
+.bell[data-lit] {
+    background: color-mix(in srgb, var(--bell) 55%, var(--surface));
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--bell) 35%, transparent), 0 0 28px var(--bell);
+    transform: translateY(calc(var(--lift, 0) - 4px)) scale(1.06);
+}

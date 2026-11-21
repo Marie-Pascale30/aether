@@ -26,6 +26,8 @@ export function facultyOf(level: { mechanic: Mechanic; kind: LevelKind }): Facul
             return "logique";
         case "FLOW":
             return "espace";
+        case "CHIMES":
+            return "rythme";
         case "LINKS":
             return level.kind === "SEQUENCE" ? "rythme" : level.kind === "GROUPS" ? "associations" : "observation";
     }

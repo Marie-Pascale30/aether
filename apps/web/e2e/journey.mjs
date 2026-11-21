@@ -388,6 +388,26 @@ try {
         await admin.getByText("Cet écho ne répond pas à la règle").waitFor();
         await admin.getByRole("button", { name: puzzle.options[puzzle.answer], exact: true }).click();
         await finish("echos");
+
+        // Carillon : écouter chaque phrase, puis la rejouer (elle grandit d'une note en mode progressif).
+        const conservatoire = await api("/worlds/conservatoire");
+        const chimesId = conservatoire.levels.find((level) => level.mechanic === "CHIMES").id;
+        await admin.goto(`${BASE}/enigme?id=${chimesId}`);
+        puzzle = (await api(`/admin/levels/${chimesId}`)).puzzle;
+        const bells = admin.getByRole("button", { name: /^Cloche \d/ });
+        const reaches = puzzle.mode === "progressive" ? puzzle.sequence.map((_, i) => i + 1) : [puzzle.sequence.length];
+        for (const reach of reaches) {
+            await admin.getByText(`À toi : 0 / ${reach}`).waitFor({ timeout: 20000 });
+            for (const bell of puzzle.sequence.slice(0, reach)) await bells.nth(bell).click();
+        }
+        await finish("carillon");
+    });
+
+    await step("Promenade : une énigme générée, à la mesure du joueur", async () => {
+        await admin.goto(BASE + "/promenade");
+        await admin.getByText("PROMENADE", { exact: true }).waitFor();
+        await admin.getByRole("heading", { name: /une énigme pour toi$/ }).waitFor();
+        await admin.screenshot({ path: OUT + "18-promenade.png" });
     });
 
     await step("admin : mondes", async () => {

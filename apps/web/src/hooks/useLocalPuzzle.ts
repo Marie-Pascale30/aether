@@ -61,7 +61,17 @@ function localCompletion(detail: LevelDetail, player: PlayerState | null, win: W
  * victoire, le résultat rejoint la file d'envoi (il partira dès que le réseau le permet) et le
  * panneau de fin est calculé localement ; les repères atteints s'y ajoutent quand le serveur répond.
  */
-export function useLocalPuzzle(detail: LevelDetail) {
+export interface PracticeOptions {
+    /**
+     * Entraînement (Promenade) : rien n'est envoyé ni enregistré ; on reçoit seulement comment
+     * l'énigme s'est passée, pour ajuster la suivante.
+     */
+    onSolved: (performance: { mistakes: number; hintsUsed: number }) => void;
+}
+
+export function useLocalPuzzle(detail: LevelDetail, practice?: PracticeOptions) {
+    const practiceRef = useRef(practice);
+    practiceRef.current = practice;
     const { play } = useSound();
     const { data: me } = useMe();
     const { data: player } = usePlayer();
@@ -133,6 +143,12 @@ export function useLocalPuzzle(detail: LevelDetail) {
                 hintsUsed: hintsRef.current,
                 playedAt,
             };
+            if (practiceRef.current) {
+                setCompletion(localCompletion(detail, null, win));
+                practiceRef.current.onSolved({ mistakes: mistakesRef.current, hintsUsed: hintsRef.current });
+                return;
+            }
+
             // Calculé avant l'ajout à la file : « avant » cette victoire.
             setCompletion(localCompletion(detail, playerRef.current, win));
 

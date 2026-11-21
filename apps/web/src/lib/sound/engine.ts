@@ -50,6 +50,9 @@ const TIMBRES: Record<Instrument | "soft" | "bell", { partials: [number, number]
     bell: { partials: [[1, 1], [2.76, 0.35], [5.4, 0.15]], attack: 0.002, type: "sine" },
 };
 
+/** Gamme pentatonique des cloches du Carillon (do, ré, mi, sol, la, do, ré). */
+const CHIME_SCALE = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
+
 const random = (min: number, max: number) => min + Math.random() * (max - min);
 
 interface Ambience {
@@ -79,6 +82,18 @@ export class SoundEngine {
     setVolume(volume: number): void {
         this.volume = Math.min(1, Math.max(0, volume));
         if (this.ctx && this.master) this.master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.05);
+    }
+
+    /**
+     * Une cloche du Carillon : gamme pentatonique de do, de la plus grave (0) à la plus aiguë.
+     * Mi-harpe mi-cloche de verre : une note claire qui résonne longtemps.
+     */
+    chime(bell: number): void {
+        const ctx = this.context();
+        if (!ctx) return;
+        const freq = CHIME_SCALE[Math.max(0, Math.min(CHIME_SCALE.length - 1, bell))]!;
+        this.note(ctx, { freq, duration: 1.8, instrument: "harp", peak: 0.12 });
+        this.note(ctx, { freq: freq * 2, duration: 2.2, instrument: "bell", peak: 0.04 });
     }
 
     play(cue: Cue): void {

@@ -25,6 +25,7 @@ export function generated(mechanic: LocalMechanic, seed: string, difficulty: num
 export const MEMORY_HINTS = ["Associe chaque symbole à sa rangée, puis à sa colonne.", "Raconte-toi une petite histoire qui relie les symboles dans l'ordre."];
 export const GEARS_HINTS = ["Pars de la source : chaque conduit doit mener quelque part.", "Les coins et les bords ne laissent que peu d'orientations possibles."];
 export const FLOW_HINTS = ["Commence par les tracés dont les étoiles sont proches.", "Le long des bords, il n'y a souvent qu'un seul chemin possible."];
+export const CHIMES_HINTS = ["Fredonne la phrase dans ta tête avant de la rejouer.", "Repère les cloches par leur symbole : la phrase devient un petit dessin."];
 export const ECHOES_HINTS = ["Compare chaque point de départ à ce qu'il devient.", "Une seule transformation explique tous les exemples à la fois."];
 
 /** Le Sommet des Sages réunit les facultés : ces énigmes s'intercalent entre ses Échos. */
@@ -43,5 +44,29 @@ export const SUMMIT_LEVELS: SeedLevel[] = [
         title: "Les chemins du ciel",
         description: "Vu d'en haut, le ciel entier est une carte à relier.",
         hints: FLOW_HINTS,
+    }),
+];
+
+/** Le Carillon du Conservatoire : ces énigmes s'intercalent entre ses Suites. */
+export const CONSERVATOIRE_CHIMES: SeedLevel[] = [
+    generated("CHIMES", "carillon-1", 2, {
+        title: "Le premier carillon",
+        description: "Trois cloches, une courte phrase : écoute, puis rejoue-la.",
+        hints: CHIMES_HINTS,
+    }),
+    generated("CHIMES", "carillon-2", 4, {
+        title: "La ritournelle",
+        description: "La phrase grandit d'une note à chaque fois.",
+        hints: CHIMES_HINTS,
+    }),
+    generated("CHIMES", "carillon-3", 6, {
+        title: "Les cloches du soir",
+        description: "Plus de cloches, une mélodie plus longue.",
+        hints: CHIMES_HINTS,
+    }),
+    generated("CHIMES", "carillon-4", 9, {
+        title: "Le grand carillon",
+        description: "Toute la mélodie du Conservatoire.",
+        hints: CHIMES_HINTS,
     }),
 ];

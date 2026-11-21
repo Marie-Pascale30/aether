@@ -38,6 +38,13 @@ export function WorldsView() {
                 </div>
                 {worlds.length > 0 && <AtlasMap worlds={worlds} />}
                 <MindBalance />
+                <p className={styles.promenade}>
+                    <span aria-hidden>❦</span>
+                    <span>
+                        Envie de flâner ? La <Link href="/promenade">Promenade</Link> propose des énigmes sans fin, à ta mesure : elles
+                        s&apos;ajustent à ta façon de jouer.
+                    </span>
+                </p>
             </Panel>
 
             {worlds.length === 0 ? (

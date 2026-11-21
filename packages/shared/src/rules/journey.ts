@@ -26,6 +26,7 @@ export function goalCountOf(level: Pick<ContentLevel, "mechanic" | "groups" | "p
     if (level.mechanic === "LINKS" || !puzzle) return level.groups.length;
     if ("targets" in puzzle) return puzzle.targets.length;
     if ("endpoints" in puzzle) return puzzle.endpoints.length;
+    if ("sequence" in puzzle) return puzzle.sequence.length;
     return 1;
 }
 

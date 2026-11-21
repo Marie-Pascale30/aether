@@ -66,10 +66,16 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
   - *Rouages* — faire pivoter les conduits pour éclairer tout le réseau depuis la source, sans fuite ;
   - *Flux* — relier chaque paire de sources de même symbole sans croisement, en remplissant la grille ;
   - *Échos* — deviner la règle cachée derrière quelques exemples, puis l'appliquer.
+  - *Carillon* — écouter une phrase de cloches, puis la rejouer (elle grandit d'une note aux niveaux
+    avancés) ; chaque cloche a sa couleur et son symbole, on peut jouer sans le son.
 
   Toutes se jouent **entièrement sur l'appareil** : leurs moteurs et générateurs procéduraux vivent dans
   `packages/shared/src/mechanics/`, et seul le résultat est envoyé. Une même graine donne le même
   plateau partout.
+- **Promenade** (`/promenade`) : des énigmes générées sans fin sur l'appareil, sans rien enregistrer.
+  La difficulté de chaque mécanique monte après une énigme résolue sans inspiration ni fausse piste,
+  redescend après une énigme qui a résisté ; la mécanique proposée penche vers la faculté la moins
+  pratiquée (`packages/shared/src/rules/promenade.ts`).
 - **Hors ligne d'abord** : l'appli télécharge tout le contenu publié (`GET /content`) et le garde sur
   l'appareil (cache de requêtes persistant), avec la progression (`GET /me/sync`). Le parcours
   (ouvertures, jardins, harmonie, panneau de fin) se calcule localement avec les règles partagées

@@ -60,6 +60,7 @@ export const MECHANIC_COPY: Record<LocalMechanic, MechanicCopy> = {
     GEARS: { label: "Rouages", glyph: "⚙", goal: ["réseau", "réseaux"], verb: "à éclairer" },
     FLOW: { label: "Flux", glyph: "≈", goal: ["flux", "flux"], verb: "à relier" },
     ECHOES: { label: "Échos", glyph: "◎", goal: ["règle", "règles"], verb: "à deviner" },
+    CHIMES: { label: "Carillon", glyph: "♫", goal: ["note", "notes"], verb: "à rejouer" },
 };
 
 /** Libellé court d'une énigme sur sa carte : genre de Liens, ou mécanique. */

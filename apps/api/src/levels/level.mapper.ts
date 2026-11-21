@@ -36,6 +36,7 @@ export function goalCount(level: Pick<Level, "mechanic" | "puzzle" | "groups">):
     if (!puzzle) return parseGroups(level.groups).length;
     if ("targets" in puzzle) return puzzle.targets.length;
     if ("endpoints" in puzzle) return puzzle.endpoints.length;
+    if ("sequence" in puzzle) return puzzle.sequence.length;
     return 1;
 }
 

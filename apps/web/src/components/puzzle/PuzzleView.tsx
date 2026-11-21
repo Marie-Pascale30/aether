@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import type { EchoesPuzzle, FlowPuzzle, GearsPuzzle, LevelDetail, MemoryPuzzle } from "@aether/shared";
+import type { ChimesPuzzle, EchoesPuzzle, FlowPuzzle, GearsPuzzle, LevelDetail, MemoryPuzzle } from "@aether/shared";
+import { ChimesBoard } from "@/components/mechanics/ChimesBoard";
 import { EchoesBoard } from "@/components/mechanics/EchoesBoard";
 import { FlowBoard } from "@/components/mechanics/FlowBoard";
 import { GearsBoard } from "@/components/mechanics/GearsBoard";
@@ -11,7 +12,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Callout, Panel } from "@/components/ui/Panel";
 import { useElapsed } from "@/hooks/useElapsed";
 import { useEquilibrium } from "@/hooks/useEquilibrium";
-import { useLocalPuzzle, type PuzzleReport } from "@/hooks/useLocalPuzzle";
+import { useLocalPuzzle, type PracticeOptions, type PuzzleReport } from "@/hooks/useLocalPuzzle";
 import { formatDuration, pad2 } from "@/lib/format";
 import { levelLabel } from "@/lib/kinds";
 import { worldHref } from "@/lib/routes";
@@ -37,12 +38,20 @@ function MechanicBoard({ detail, report }: { detail: LevelDetail; report: Puzzle
             return <FlowBoard puzzle={detail.puzzle as FlowPuzzle} report={report} />;
         case "ECHOES":
             return <EchoesBoard puzzle={detail.puzzle as EchoesPuzzle} report={report} />;
+        case "CHIMES":
+            return <ChimesBoard puzzle={detail.puzzle as ChimesPuzzle} report={report} />;
     }
 }
 
 /** Une énigme, quelle que soit sa mécanique : jouée sur l'appareil, réseau ou pas. */
-export function PuzzleView({ detail }: { detail: LevelDetail }) {
-    const puzzle = useLocalPuzzle(detail);
+interface PuzzleViewProps {
+    detail: LevelDetail;
+    /** Promenade : entraînement sans enregistrement, avec une suite générée sur place. */
+    practice?: PracticeOptions & { onNext: () => void };
+}
+
+export function PuzzleView({ detail, practice }: PuzzleViewProps) {
+    const puzzle = useLocalPuzzle(detail, practice);
     const { settings, update } = useSettings();
     const [notebookOpen, setNotebookOpen] = useState(false);
     // À la victoire, la lumière s'étend d'abord sur le plateau ; le panneau de fin s'ouvre ensuite.
@@ -77,7 +86,7 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
     const elapsed = useElapsed(puzzle.startedAt, settings.showTimer && !puzzle.finished);
     const label = levelLabel(detail.mechanic, detail.kind);
     const equilibrium = useEquilibrium({ active: !puzzle.finished, progress: puzzle.advances, mistakes: puzzle.mistakes });
-    const pauseHref = detail.isDaily ? "/quotidien" : worldHref(detail.world.slug);
+    const pauseHref = practice ? "/mondes" : detail.isDaily ? "/quotidien" : worldHref(detail.world.slug);
     useAmbience(detail.world.theme);
 
     return (
@@ -86,7 +95,9 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
                 <header className={styles.head}>
                     <div>
                         <div className={styles.level}>
-                            {detail.isDaily
+                            {practice
+                                ? "PROMENADE"
+                                : detail.isDaily
                                 ? "ÉNIGME DU JOUR"
                                 : `${detail.world.title.toUpperCase()} · ${detail.position > 0 ? `ÉNIGME ${pad2(detail.position)} / ${pad2(detail.total)}` : "APERÇU · BROUILLON"}`}
                         </div>
@@ -141,7 +152,7 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
                         </Button>
                     </div>
                 )}
-                {!puzzle.finished && puzzle.hints.length === 0 && puzzle.hintsRemaining > 0 && (
+                {!practice && !puzzle.finished && puzzle.hints.length === 0 && puzzle.hintsRemaining > 0 && (
                     <p className={styles.toolsNote}>
                         Les aides sont libres ; sans inspiration, le pétale Autonomie s&apos;ouvre. Il pourra toujours être cueilli une autre fois.
                     </p>
@@ -183,7 +194,7 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
                         ↺ Recommencer
                     </Button>
                     <ButtonLink href={pauseHref} variant="ghost">
-                        {detail.isDaily ? "Énigme du jour" : detail.world.title}
+                        {practice ? "L'Atlas" : detail.isDaily ? "Énigme du jour" : detail.world.title}
                     </ButtonLink>
                 </div>
             </Panel>
@@ -194,6 +205,7 @@ export function PuzzleView({ detail }: { detail: LevelDetail }) {
                     worldSlug={detail.world.slug}
                     onReplay={puzzle.restart}
                     onClose={puzzle.dismissCompletion}
+                    next={practice && { label: "Énigme suivante", onClick: practice.onNext }}
                 />
             )}
         </>

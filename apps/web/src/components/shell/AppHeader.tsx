@@ -9,6 +9,7 @@ import styles from "./AppHeader.module.css";
 const LINKS = [
     { href: "/mondes", label: "Atlas" },
     { href: "/quotidien", label: "Énigme du jour" },
+    { href: "/promenade", label: "Promenade" },
     { href: "/reperes", label: "Repères" },
 ];
 

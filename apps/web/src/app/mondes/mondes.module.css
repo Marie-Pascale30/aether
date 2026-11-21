@@ -125,3 +125,15 @@ a.card:hover {
         filter: blur(6px);
     }
 }
+
+.promenade {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    margin: 14px 0 0;
+    color: var(--muted);
+}
+
+.promenade > span:first-child {
+    color: var(--gold);
+}

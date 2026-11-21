@@ -16,9 +16,11 @@ interface Props {
     worldSlug: string;
     onReplay: () => void;
     onClose: () => void;
+    /** Remplace la suite habituelle (Promenade : énigme suivante, générée sur place). */
+    next?: { label: string; onClick: () => void };
 }
 
-export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Props) {
+export function CompletionPanel({ completion, worldSlug, onReplay, onClose, next }: Props) {
     const titleId = useId();
     const primaryRef = useRef<HTMLAnchorElement>(null);
     const { settings } = useSettings();
@@ -100,9 +102,15 @@ export function CompletionPanel({ completion, worldSlug, onReplay, onClose }: Pr
                 )}
 
                 <div className={styles.completionActions}>
-                    <ButtonLink ref={primaryRef} href={primary.href} variant="primary">
-                        {primary.label}
-                    </ButtonLink>
+                    {next ? (
+                        <Button variant="primary" onClick={next.onClick} autoFocus>
+                            {next.label}
+                        </Button>
+                    ) : (
+                        <ButtonLink ref={primaryRef} href={primary.href} variant="primary">
+                            {primary.label}
+                        </ButtonLink>
+                    )}
                     {daily && <ShareButton text={daily.share} />}
                     <Button onClick={onReplay}>Rejouer</Button>
                     <Button variant="ghost" onClick={onClose}>

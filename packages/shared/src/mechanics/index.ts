@@ -1,9 +1,11 @@
+import { generateChimes, validateChimes, type ChimesPuzzle } from "./chimes";
 import { generateEchoes, validateEchoes, type EchoesPuzzle } from "./echoes";
 import { generateFlow, validateFlow, type FlowPuzzle } from "./flow";
 import { generateGears, validateGears, type GearsPuzzle } from "./gears";
 import type { MechanicIssue } from "./issues";
 import { generateMemory, validateMemory, type MemoryPuzzle } from "./memory";
 
+export * from "./chimes";
 export * from "./echoes";
 export * from "./flow";
 export * from "./gears";
@@ -15,16 +17,17 @@ export * from "./memory";
  * envoyé. LINKS (paires, familles, suites) est décrite par `symbols` et `groups` ; les autres
  * (« locales » ici) par un plateau `puzzle`, souvent généré à partir d'une graine.
  */
-export const MECHANICS = ["LINKS", "MEMORY", "GEARS", "FLOW", "ECHOES"] as const;
+export const MECHANICS = ["LINKS", "MEMORY", "GEARS", "FLOW", "ECHOES", "CHIMES"] as const;
 export type Mechanic = (typeof MECHANICS)[number];
 export type LocalMechanic = Exclude<Mechanic, "LINKS">;
-export const LOCAL_MECHANICS: LocalMechanic[] = ["MEMORY", "GEARS", "FLOW", "ECHOES"];
+export const LOCAL_MECHANICS: LocalMechanic[] = ["MEMORY", "GEARS", "FLOW", "ECHOES", "CHIMES"];
 
 export interface PuzzleByMechanic {
     MEMORY: MemoryPuzzle;
     GEARS: GearsPuzzle;
     FLOW: FlowPuzzle;
     ECHOES: EchoesPuzzle;
+    CHIMES: ChimesPuzzle;
 }
 
 export type LocalPuzzle = PuzzleByMechanic[LocalMechanic];
@@ -34,6 +37,7 @@ const VALIDATORS: { [M in LocalMechanic]: (p: PuzzleByMechanic[M]) => MechanicIs
     GEARS: validateGears,
     FLOW: validateFlow,
     ECHOES: validateEchoes,
+    CHIMES: validateChimes,
 };
 
 const GENERATORS: { [M in LocalMechanic]: (seed: number | string, difficulty: number) => PuzzleByMechanic[M] } = {
@@ -41,6 +45,7 @@ const GENERATORS: { [M in LocalMechanic]: (seed: number | string, difficulty: nu
     GEARS: generateGears,
     FLOW: generateFlow,
     ECHOES: generateEchoes,
+    CHIMES: generateChimes,
 };
 
 export function validatePuzzle<M extends LocalMechanic>(mechanic: M, puzzle: PuzzleByMechanic[M]): MechanicIssue[] {

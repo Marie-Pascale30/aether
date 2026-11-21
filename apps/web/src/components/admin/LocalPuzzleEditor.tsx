@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
     generatePuzzle,
+    type ChimesPuzzle,
     type EchoesPuzzle,
     type FlowPuzzle,
     type GearsPuzzle,
@@ -10,6 +11,7 @@ import {
     type LocalPuzzle,
     type MemoryPuzzle,
 } from "@aether/shared";
+import { ChimesBoard } from "@/components/mechanics/ChimesBoard";
 import { EchoesBoard } from "@/components/mechanics/EchoesBoard";
 import { FlowBoard } from "@/components/mechanics/FlowBoard";
 import { GearsBoard } from "@/components/mechanics/GearsBoard";
@@ -149,5 +151,7 @@ function PreviewBoard({ mechanic, puzzle, onSolved }: { mechanic: LocalMechanic;
             return <FlowBoard puzzle={puzzle as FlowPuzzle} report={report} />;
         case "ECHOES":
             return <EchoesBoard puzzle={puzzle as EchoesPuzzle} report={report} />;
+        case "CHIMES":
+            return <ChimesBoard puzzle={puzzle as ChimesPuzzle} report={report} />;
     }
 }

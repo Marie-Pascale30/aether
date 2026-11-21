@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createRng } from "../rng";
 import {
+    chimesPhrase,
+    chimesPlay,
+    chimesStart,
     echoesCorrect,
     flowExtend,
     flowSolved,
@@ -125,6 +128,45 @@ describe("Échos", () => {
             expect(echoesCorrect(puzzle, puzzle.answer)).toBe(true);
             expect(new Set(puzzle.options).size).toBe(puzzle.options.length);
             expect(puzzle.options.length).toBeGreaterThanOrEqual(2);
+        }
+    });
+});
+
+describe("Carillon", () => {
+    const repeat = { bells: 3, sequence: [0, 2, 1], mode: "repeat" as const };
+    const progressive = { bells: 3, sequence: [0, 2, 1], mode: "progressive" as const };
+
+    it("rejoue toute la phrase d'un coup en mode « repeat »", () => {
+        let state = chimesStart(repeat);
+        expect(chimesPhrase(repeat, state)).toEqual([0, 2, 1]);
+        for (const [bell, outcome] of [[0, "note"], [2, "note"], [1, "solved"]] as const) {
+            const step = chimesPlay(repeat, state, bell);
+            expect(step.outcome).toBe(outcome);
+            state = step.state;
+        }
+        expect(state.done).toBe(true);
+    });
+    it("fait grandir la phrase note après note en mode progressif", () => {
+        let state = chimesStart(progressive);
+        expect(chimesPhrase(progressive, state)).toEqual([0]);
+        state = chimesPlay(progressive, state, 0).state;
+        expect(chimesPhrase(progressive, state)).toEqual([0, 2]);
+        state = chimesPlay(progressive, state, 0).state;
+        const step = chimesPlay(progressive, state, 2);
+        expect(step.outcome).toBe("phrase");
+        expect(chimesPhrase(progressive, step.state)).toEqual([0, 2, 1]);
+    });
+    it("reprend la phrase en cours après une fausse note, sans perdre l'acquis", () => {
+        let state = chimesStart(progressive);
+        state = chimesPlay(progressive, state, 0).state; // phrase de 2 notes
+        const wrong = chimesPlay(progressive, state, 1);
+        expect(wrong.outcome).toBe("mistake");
+        expect(wrong.state).toMatchObject({ reach: 2, played: 0, mistakes: 1 });
+    });
+    it("ne sonne jamais trois fois la même cloche d'affilée", () => {
+        for (let d = 1; d <= 10; d++) {
+            const { sequence } = generatePuzzle("CHIMES", `c${d}`, d);
+            sequence.forEach((bell, i) => i >= 2 && expect(bell === sequence[i - 1] && bell === sequence[i - 2]).toBe(false));
         }
     });
 });

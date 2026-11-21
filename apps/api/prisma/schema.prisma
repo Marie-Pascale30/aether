@@ -68,6 +68,7 @@ enum Mechanic {
   GEARS
   FLOW
   ECHOES
+  CHIMES
 }
 
 /// Genre de Liens : paires, groupes (3–4 cases) ou suites ordonnées (3–5 cases).

@@ -9,6 +9,8 @@ interface SoundContextValue {
     muted: boolean;
     toggleMuted: () => void;
     play: (cue: Cue) => void;
+    /** Sonne une cloche du Carillon (contenu du jeu : joue même effets coupés, jamais en muet). */
+    chime: (bell: number) => void;
     /** Région dont on entend l'ambiance (musique et nature). */
     setTheme: (theme: WorldTheme) => void;
 }
@@ -61,7 +63,14 @@ export function SoundProvider({ children }: { children: ReactNode }) {
 
     const setTheme = useCallback((theme: WorldTheme) => getEngine().setTheme(theme), []);
 
-    const value = useMemo(() => ({ muted, toggleMuted, play, setTheme }), [muted, toggleMuted, play, setTheme]);
+    const chime = useCallback(
+        (bell: number) => {
+            if (!muted) getEngine().chime(bell);
+        },
+        [muted],
+    );
+
+    const value = useMemo(() => ({ muted, toggleMuted, play, chime, setTheme }), [muted, toggleMuted, play, chime, setTheme]);
     return <SoundContext.Provider value={value}>{children}</SoundContext.Provider>;
 }
 

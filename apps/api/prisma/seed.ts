@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { generatePuzzle, levelInputSchema, worldInputSchema, type WorldInput } from "@aether/shared";
 import { hashPassword } from "../src/auth/password";
-import { ECHOES_HINTS, FLOW_HINTS, GEARS_HINTS, generated, MEMORY_HINTS, SUMMIT_LEVELS, type SeedLevel } from "./atlas-content";
+import { CONSERVATOIRE_CHIMES, ECHOES_HINTS, FLOW_HINTS, GEARS_HINTS, generated, MEMORY_HINTS, SUMMIT_LEVELS, type SeedLevel } from "./atlas-content";
 
 const prisma = new PrismaClient();
 
@@ -237,7 +237,8 @@ const WORLDS: SeedWorld[] = [
             "Dans le Conservatoire, tout suit une mesure : les saisons, les heures, les phases de la lune. Retrouve l'ordre juste, du premier temps au dernier, et la musique reprend.",
         theme: "conservatoire",
         published: true,
-        levels: [
+        levels: interleave(
+            [
             {
                 title: "La glace et la vapeur",
                 description: "L'eau change d'état en se réchauffant.",
@@ -293,7 +294,9 @@ const WORLDS: SeedWorld[] = [
                 kind: "SEQUENCE",
                 groups: [[3, 7, 0], [9, 1, 5]],
             },
-        ],
+            ],
+            CONSERVATOIRE_CHIMES,
+        ),
     },
     {
         slug: "foret-des-connexions",
