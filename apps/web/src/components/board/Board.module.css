@@ -3,7 +3,7 @@
     display: grid;
     grid-template-columns: repeat(var(--columns, 4), minmax(0, 1fr));
     gap: 12px;
-    max-width: 620px;
+    max-width: calc(620px * var(--loupe, 1));
     margin: 28px auto;
 }
 
@@ -73,12 +73,12 @@
 
 .shape {
     display: block;
-    font-size: clamp(24px, 6vw, 34px);
+    font-size: calc(clamp(24px, 6vw, 34px) * var(--loupe, 1));
     margin-top: 12px;
 }
 
 :global(:root[data-symbols="large"]) .shape {
-    font-size: clamp(32px, 9vw, 48px);
+    font-size: calc(clamp(32px, 9vw, 48px) * var(--loupe, 1));
     margin-top: 6px;
 }
 
@@ -148,4 +148,10 @@
         gap: 8px;
         margin: 20px auto;
     }
+}
+
+/* Éclaircir (Équilibre) : un leurre s'efface doucement, sans disparaître. */
+.node[data-faded]:not([data-selected]) {
+    opacity: .32;
+    transition: opacity .8s var(--ease);
 }

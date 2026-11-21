@@ -12,6 +12,8 @@ interface BoardProps {
     linked: Group[];
     /** Cases refusées par le serveur, affichées en erreur un court instant. */
     rejected?: number[] | null;
+    /** Cases atténuées par l'Équilibre (leurres) : toujours jouables, simplement plus discrètes. */
+    faded?: number[];
     /** Suites : numérote les cases choisies et les chemins tracés. */
     ordered?: boolean;
     disabled?: boolean;
@@ -23,7 +25,7 @@ interface Point {
     y: number;
 }
 
-export function Board({ symbols, columns, selected, linked, rejected, ordered = false, disabled, onPick }: BoardProps) {
+export function Board({ symbols, columns, selected, linked, rejected, faded, ordered = false, disabled, onPick }: BoardProps) {
     const boardRef = useRef<HTMLDivElement>(null);
     const nodeRefs = useRef<(HTMLButtonElement | null)[]>([]);
     const [centers, setCenters] = useState<Point[]>([]);
@@ -58,6 +60,7 @@ export function Board({ symbols, columns, selected, linked, rejected, ordered = 
     const linkedAt = new Map<number, [number, number]>();
     linked.forEach((group, g) => group.forEach((cell, rank) => linkedAt.set(cell, [g, rank])));
     const rejectedCells = new Set(rejected ?? []);
+    const fadedCells = new Set(faded ?? []);
 
     // Flèches : déplacement en grille ; Début / Fin : première et dernière case. Entrée et Espace
     // activent la case comme un clic (comportement natif des boutons).
@@ -109,6 +112,7 @@ export function Board({ symbols, columns, selected, linked, rejected, ordered = 
                         data-selected={rank !== -1 || undefined}
                         data-linked={link !== undefined || undefined}
                         data-rejected={rejectedCells.has(i) || undefined}
+                        data-faded={fadedCells.has(i) || undefined}
                         aria-pressed={rank !== -1}
                         aria-disabled={link !== undefined || disabled || undefined}
                         aria-label={`Écho ${i + 1} : ${symbol}${link ? " (relié)" : ""}${order && rank !== -1 ? `, étape ${order}` : ""}`}

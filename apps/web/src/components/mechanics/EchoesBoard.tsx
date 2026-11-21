@@ -2,12 +2,31 @@
 
 import { useState } from "react";
 import { echoesCorrect, type EchoesPuzzle } from "@aether/shared";
-import type { PuzzleReport } from "@/hooks/useLocalPuzzle";
+import { useBoardTool, type PuzzleReport } from "@/hooks/useLocalPuzzle";
 import styles from "./mechanics.module.css";
 
 export function EchoesBoard({ puzzle, report }: { puzzle: EchoesPuzzle; report: PuzzleReport }) {
     const [ruledOut, setRuledOut] = useState<number[]>([]);
     const [found, setFound] = useState(false);
+    /** Ordre d'affichage des propositions (« Mélanger » le change, l'index d'origine reste la réponse). */
+    const [order, setOrder] = useState(() => puzzle.options.map((_, i) => i));
+
+    useBoardTool(
+        report,
+        "shuffle",
+        () => {
+            setOrder((current) => {
+                const next = [...current];
+                for (let i = next.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [next[i], next[j]] = [next[j]!, next[i]!];
+                }
+                return next;
+            });
+            report.note("Les propositions ont changé de place.");
+        },
+        !found,
+    );
 
     const choose = (option: number) => {
         if (found || ruledOut.includes(option)) return;
@@ -46,7 +65,7 @@ export function EchoesBoard({ puzzle, report }: { puzzle: EchoesPuzzle; report: 
             {found && <p className={styles.explanation}>{puzzle.explanation}</p>}
 
             <div className={styles.options} role="group" aria-label="Propositions">
-                {puzzle.options.map((option, i) => (
+                {order.map((i) => (
                     <button
                         key={i}
                         type="button"
@@ -56,7 +75,7 @@ export function EchoesBoard({ puzzle, report }: { puzzle: EchoesPuzzle; report: 
                         disabled={found || ruledOut.includes(i)}
                         onClick={() => choose(i)}
                     >
-                        {option}
+                        {puzzle.options[i]}
                     </button>
                 ))}
             </div>

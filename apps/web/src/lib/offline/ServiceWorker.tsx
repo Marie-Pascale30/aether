@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { IS_APP } from "@/lib/platform";
 
 /**
  * Enregistre le service worker (`public/sw.js`), qui garde les pages et leurs fichiers pour
@@ -9,7 +10,8 @@ import { useEffect } from "react";
  */
 export function ServiceWorker() {
     useEffect(() => {
-        if (!("serviceWorker" in navigator)) return;
+        // Dans une application, les pages sont déjà sur l'appareil : pas de service worker.
+        if (IS_APP || !("serviceWorker" in navigator)) return;
         if (process.env.NODE_ENV !== "production") {
             void navigator.serviceWorker.getRegistrations().then((registrations) => registrations.forEach((r) => void r.unregister()));
             return;

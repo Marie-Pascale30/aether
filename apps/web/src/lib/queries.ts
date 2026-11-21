@@ -6,6 +6,12 @@ import { api, ApiError } from "./api";
 import { outbox } from "./offline/outbox";
 import { signedOut } from "./signedOut";
 
+/**
+ * Début de cette visite (module chargé dès le démarrage, par les fournisseurs) : un joueur restauré
+ * depuis l'appareil n'est « vérifié » qu'une fois redemandé au serveur depuis ce moment.
+ */
+export const VISIT_STARTED_AT = Date.now();
+
 export const keys = {
     me: ["me"] as const,
     /** Contenu publié (persisté sur l'appareil). */

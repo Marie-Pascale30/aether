@@ -19,6 +19,8 @@ export interface Settings {
     showTimer: boolean;
     /** Équilibre Mental : un souffle d'aide discret quand une énigme résiste. */
     equilibre: boolean;
+    /** Loupe : plateaux et symboles agrandis. */
+    loupe: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -30,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
     symbols: "normal",
     showTimer: false,
     equilibre: true,
+    loupe: false,
 };
 
 const STORAGE_KEY = "aether:settings";

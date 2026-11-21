@@ -13,13 +13,15 @@ interface Props {
     reason: NudgeReason;
     hintsRemaining: number;
     onHint: () => void;
+    /** Éclaircir le plateau (atténuer quelques leurres), quand la mécanique le permet. */
+    onClarify?: () => void;
     onDismiss: () => void;
     /** Où respirer un instant (le monde de l'énigme). */
     pauseHref: string;
 }
 
 /** Souffle d'Équilibre : une aide proposée, jamais imposée, et sans un mot sur l'échec. */
-export function EquilibriumNudge({ reason, hintsRemaining, onHint, onDismiss, pauseHref }: Props) {
+export function EquilibriumNudge({ reason, hintsRemaining, onHint, onClarify, onDismiss, pauseHref }: Props) {
     return (
         <aside className={styles.nudge} aria-live="polite" aria-label="Équilibre">
             <span className={styles.nudgeGlyph} aria-hidden>
@@ -27,11 +29,16 @@ export function EquilibriumNudge({ reason, hintsRemaining, onHint, onDismiss, pa
             </span>
             <div>
                 <p>{OPENING[reason]}</p>
-                {hintsRemaining === 0 && <p className={styles.nudgeSoft}>Parfois, l&apos;esprit trouve en s&apos;éloignant un instant.</p>}
+                {hintsRemaining === 0 && !onClarify && <p className={styles.nudgeSoft}>Parfois, l&apos;esprit trouve en s&apos;éloignant un instant.</p>}
                 <div className={styles.nudgeActions}>
+                    {onClarify && (
+                        <Button variant="ghost" onClick={onClarify}>
+                            ◌ Éclaircir le plateau
+                        </Button>
+                    )}
                     {hintsRemaining > 0 ? (
                         <Button variant="ghost" onClick={onHint}>
-                            ✧ Écouter un murmure
+                            ✧ Recevoir une inspiration
                         </Button>
                     ) : (
                         <ButtonLink href={pauseHref} variant="ghost">

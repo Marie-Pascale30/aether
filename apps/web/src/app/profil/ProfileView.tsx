@@ -6,6 +6,7 @@ import { changePasswordSchema, displayNameSchema } from "@aether/shared";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Panel } from "@/components/ui/Panel";
+import { MindProfile } from "@/components/mind/MindProfile";
 import { Harmony } from "@/components/ui/Harmony";
 import { ErrorState, Loading } from "@/components/ui/States";
 import { formatDuration, pad2 } from "@/lib/format";
@@ -22,6 +23,7 @@ export function ProfileView() {
     return (
         <div className="stack">
             {me?.isGuest ? <GuestCard /> : <AccountCard />}
+            <MindProfile />
             {stats.error ? (
                 <ErrorState error={stats.error} onRetry={() => void stats.refetch()} />
             ) : !stats.data ? (
@@ -36,7 +38,7 @@ export function ProfileView() {
                         <Total label="Pétales d'harmonie" value={stats.data.totals.harmony} />
                         <Total label="Énigmes résolues" value={stats.data.levels.filter((level) => level.completions > 0).length} />
                         <Total label="Parties" value={stats.data.totals.sessions} />
-                        <Total label="Indices écoutés" value={stats.data.totals.hintsUsed} />
+                        <Total label="Inspirations reçues" value={stats.data.totals.hintsUsed} />
                         <Total label="Temps passé à jouer" value={formatDuration(stats.data.totals.playTimeMs)} />
                     </dl>
 
@@ -50,7 +52,7 @@ export function ProfileView() {
                                     {settings.showTimer && <th scope="col">Meilleur temps</th>}
                                     <th scope="col">Résolue</th>
                                     <th scope="col">Parties</th>
-                                    <th scope="col">Indices</th>
+                                    <th scope="col">Inspirations</th>
                                 </tr>
                             </thead>
                             <tbody>

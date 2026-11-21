@@ -34,7 +34,8 @@ export function Providers({ children }: { children: ReactNode }) {
         createSyncStoragePersister({
             storage: typeof window === "undefined" ? undefined : window.localStorage,
             key: "aether:cache",
-            throttleTime: 1000,
+            // Écrit vite : une victoire quitte la file d'envoi aussitôt confirmée, sa trace doit suivre.
+            throttleTime: 200,
         }),
     );
 
@@ -42,8 +43,14 @@ export function Providers({ children }: { children: ReactNode }) {
         <PersistQueryClientProvider
             client={queryClient}
             persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: CACHE_BUSTER, dehydrateOptions: { shouldDehydrateQuery: shouldPersist } }}
-            // Le joueur gardé sur l'appareil peut dater d'avant une connexion : on le revérifie aussitôt.
-            onSuccess={() => void queryClient.invalidateQueries({ queryKey: keys.me, exact: true })}
+            // Ce qui est gardé sur l'appareil peut dater d'avant une connexion ou d'avant l'envoi d'une
+            // victoire (la file se vide avant que le cache soit réécrit) : on revérifie aussitôt le joueur
+            // et sa progression. Hors ligne, les requêtes attendent et les données gardées restent affichées.
+            // Le joueur d'abord : sans session, sa progression n'est plus redemandée.
+            onSuccess={async () => {
+                await queryClient.invalidateQueries({ queryKey: keys.me, exact: true });
+                await Promise.all([keys.sync, keys.milestones, keys.daily].map((queryKey) => queryClient.invalidateQueries({ queryKey, exact: true })));
+            }}
         >
             <SettingsProvider>
                 <SoundProvider>{children}</SoundProvider>

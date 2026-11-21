@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bleu nuit de la palette de l'Atlas des Esprits. -->
+    <color name="aether_night">#0B1626</color>
+</resources>

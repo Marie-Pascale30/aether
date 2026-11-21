@@ -4,3 +4,4 @@
  */
 export const worldHref = (slug: string) => `/monde?m=${encodeURIComponent(slug)}`;
 export const levelHref = (id: string) => `/enigme?id=${encodeURIComponent(id)}`;
+export const adminLevelHref = (id: string) => `/admin/niveaux/edition?id=${encodeURIComponent(id)}`;

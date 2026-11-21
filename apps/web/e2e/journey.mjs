@@ -38,7 +38,11 @@ let playerEmail = "";
 const browser = await chromium.launch({ executablePath });
 
 /** Hors ligne, les requêtes refusées par le navigateur sont attendues : on ne les compte pas. */
+/** Pages suivies (nom → page), capturées en cas d'échec. */
+const watched = new Map();
+
 function watch(page, name, { offline = false } = {}) {
+    watched.set(name, page);
     const expected = (text) => text.startsWith("Failed to load resource") || (offline && /ERR_INTERNET_DISCONNECTED|Failed to fetch/.test(text));
     page.on("console", (msg) => msg.type() === "error" && !expected(msg.text()) && errors.push(`[${name}] console: ${msg.text()}`));
     page.on("response", (res) => res.status() >= 400 && errors.push(`[${name}] HTTP ${res.status()} ${res.request().method()} ${res.url()}`));
@@ -51,6 +55,11 @@ const step = async (label, fn) => {
         console.log("✓", label);
     } catch (e) {
         console.log("✗", label, "\n   ", e.message.split("\n")[0]);
+        // Capture de chaque page ouverte au moment de l'échec, pour comprendre sans relancer.
+        for (const [name, open] of watched) {
+            await open.screenshot({ path: OUT + `00-echec-${name}.png`, fullPage: true }).catch(() => {});
+            console.log(`    ${name} :`, open.url());
+        }
         throw e;
     }
 };
@@ -98,9 +107,9 @@ try {
         if (await page.getByText("Temps", { exact: true }).count()) throw new Error("chrono affiché par défaut");
     });
 
-    await step("indice demandé", async () => {
-        await page.getByRole("button", { name: /Demander un indice/ }).click();
-        await page.getByText("Indice 1 :").waitFor();
+    await step("inspiration demandée", async () => {
+        await page.getByRole("toolbar", { name: "Aides" }).getByRole("button", { name: /Inspiration \(/ }).click();
+        await page.getByText("Inspiration 1 :").waitFor();
     });
 
     await step("bonne paire → panneau de fin", async () => {
@@ -149,15 +158,45 @@ try {
         const nudge = page.getByRole("complementary", { name: "Équilibre" });
         await nudge.getByText("Plusieurs chemins explorés").waitFor();
         await page.screenshot({ path: OUT + "06b-equilibre.png" });
-        await nudge.getByRole("button", { name: /Écouter un murmure/ }).click();
-        await page.getByText("Indice 1 :").waitFor();
+        // L'Équilibre propose d'éclaircir le plateau : des leurres s'estompent, sans rien coûter.
+        await nudge.getByRole("button", { name: /Éclaircir le plateau/ }).click();
+        await page.getByText("Quelques éléments s'estompent").waitFor();
         await nudge.waitFor({ state: "detached" });
+        if ((await page.locator("[data-faded]").count()) === 0) throw new Error("aucun leurre atténué");
+    });
+
+    await step("aides : loupe, carnet gardé, mélange, puis retour sur le dernier lien", async () => {
+        const tools = page.getByRole("toolbar", { name: "Aides" });
+        await tools.getByRole("button", { name: /Loupe/ }).click();
+        if ((await tools.getByRole("button", { name: /Loupe/ }).getAttribute("aria-pressed")) !== "true") throw new Error("loupe inactive");
+
+        await tools.getByRole("button", { name: /Carnet/ }).click();
+        await page.getByLabel("Carnet de notes").fill("Clair et sombre : le même cercle ?");
+        await page.waitForTimeout(600);
+        await page.reload();
+        await page.getByRole("toolbar", { name: "Aides" }).getByRole("button", { name: /Carnet/ }).click();
+        const note = await page.getByLabel("Carnet de notes").inputValue();
+        if (!note.includes("le même cercle")) throw new Error("carnet non conservé");
+
+        await page.getByRole("toolbar", { name: "Aides" }).getByRole("button", { name: /Mélanger/ }).click();
+        await page.getByText("Les éléments ont changé de place").waitFor();
+        await page.screenshot({ path: OUT + "06c-aides.png" });
+
+        // Après le mélange, on retrouve les cases par leur symbole (cercle clair, cercle sombre).
+        await page.getByRole("button", { name: /^Écho \d+ : ○/ }).click();
+        await page.getByRole("button", { name: /^Écho \d+ : ●/ }).click();
+        await page.getByRole("dialog").waitFor();
+        await page.getByRole("button", { name: "Voir le plateau" }).click();
+        // La loupe reste un réglage de l'appareil : on la referme pour la suite du parcours.
+        await page.getByRole("toolbar", { name: "Aides" }).waitFor({ state: "detached" });
+        await page.goto(BASE + "/reglages");
+        await page.getByRole("switch", { name: /Loupe/ }).uncheck({ force: true });
     });
 
     await step("« mon jardin » mène au monde en cours, qui a poussé", async () => {
         await page.goto(BASE + "/jardin");
         await page.waitForURL("**/monde?m=jardin-des-echos");
-        await page.getByText("1 / 10 énigmes restaurées").waitFor();
+        await page.getByText("2 / 10 énigmes restaurées").waitFor();
         await page.waitForTimeout(2500);
         await page.screenshot({ path: OUT + "07-jardin-grown.png" });
     });
@@ -182,7 +221,7 @@ try {
         await page.waitForURL("**/reperes");
         await page.getByRole("heading", { name: "Repères" }).waitFor();
         await page.getByRole("article").filter({ hasText: "Premiers pas" }).getByText(/^Atteint le/).waitFor();
-        await page.getByRole("progressbar", { name: "Dix lumières : 1 sur 10" }).waitFor();
+        await page.getByRole("progressbar", { name: "Dix lumières : 2 sur 10" }).waitFor();
         await page.screenshot({ path: OUT + "09-reperes.png", fullPage: true });
     });
 
@@ -314,6 +353,12 @@ try {
 
         // Rouages : chaque pièce mobile revient à sa rotation d'origine (quarts de tour horaires).
         puzzle = await open("atelier-des-inventeurs");
+        // Un quart de tour de trop, aussitôt annulé (Ctrl + Z) : « Retour » disparaît, rien n'a bougé.
+        const firstMobile = puzzle.tiles.findIndex((tile) => !tile.fixed && tile.mask !== 0);
+        await admin.getByRole("button", { name: new RegExp(`^Pièce ${firstMobile + 1}(,|$)`) }).click();
+        await admin.getByRole("toolbar", { name: "Aides" }).getByRole("button", { name: /Retour/ }).waitFor();
+        await admin.keyboard.press("Control+z");
+        await admin.getByRole("toolbar", { name: "Aides" }).getByRole("button", { name: /Retour/ }).waitFor({ state: "detached" });
         for (const [i, tile] of puzzle.tiles.entries()) {
             if (tile.fixed || tile.mask === 0) continue;
             const piece = admin.getByRole("button", { name: new RegExp(`^Pièce ${i + 1}(,|$)`) });
@@ -374,7 +419,7 @@ try {
         await admin.getByText("Lien 1 :").waitFor();
         await admin.screenshot({ path: OUT + "15-editor.png", fullPage: true });
         await admin.getByRole("button", { name: "Enregistrer" }).click();
-        await admin.waitForURL(/\/admin\/niveaux\/[a-z0-9]+$/);
+        await admin.waitForURL(/\/admin\/niveaux\/edition\?id=[a-z0-9]+$/);
         await admin.getByRole("heading", { name: "Modifier l'énigme" }).waitFor();
     });
 

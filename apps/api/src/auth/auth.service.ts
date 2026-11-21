@@ -13,6 +13,13 @@ import { AccountTokensService } from "./account-tokens.service";
 import { hashPassword, verifyPassword } from "./password";
 
 export const SESSION_COOKIE = "aether_session";
+/**
+ * Les applications (Capacitor, Tauri) ne peuvent pas compter sur un cookie : elles se signalent
+ * par `X-Aether-Client: app`, reçoivent le jeton dans cet en-tête et le renvoient en
+ * `Authorization: Bearer`. Le site, lui, garde son cookie httpOnly (jeton illisible en JavaScript).
+ */
+export const SESSION_TOKEN_HEADER = "x-session-token";
+const APP_CLIENT_HEADER = "x-aether-client";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** `lastSeenAt` n'est réécrit qu'au-delà de ce délai : pas d'écriture en base à chaque requête. */
 const LAST_SEEN_PRECISION_MS = 60 * 60 * 1000;
@@ -38,7 +45,8 @@ export class AuthService {
 
     /** Utilisateur porté par le cookie de session, ou `null` (absent, invalide, expiré, périmé, supprimé). */
     async userFromRequest(req: Request): Promise<AuthUser | null> {
-        const token: unknown = req.cookies?.[SESSION_COOKIE];
+        const bearer = req.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+        const token: unknown = bearer ?? req.cookies?.[SESSION_COOKIE];
         if (typeof token !== "string" || !token) return null;
 
         try {
@@ -63,6 +71,7 @@ export class AuthService {
     async openSession(res: Response, user: Pick<User, "id" | "sessionVersion">): Promise<void> {
         const token = await this.jwt.signAsync({ sub: user.id, v: user.sessionVersion } satisfies SessionPayload);
         res.cookie(SESSION_COOKIE, token, { ...this.cookieOptions(), maxAge: SESSION_TTL_MS });
+        if (res.req.get(APP_CLIENT_HEADER) === "app") res.setHeader(SESSION_TOKEN_HEADER, token);
     }
 
     closeSession(res: Response): void {

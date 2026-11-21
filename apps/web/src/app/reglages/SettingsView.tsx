@@ -62,6 +62,7 @@ export function SettingsView() {
                     options={MOTION_OPTIONS}
                     onChange={(motion) => update({ motion })}
                 />
+                <Toggle checked={settings.loupe} onChange={(loupe) => update({ loupe })} label="Loupe : plateaux et symboles agrandis" />
                 <Choice
                     legend="Taille des symboles sur le plateau"
                     name="symbols"

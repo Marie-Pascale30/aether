@@ -72,6 +72,17 @@ await check("session invité", async () => {
     assert.equal(body.isGuest, true);
 });
 
+await check("applications : session par jeton ; le site, lui, ne reçoit jamais le jeton", async () => {
+    const app = await fetch(API + "/auth/guest", { method: "POST", headers: { "x-aether-client": "app", "x-forwarded-for": "10.200.0.1" } });
+    const token = app.headers.get("x-session-token");
+    assert.ok(token, "jeton absent pour une application");
+    const me = await (await fetch(API + "/auth/me", { headers: { authorization: `Bearer ${token}` } })).json();
+    assert.equal(me.me.isGuest, true);
+    const site = await fetch(API + "/auth/guest", { method: "POST", headers: { "x-forwarded-for": "10.200.0.2" } });
+    assert.equal(site.headers.get("x-session-token"), null, "le jeton ne doit pas être lisible par le site");
+    assert.equal((await fetch(API + "/auth/me", { headers: { authorization: "Bearer faux" } }).then((r) => r.json())).me, null);
+});
+
 await check("mondes : le premier ouvert, les suivants scellés", async () => {
     worlds = (await player("GET", "/worlds")).body;
     assert.ok(worlds.length >= 3);

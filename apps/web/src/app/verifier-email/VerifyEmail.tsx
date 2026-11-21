@@ -1,12 +1,15 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { ButtonLink } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { Loading } from "@/components/ui/States";
 import { useVerifyEmail } from "@/lib/queries";
 
-export function VerifyEmail({ token }: { token: string }) {
+/** `/verifier-email?token=…` : le lien reçu par e-mail. */
+export function VerifyEmail() {
+    const token = useSearchParams().get("token") ?? "";
     const verify = useVerifyEmail();
     const sent = useRef(false);
 

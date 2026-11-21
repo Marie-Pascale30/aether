@@ -12,6 +12,7 @@ import { pad2 } from "@/lib/format";
 import { countLabel, levelLabel } from "@/lib/kinds";
 import { useAdminLevels, useAdminWorlds, useDeleteLevel, useDuplicateLevel, useReorderLevels } from "@/lib/queries";
 import styles from "../admin.module.css";
+import { adminLevelHref, levelHref } from "@/lib/routes";
 
 export default function AdminLevelsPage() {
     const levels = useAdminLevels();
@@ -84,7 +85,7 @@ function WorldLevels({ world, levels, onError }: { world: AdminWorld; levels: Ad
     };
 
     const onDuplicate = (level: AdminLevel) =>
-        duplicate.mutate(level.id, { ...fail, onSuccess: (copy) => router.push(`/admin/niveaux/${copy.id}`) });
+        duplicate.mutate(level.id, { ...fail, onSuccess: (copy) => router.push(adminLevelHref(copy.id)) });
 
     // Numérotation du parcours joueur : seules les énigmes publiées comptent.
     let publishedPosition = 0;
@@ -135,7 +136,7 @@ function WorldLevels({ world, levels, onError }: { world: AdminWorld; levels: Ad
                                         </td>
                                         <td className={styles.position}>{level.published ? pad2(publishedPosition) : "—"}</td>
                                         <td>
-                                            <Link href={`/admin/niveaux/${level.id}`}>{level.title}</Link>
+                                            <Link href={adminLevelHref(level.id)}>{level.title}</Link>
                                         </td>
                                         <td className={styles.muted}>
                                             {levelLabel(level.mechanic, level.kind).glyph} {levelLabel(level.mechanic, level.kind).label}
@@ -167,7 +168,7 @@ function WorldLevels({ world, levels, onError }: { world: AdminWorld; levels: Ad
                                         </td>
                                         <td>
                                             <div className={styles.rowActions}>
-                                                <ButtonLink href={`/niveaux/${level.id}`} variant="ghost">
+                                                <ButtonLink href={levelHref(level.id)} variant="ghost">
                                                     Tester
                                                 </ButtonLink>
                                                 <Button variant="ghost" onClick={() => onDuplicate(level)} disabled={busy}>

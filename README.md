@@ -97,6 +97,16 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
 - **Comptes** : on joue tout de suite en invité ; créer un compte garde la progression, se connecter
   depuis un invité la fusionne. Vérification d'adresse, mot de passe oublié (lien 1 h, réponse muette),
   changement de mot de passe (déconnecte les autres appareils). Pétales et repères suivent la fusion.
+- **Aides** (libres, sauf l'inspiration) : *Inspiration* (les indices, un par un ; sans elle, le pétale
+  Autonomie s'ouvre), *Loupe* (plateaux et symboles agrandis, réglage de l'appareil), *Retour* (dernier
+  lien, quart de tour ou tracé ; Ctrl + Z), *Mélanger* (disposition des Liens, propositions des Échos) et
+  *Carnet* de notes par énigme, gardé sur l'appareil. Quand on bloque, l'Équilibre peut aussi
+  *éclaircir* le plateau (des leurres s'estompent). Chaque plateau déclare ses aides (`useBoardTool`).
+- **Profil mental** (`/profil`) : six facultés (observation, mémoire, logique, vision spatiale, rythme,
+  associations), chacune décrite par un stade de croissance — « en sommeil », « s'éveille »,
+  « grandit », « s'épanouit », « rayonne » — et une pousse dessinée, jamais par un nombre. Une
+  suggestion douce (aussi sur l'Atlas) propose une énigme ouverte pour la faculté la moins pratiquée
+  (`packages/shared/src/rules/mind.ts`).
 - **Accessibilité** : plateau jouable au clavier (flèches, Entrée/Espace, Début/Fin), lien d'évitement,
   annonces pour lecteurs d'écran. **Réglages** (`/reglages`) : volume, effets, ambiance, animations
   (suivre le système / réduire / toujours), grands symboles, Équilibre, affichage du temps.
@@ -157,6 +167,33 @@ La composition enchaîne `db` → `migrate` (migrations + seed, tâche ponctuell
 `WEB_PORT`). Placer un proxy HTTPS (Caddy, Traefik, nginx…) devant le front : en production le cookie de
 session est `Secure`. L'API n'est pas exposée hors du réseau Docker ; ne l'exposez pas directement avec
 `TRUST_PROXY=loopback,uniquelocal`, sinon l'IP transmise pourrait être falsifiée.
+
+## Applications (Android, iOS, Windows, macOS, Linux)
+
+Les applications embarquent un **export statique** du site (`apps/web/out`) et appellent l'API à
+distance ; le jeu y fonctionne hors ligne comme sur le site. Elles s'authentifient par **jeton**
+(`X-Aether-Client: app` → en-tête `X-Session-Token`, renvoyé en `Authorization: Bearer`), car une vue
+web d'application ne garde pas fiablement un cookie tiers ; le site garde son cookie httpOnly.
+L'API doit autoriser leurs origines (`APP_ORIGINS`, valeurs par défaut correctes).
+
+```bash
+AETHER_API_URL=https://api.exemple.fr npm run build:app -w @aether/web   # export → apps/web/out
+```
+
+- **Android et iOS** (`apps/mobile`, Capacitor 8) : `npm run sync -w @aether/mobile` copie l'export dans
+  les projets natifs ; `npm run android -w @aether/mobile` ouvre Android Studio. APK de test en ligne de
+  commande : `cd apps/mobile/android && ./gradlew assembleDebug` (JDK 21 requis : celui d'Android Studio,
+  `JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"`). Pour l'émulateur avec l'API locale :
+  `AETHER_API_URL=http://10.0.2.2:4100` (le http n'est alors autorisé que pour cette construction).
+  iOS : Mac avec Xcode (`npm run ios -w @aether/mobile`), puis un compte Apple Developer pour publier.
+  Icônes et écrans de démarrage : `npm run assets -w @aether/mobile` (sources dans `apps/mobile/assets`).
+- **Bureau** (`apps/desktop`, Tauri 2) : `npm run build -w @aether/desktop` produit les installateurs
+  (Rust requis : https://rustup.rs). Icônes : `npm run icons -w @aether/desktop`.
+- **Sans rien installer** : le workflow GitHub « Applications » (onglet Actions → Run workflow, avec
+  l'adresse de l'API) construit l'APK Android, les installateurs Windows / macOS / Linux et vérifie la
+  compilation iOS ; les fichiers sont à télécharger dans les « artifacts » de l'exécution.
+- Identifiant des applications : `fr.aether.atlas` (`capacitor.config.ts`, `tauri.conf.json`), à fixer
+  définitivement avant la première publication dans un magasin.
 
 ## Intégration continue
 

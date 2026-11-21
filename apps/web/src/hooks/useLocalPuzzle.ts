@@ -8,6 +8,15 @@ import { onResultSynced } from "@/lib/offline/sync";
 import { useMe } from "@/lib/queries";
 import { useSound } from "@/lib/sound/SoundProvider";
 
+/**
+ * Aides que propose un plateau, selon sa mécanique. Elles ne coûtent rien : l'harmonie ne
+ * dépend que des indices (inspirations) et des fausses pistes.
+ *   undo     revenir sur le dernier geste
+ *   shuffle  mélanger la disposition, pour voir autrement
+ *   clarify  éclaircir le plateau (atténuer quelques leurres) — proposé par l'Équilibre
+ */
+export type ToolName = "undo" | "shuffle" | "clarify";
+
 export interface LocalStatus {
     text: string;
     tone?: "success" | "fail";
@@ -72,6 +81,8 @@ export function useLocalPuzzle(detail: LevelDetail) {
     const [hintsShown, setHintsShown] = useState(0);
     const [status, setStatus] = useState<LocalStatus | null>(null);
     const [completion, setCompletion] = useState<CompletionResult | null>(null);
+    /** Énigme résolue (le panneau de fin peut avoir été refermé pour revoir le plateau). */
+    const [finished, setFinished] = useState(false);
 
     useEffect(() => () => unsubscribe.current?.(), []);
 
@@ -96,10 +107,23 @@ export function useLocalPuzzle(detail: LevelDetail) {
 
     const note = useCallback((text: string) => setStatus({ text }), []);
 
+    // Aides du plateau : la fonction est gardée dans une référence, seule sa disponibilité
+    // (un booléen) passe par l'état, pour que le plateau puisse la déclarer à chaque rendu.
+    const toolHandlers = useRef<Partial<Record<ToolName, () => void>>>({});
+    const [available, setAvailable] = useState<Record<ToolName, boolean>>({ undo: false, shuffle: false, clarify: false });
+    const provide = useCallback((name: ToolName, handler: (() => void) | undefined, enabled: boolean) => {
+        toolHandlers.current[name] = handler;
+        setAvailable((current) => (current[name] === enabled ? current : { ...current, [name]: enabled }));
+    }, []);
+    const applyTool = useCallback((name: ToolName) => {
+        toolHandlers.current[name]?.();
+    }, []);
+
     const solved = useCallback(
         (text = "Le monde s'éclaire à nouveau.") => {
             play("complete");
             setStatus({ text, tone: "success" });
+            setFinished(true);
             if (!me) return;
 
             const playedAt = new Date();
@@ -140,6 +164,7 @@ export function useLocalPuzzle(detail: LevelDetail) {
         setAdvances(0);
         setStatus(null);
         setCompletion(null);
+        setFinished(false);
     };
 
     return {
@@ -148,6 +173,7 @@ export function useLocalPuzzle(detail: LevelDetail) {
         advances,
         status,
         completion,
+        finished,
         startedAt: startedAt.current,
         hints: detail.hints.slice(0, hintsShown),
         hintsRemaining: detail.hints.length - hintsShown,
@@ -167,13 +193,32 @@ export function useLocalPuzzle(detail: LevelDetail) {
             /** Message neutre (consigne, invitation à réessayer). */
             note,
             /** Liens : chaque coup, pour les statistiques de conception. */
+            /** Le plateau déclare une aide (et si elle est disponible maintenant). */
+            provide,
             attempt: (cells: number[], correct: boolean) => {
                 attempts.current.push({ cells, correct });
             },
         },
         restart,
+        /** Aides disponibles maintenant, et de quoi s'en servir. */
+        tools: available,
+        applyTool,
         dismissCompletion: () => setCompletion(null),
     };
 }
 
 export type PuzzleReport = ReturnType<typeof useLocalPuzzle>["report"];
+
+/**
+ * Déclare une aide du plateau. `handler` peut changer à chaque rendu (il lit l'état courant) :
+ * l'appel passe par une référence, et seule la disponibilité déclenche un nouveau rendu.
+ */
+export function useBoardTool(report: PuzzleReport, name: ToolName, handler: () => void, enabled: boolean) {
+    const latest = useRef(handler);
+    latest.current = handler;
+    const { provide } = report;
+    useEffect(() => {
+        provide(name, () => latest.current(), enabled);
+    }, [provide, name, enabled]);
+    useEffect(() => () => provide(name, undefined, false), [provide, name]);
+}

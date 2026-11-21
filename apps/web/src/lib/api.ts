@@ -18,6 +18,8 @@ import type {
     WorldInput,
 } from "@aether/shared";
 
+import { API_ROOT, appSession, IS_APP } from "./platform";
+
 export type ApiIssue = NonNullable<ApiErrorBody["issues"]>[number];
 
 export class ApiError extends Error {
@@ -31,18 +33,33 @@ export class ApiError extends Error {
     }
 }
 
+function headersFor(body: unknown): HeadersInit {
+    const headers: Record<string, string> = body === undefined ? {} : { "content-type": "application/json" };
+    if (IS_APP) {
+        headers["x-aether-client"] = "app";
+        const token = appSession.get();
+        if (token) headers.authorization = `Bearer ${token}`;
+    }
+    return headers;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     let res: Response;
     try {
-        res = await fetch(`/api${path}`, {
+        res = await fetch(`${API_ROOT}${path}`, {
             method,
-            headers: body === undefined ? undefined : { "content-type": "application/json" },
+            headers: headersFor(body),
             body: body === undefined ? undefined : JSON.stringify(body),
-            credentials: "same-origin",
+            // Les applications s'authentifient par jeton (Authorization), le site par cookie.
+            credentials: IS_APP ? "omit" : "same-origin",
         });
     } catch {
         throw new ApiError(0, "Le jardin est injoignable. Vérifie ta connexion.");
     }
+
+    // Application : l'API renvoie le jeton à l'ouverture d'une session (invité, connexion…).
+    const token = res.headers.get("x-session-token");
+    if (IS_APP && token) appSession.set(token);
 
     const text = await res.text();
     const data: unknown = text ? JSON.parse(text) : undefined;
@@ -62,7 +79,10 @@ export const api = {
         guest: () => request<Me>("POST", "/auth/guest"),
         register: (input: RegisterInput) => request<Me>("POST", "/auth/register", input),
         login: (input: LoginInput) => request<Me>("POST", "/auth/login", input),
-        logout: () => request<void>("POST", "/auth/logout"),
+        logout: async () => {
+            await request<void>("POST", "/auth/logout");
+            if (IS_APP) appSession.set(null);
+        },
         updateMe: (displayName: string) => request<Me>("PATCH", "/auth/me", { displayName }),
         verifyEmail: (token: string) => request<Me>("POST", "/auth/email/verify", { token }),
         resendVerification: () => request<void>("POST", "/auth/email/resend"),

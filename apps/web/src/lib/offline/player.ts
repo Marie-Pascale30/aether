@@ -13,7 +13,7 @@ import {
     type LevelRecord,
 } from "@aether/shared";
 import { api } from "@/lib/api";
-import { keys, useMe } from "@/lib/queries";
+import { keys, useMe, VISIT_STARTED_AT } from "@/lib/queries";
 import { usePendingResults, type PendingResult } from "./outbox";
 
 /** Contenu publié, gardé sur l'appareil (cache persistant) et rafraîchi quand le réseau le permet. */
@@ -55,9 +55,12 @@ export function todayDaily(bundle: ContentBundle): DailyEntry | null {
  */
 export function usePlayer() {
     const me = useMe();
-    // Contenu et progression sont réservés aux joueurs : on attend la session.
-    const content = useContent(Boolean(me.data));
-    const sync = useSyncState(Boolean(me.data));
+    // Contenu et progression sont réservés aux joueurs : on attend que la session soit confirmée par
+    // le serveur pendant cette visite (le joueur restauré de l'appareil peut s'être déconnecté).
+    // Hors ligne, les requêtes restent en attente et les données gardées s'affichent quand même.
+    const verified = Boolean(me.data) && me.dataUpdatedAt >= VISIT_STARTED_AT;
+    const content = useContent(verified);
+    const sync = useSyncState(verified);
     const pending = usePendingResults(me.data?.id);
 
     const data = useMemo((): PlayerState | null => {

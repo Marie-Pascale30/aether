@@ -2,7 +2,7 @@
 
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { flowConnected, flowExtend, flowOwners, flowSolved, type FlowPaths, type FlowPuzzle } from "@aether/shared";
-import type { PuzzleReport } from "@/hooks/useLocalPuzzle";
+import { useBoardTool, type PuzzleReport } from "@/hooks/useLocalPuzzle";
 import styles from "./mechanics.module.css";
 
 /**
@@ -23,6 +23,8 @@ export function FlowBoard({ puzzle, report }: { puzzle: FlowPuzzle; report: Puzz
     const [active, setActive] = useState<number | null>(null);
     const [cursor, setCursor] = useState(puzzle.endpoints[0]?.a ?? 0);
     const [done, setDone] = useState(false);
+    /** Tracés avant chaque geste (un geste = de la prise au relâchement) : « Retour » en annule un. */
+    const [history, setHistory] = useState<FlowPaths[]>([]);
     const boardRef = useRef<HTMLDivElement>(null);
     const lastCell = useRef<number | null>(null);
 
@@ -48,6 +50,7 @@ export function FlowBoard({ puzzle, report }: { puzzle: FlowPuzzle; report: Puzz
         const source = sourceOf(cell);
         const flow = source !== -1 ? source : owners[cell]!;
         if (flow === -1 || flow === undefined) return null;
+        setHistory((past) => [...past.slice(-49), paths]);
         const next = flowExtend(puzzle, paths, flow, cell);
         if (next) apply(next, flow);
         return flow;
@@ -58,6 +61,18 @@ export function FlowBoard({ puzzle, report }: { puzzle: FlowPuzzle; report: Puzz
         if (next) apply(next, flow);
         return Boolean(next);
     };
+
+    useBoardTool(
+        report,
+        "undo",
+        () => {
+            setPaths(history.at(-1)!);
+            setHistory((past) => past.slice(0, -1));
+            setActive(null);
+            report.note("Le dernier tracé est revenu en arrière.");
+        },
+        history.length > 0 && !done,
+    );
 
     // ─── Souris et tactile ────────────────────────────────────────────────
 
