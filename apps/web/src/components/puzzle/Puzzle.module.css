@@ -90,7 +90,7 @@
     display: grid;
     place-items: center;
     padding: 16px;
-    background: #040b10b8;
+    background: var(--scrim);
     backdrop-filter: blur(6px);
     animation: fade .4s ease;
 }
@@ -99,7 +99,7 @@
     width: min(480px, 100%);
     padding: 36px 28px;
     text-align: center;
-    background: linear-gradient(160deg, #17294a, #0d1a2c);
+    background: linear-gradient(160deg, var(--raised), var(--well));
     border: 1px solid rgb(var(--gold-rgb) / 0.33);
     border-radius: var(--radius-lg);
     box-shadow: 0 30px 120px #000000a0, 0 0 80px rgb(var(--gold-rgb) / 0.08);

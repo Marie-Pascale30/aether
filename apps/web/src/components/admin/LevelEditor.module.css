@@ -103,7 +103,7 @@
     padding: 6px 10px;
     border-radius: 8px;
     border: 1px solid var(--line-strong);
-    background: #0d1a2c;
+    background: var(--well);
 }
 
 .board {
@@ -257,7 +257,7 @@
     padding: 6px 10px;
     border: 1px solid var(--line-strong);
     border-radius: 8px;
-    background: #0d1a2c;
+    background: var(--well);
     font-family: ui-monospace, monospace;
 }
 
@@ -288,7 +288,7 @@
     padding: 10px;
     border: 1px solid var(--line-strong);
     border-radius: 10px;
-    background: #0d1a2c;
+    background: var(--well);
     font-family: ui-monospace, monospace;
     font-size: 12px;
 }

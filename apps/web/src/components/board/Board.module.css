@@ -32,7 +32,7 @@
 .node[data-linked] {
     cursor: default;
     border-color: rgb(var(--gold-rgb) / 0.6);
-    background: #172a40; /* opaque : le fil ne doit pas traverser la case */
+    background: var(--raised); /* opaque : le fil ne doit pas traverser la case */
     animation: bloom .7s var(--ease);
 }
 
@@ -61,7 +61,7 @@
     padding: 0 5px;
     border-radius: 10px;
     background: var(--sage);
-    color: #0c1828;
+    color: var(--well);
     font-size: 11px;
     font-weight: 700;
     line-height: 20px;

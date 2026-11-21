@@ -115,7 +115,13 @@ Ouvre http://localhost:3100. L'éditeur est sur `/admin/niveaux`, avec le compte
   (`packages/shared/src/rules/mind.ts`).
 - **Accessibilité** : plateau jouable au clavier (flèches, Entrée/Espace, Début/Fin), lien d'évitement,
   annonces pour lecteurs d'écran. **Réglages** (`/reglages`) : volume, effets, ambiance, animations
-  (suivre le système / réduire / toujours), grands symboles, Équilibre, affichage du temps.
+  (suivre le système / réduire / toujours), grands symboles, Équilibre, affichage du temps, apparence
+  (*Nuit*, *Ivoire* clair, ou selon le système ; posée avant l'hydratation pour éviter un éclair) et
+  vibrations légères (moteur haptique dans les applications, `navigator.vibrate` sinon ;
+  `lib/haptics.ts`).
+- **Ambiance vivante** : le ciel des jardins suit l'heure du joueur (aube, jour, crépuscule, nuit) et la
+  saison ajoute sa touche — neige, pétales, lucioles, feuilles (`hooks/useSkyTime.ts`). Le Gardien se
+  promène sur la colline et sa lanterne s'illumine quand le jardin grandit.
 
 ## L'éditeur (`/admin`)
 

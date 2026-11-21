@@ -6,6 +6,7 @@ import { outbox } from "@/lib/offline/outbox";
 import { dailyDateOf, usePlayer, type PlayerState } from "@/lib/offline/player";
 import { onResultSynced } from "@/lib/offline/sync";
 import { useMe } from "@/lib/queries";
+import { useHaptics } from "@/lib/haptics";
 import { useSound } from "@/lib/sound/SoundProvider";
 
 /**
@@ -73,6 +74,7 @@ export function useLocalPuzzle(detail: LevelDetail, practice?: PracticeOptions) 
     const practiceRef = useRef(practice);
     practiceRef.current = practice;
     const { play } = useSound();
+    const haptic = useHaptics();
     const { data: me } = useMe();
     const { data: player } = usePlayer();
     const playerRef = useRef(player);
@@ -99,20 +101,22 @@ export function useLocalPuzzle(detail: LevelDetail, practice?: PracticeOptions) 
     const mistake = useCallback(
         (text: string) => {
             play("mismatch");
+            haptic("soft");
             mistakesRef.current += 1;
             setMistakes(mistakesRef.current);
             setStatus({ text, tone: "fail" });
         },
-        [play],
+        [play, haptic],
     );
 
     const progress = useCallback(
         (text: string, cue: "select" | "match" = "match") => {
             play(cue);
+            haptic("tap");
             setStatus({ text, tone: cue === "match" ? "success" : undefined });
             if (cue === "match") setAdvances((n) => n + 1);
         },
-        [play],
+        [play, haptic],
     );
 
     const note = useCallback((text: string) => setStatus({ text }), []);
@@ -132,6 +136,7 @@ export function useLocalPuzzle(detail: LevelDetail, practice?: PracticeOptions) 
     const solved = useCallback(
         (text = "Le monde s'éclaire à nouveau.") => {
             play("complete");
+            haptic("success");
             setStatus({ text, tone: "success" });
             setFinished(true);
             if (!me) return;
@@ -168,7 +173,7 @@ export function useLocalPuzzle(detail: LevelDetail, practice?: PracticeOptions) 
                 attempts: attempts.current,
             });
         },
-        [play, me, detail],
+        [play, haptic, me, detail],
     );
 
     const restart = () => {

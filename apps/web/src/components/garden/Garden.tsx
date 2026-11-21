@@ -3,6 +3,7 @@
 import { useId, useRef, type CSSProperties, type ReactNode } from "react";
 import { GARDEN_STAGE_COUNT, type WorldTheme } from "@aether/shared";
 import { useParallax } from "@/hooks/useParallax";
+import { useSkyTime, type Season, type SkyPhase } from "@/hooks/useSkyTime";
 import { REGIONS } from "@/lib/regions";
 import styles from "./Garden.module.css";
 
@@ -150,6 +151,10 @@ export function Garden({ stage, theme = "jardin", instant = false, className, pa
     const on = (minStage: number) => String(stage >= minStage);
     const percent = Math.round((stage / LAST_STAGE) * 100);
     const dawn = stage / LAST_STAGE;
+    // Le ciel suit l'heure du joueur (aube, jour, crépuscule, nuit) ; la saison ajoute ses touches.
+    const sky = useSkyTime();
+    const phase: SkyPhase = sky?.phase ?? "night";
+    const starsOpacity = (1 - dawn * 0.45) * STARS_BY_PHASE[phase];
     // Profondeur : les plans lointains bougent moins que les plans proches (souris, inclinaison).
     const frame = useRef<HTMLDivElement>(null);
     useParallax(frame, parallax);
@@ -167,17 +172,34 @@ export function Garden({ stage, theme = "jardin", instant = false, className, pa
                         <stop offset="0" stopColor={p.glow} stopOpacity="0.35" />
                         <stop offset="1" stopColor={p.glow} stopOpacity="0" />
                     </radialGradient>
-                    <radialGradient id={`${id}-dawn`} cy="1">
+                    {(["dawn", "day", "dusk"] as const).map((moment) => (
+                        <linearGradient key={moment} id={`${id}-${moment}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stopColor={TIME_SKIES[moment].colors[0]} />
+                            <stop offset="0.6" stopColor={TIME_SKIES[moment].colors[1]} />
+                            <stop offset="1" stopColor={TIME_SKIES[moment].colors[2]} />
+                        </linearGradient>
+                    ))}
+                    <radialGradient id={`${id}-dawn-glow`} cy="1">
                         <stop offset="0" stopColor={p.dawn} stopOpacity="0.55" />
                         <stop offset="1" stopColor={p.dawn} stopOpacity="0" />
                     </radialGradient>
                 </defs>
 
                 <rect width="400" height="300" fill={`url(#${id}-sky)`} />
+                {(["dawn", "day", "dusk"] as const).map((moment) => (
+                    <rect
+                        key={moment}
+                        className={styles.fade}
+                        width="400"
+                        height="300"
+                        fill={`url(#${id}-${moment})`}
+                        style={{ opacity: phase === moment ? TIME_SKIES[moment].opacity : 0 }}
+                    />
+                ))}
                 {/* L'aube se lève avec la restauration ; les étoiles pâlissent un peu. */}
-                <ellipse className={styles.fade} cx="200" cy="240" rx="300" ry="150" fill={`url(#${id}-dawn)`} style={{ opacity: dawn }} />
+                <ellipse className={styles.fade} cx="200" cy="240" rx="300" ry="150" fill={`url(#${id}-dawn-glow)`} style={{ opacity: dawn }} />
                 <g className={styles.depth} style={{ "--depth": 0.35 } as CSSProperties}>
-                <g className={styles.stars} style={{ opacity: 1 - dawn * 0.45 }}>
+                <g className={styles.stars} style={{ opacity: starsOpacity }}>
                     {STARS.map((star, i) => (
                         <circle key={i} cx={star.x} cy={star.y} r={star.r} style={{ animationDelay: `${star.delay}s` }} />
                     ))}
@@ -221,8 +243,12 @@ export function Garden({ stage, theme = "jardin", instant = false, className, pa
                 </g>
 
                 {/* Le Gardien, silencieux, contemple ce qui renaît. */}
-                <g className={styles.layer} data-on={on(1)} transform="translate(176 251)">
-                    <Guardian glow={p.glow} />
+                <g className={styles.layer} data-on={on(1)} transform="translate(168 251)">
+                    <g className={styles.walker}>
+                        <g className={styles.facing}>
+                            <Guardian glow={p.glow} />
+                        </g>
+                    </g>
                 </g>
 
                 <g className={styles.layer} data-on={on(2)} fill={p.leaves[1]}>
@@ -253,6 +279,8 @@ export function Garden({ stage, theme = "jardin", instant = false, className, pa
                         </g>
                     ))}
                 </g>
+
+                {sky && <SeasonTouch season={sky.season} stage={stage} />}
 
                 <g className={`${styles.layer} ${styles.fireflies}`} data-on={on(5)}>
                     {FIREFLIES.map((fly, i) => (
@@ -470,12 +498,54 @@ function Tree({ palette: p }: { palette: Palette }) {
     );
 }
 
+/** Ciels de l'aube, du jour et du crépuscule, posés sur la nuit propre à la région. */
+const TIME_SKIES: Record<Exclude<SkyPhase, "night">, { colors: [string, string, string]; opacity: number }> = {
+    dawn: { colors: ["#3b4a78", "#b48a8e", "#efc58f"], opacity: 0.72 },
+    day: { colors: ["#5d8db0", "#97b8cc", "#d9d3bd"], opacity: 0.82 },
+    dusk: { colors: ["#3b3566", "#a3607a", "#e6a06a"], opacity: 0.75 },
+};
+const STARS_BY_PHASE: Record<SkyPhase, number> = { night: 1, dawn: 0.35, day: 0, dusk: 0.4 };
+
+/** Parcelles de saison qui tombent ou flottent (positions fixes, rythmes décalés). */
+const SEASON_BITS = Array.from({ length: 14 }, (_, i) => ({ x: (i * 61 + 17) % 400, delay: (i * 1.7) % 12, duration: 9 + (i % 5) * 2.2 }));
+
+/** La touche de la saison : neige en hiver, pétales au printemps, lucioles l'été, feuilles à l'automne. */
+function SeasonTouch({ season, stage }: { season: Season; stage: number }) {
+    if (season === "ete") {
+        // L'été, les lucioles arrivent plus tôt dans le jardin qui se restaure.
+        return stage >= 2 ? (
+            <g className={styles.fireflies}>
+                {SEASON_BITS.slice(0, 6).map((bit, i) => (
+                    <circle key={i} cx={bit.x} cy={190 + (i % 3) * 18} r="1.8" style={{ animationDelay: `${bit.delay / 3}s` }} />
+                ))}
+            </g>
+        ) : null;
+    }
+    const look = {
+        hiver: { shape: (i: number) => <circle r={i % 3 === 0 ? 2.6 : 1.8} fill="#f2ead8" opacity="0.9" /> },
+        printemps: { shape: () => <ellipse rx="3.4" ry="2" fill="#efb3ab" opacity="0.9" /> },
+        automne: { shape: (i: number) => <path d="M0 -4.5 C 4 -3 4 3 0 4.5 C -4 3 -4 -3 0 -4.5 Z" fill={i % 2 ? "#c9783e" : "#d9a14a"} /> },
+    }[season];
+    return (
+        <g aria-hidden>
+            {SEASON_BITS.map((bit, i) => (
+                <g key={i} transform={`translate(${bit.x} -10)`}>
+                    <g className={styles.fall} style={{ animationDelay: `${bit.delay}s`, animationDuration: `${bit.duration}s` }}>
+                        {look.shape(i)}
+                    </g>
+                </g>
+            ))}
+        </g>
+    );
+}
+
 /** Le Gardien : une silhouette encapuchonnée, une petite lanterne à la main. */
 function Guardian({ glow }: { glow: string }) {
     return (
         <g>
             <path d="M-5 0 C-5 -8 -4 -14 -2.5 -17 A3.2 3.2 0 1 1 2.5 -17 C4 -14 5 -8 5 0Z" fill="#0d1626" opacity="0.92" />
             <line x1="5" y1="-9" x2="8" y2="-5" stroke="#0d1626" strokeWidth="1.2" />
+            <circle className={styles.lanternHalo} cx="8.5" cy="-3.5" r="6" fill={glow} />
             <circle className={styles.lantern} cx="8.5" cy="-3.5" r="1.8" fill={glow} style={{ color: glow }} />
         </g>
     );

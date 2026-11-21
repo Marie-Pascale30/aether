@@ -3,7 +3,7 @@
 import { useId, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
-import { useSettings, type MotionPreference, type SymbolSize } from "@/lib/settings";
+import { useSettings, type MotionPreference, type SymbolSize, type ThemePreference } from "@/lib/settings";
 import { useSound } from "@/lib/sound/SoundProvider";
 import styles from "./reglages.module.css";
 
@@ -11,6 +11,12 @@ const MOTION_OPTIONS: { value: MotionPreference; label: string; hint: string }[]
     { value: "system", label: "Suivre le système", hint: "Respecte le réglage « réduire les animations » de l'appareil." },
     { value: "reduce", label: "Réduire", hint: "Pas de croissance animée, de tracés ni de scintillement." },
     { value: "full", label: "Toujours animer", hint: "Toutes les animations, même si l'appareil demande moins." },
+];
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; hint: string }[] = [
+    { value: "nuit", label: "Nuit", hint: "Bleu nuit, or ancien : l'ambiance de l'Atlas." },
+    { value: "ivoire", label: "Ivoire", hint: "Parchemin et encre : plus lisible en plein jour." },
+    { value: "systeme", label: "Comme l'appareil", hint: "Suit le mode clair ou sombre du système." },
 ];
 
 const SYMBOL_OPTIONS: { value: SymbolSize; label: string }[] = [
@@ -48,6 +54,7 @@ export function SettingsView() {
                 </div>
                 <Toggle checked={settings.effects} onChange={(effects) => update({ effects })} label="Effets (sélection, liens, réussite)" disabled={settings.muted} />
                 <Toggle checked={settings.ambient} onChange={(ambient) => update({ ambient })} label="Nappe d'ambiance" disabled={settings.muted} />
+                <Toggle checked={settings.vibrations} onChange={(vibrations) => update({ vibrations })} label="Vibrations légères (téléphones)" />
                 <Button variant="ghost" onClick={() => play("match")} disabled={settings.muted || !settings.effects}>
                     ♪ Tester le son
                 </Button>
@@ -55,6 +62,7 @@ export function SettingsView() {
 
             <section className={styles.section} aria-labelledby="reglages-affichage">
                 <h3 id="reglages-affichage">Affichage</h3>
+                <Choice legend="Apparence" name="theme" value={settings.theme} options={THEME_OPTIONS} onChange={(theme) => update({ theme })} />
                 <Choice
                     legend="Animations"
                     name="motion"

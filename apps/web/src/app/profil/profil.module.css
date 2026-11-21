@@ -97,7 +97,7 @@
     border: 1px solid rgb(var(--gold-rgb) / 0.33);
     border-radius: 12px;
     background: rgb(var(--gold-rgb) / 0.06);
-    color: #e8d9ad;
+    color: var(--gold-light);
     font-size: 14px;
 }
 

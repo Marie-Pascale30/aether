@@ -8,7 +8,7 @@
     background:
         radial-gradient(circle at 20% 80%, rgb(var(--sage-rgb) / 0.08), transparent 45%),
         radial-gradient(circle at 85% 20%, rgb(var(--gold-rgb) / 0.08), transparent 40%),
-        #0d1a2c;
+        var(--well);
 }
 
 .atlas svg {
@@ -53,20 +53,20 @@
 }
 
 .disc {
-    fill: #142338;
+    fill: var(--raised);
     stroke: var(--accent);
     stroke-width: 2;
     transition: fill .3s, stroke-width .3s;
 }
 
 .node[data-status="completed"] .disc {
-    fill: color-mix(in srgb, var(--accent) 32%, #142338);
+    fill: color-mix(in srgb, var(--accent) 32%, var(--raised));
 }
 
 .node[data-status="locked"] .disc {
     stroke: var(--stone);
     stroke-opacity: .45;
-    fill: #0f1b2c;
+    fill: var(--well);
 }
 
 /* La région en cours respire : seule l'opacité varie (la forme reste immobile sous le pointeur). */
@@ -148,7 +148,7 @@
 }
 
 .node[data-entering] .disc {
-    fill: #17294a;
+    fill: var(--raised);
     stroke-width: 1;
     transform-box: fill-box;
     transform-origin: center;

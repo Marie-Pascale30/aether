@@ -14,6 +14,9 @@ import styles from "./layout.module.css";
 const display = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-display", display: "swap" });
 const text = Source_Sans_3({ subsets: ["latin"], variable: "--font-text", display: "swap" });
 
+/** Lit les réglages de l'appareil et pose data-theme / data-motion avant que React ne démarre. */
+const EARLY_SETTINGS = `try{var s=JSON.parse(localStorage.getItem("aether:settings")||"{}"),r=document.documentElement,t=s.theme||"nuit";if(t==="systeme")t=matchMedia("(prefers-color-scheme: light)").matches?"ivoire":"nuit";r.dataset.theme=t;if(s.motion)r.dataset.motion=s.motion}catch(e){}`;
+
 export const metadata: Metadata = {
     title: { default: "AETHER", template: "%s · AETHER" },
     description: "Offrez à votre esprit un moment de plaisir : des énigmes paisibles qui restaurent l'Atlas des Esprits.",
@@ -28,8 +31,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
     return (
-        <html lang="fr" className={`${display.variable} ${text.variable}`}>
+        <html lang="fr" className={`${display.variable} ${text.variable}`} suppressHydrationWarning>
             <body>
+                {/* Apparence et animations appliquées avant le premier affichage (pas d'éclair de couleur). */}
+                <script dangerouslySetInnerHTML={{ __html: EARLY_SETTINGS }} />
                 <Providers>
                     <a href="#contenu" className="skip-link">
                         Aller au contenu

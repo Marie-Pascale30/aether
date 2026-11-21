@@ -130,7 +130,7 @@
 
 .selectField select {
     padding: 11px 14px;
-    background: #0d1a2c;
+    background: var(--well);
     border: 1px solid var(--line-strong);
     border-radius: 12px;
 }

@@ -26,6 +26,14 @@
     --green-rgb: 143 191 138;
     --danger-rgb: 216 165 142;
 
+    /* Surfaces : creusée (puits), en relief, cartes (dégradé), voile des fenêtres modales. */
+    --well: #0d1a2c;
+    --raised: #172a40;
+    --card-a: #15263eee;
+    --card-b: #0b1729ee;
+    --scrim: #040b10c4;
+    --bg-glow: #1a2c48;
+
     --line: rgb(var(--ivory-rgb) / 0.14);
     --line-strong: rgb(var(--ivory-rgb) / 0.24);
 
@@ -42,6 +50,44 @@
     color-scheme: dark;
 }
 
+/*
+ * Mode « ivoire » (réglage Apparence) : parchemin et encre bleu nuit pour jouer en plein jour.
+ * Mêmes jetons, autres valeurs ; « --ivory-rgb » y devient l'encre des traits et bordures.
+ * Contrastes sur le fond : texte 12,5:1, secondaire 6:1, discret 4,6:1, or ancien 4,6:1.
+ */
+:root[data-theme="ivoire"] {
+    --bg: #f3eee2;
+    --bg-deep: #e9e2d2;
+    --bg-glow: #fbf7ee;
+    --panel: #fbf8f1;
+    --surface: #fffdf8;
+    --well: #efe9dc;
+    --raised: #e7dfcf;
+    --card-a: #fdfaf3f2;
+    --card-b: #f4eee1f2;
+    --scrim: #2a24186e;
+    --text: #1f2a3a;
+    --ivory-soft: #2e3a4b;
+    --muted: #4f5b69;
+    --faint: #626b77;
+    --gold: #86661f;
+    --gold-light: #a07c2c;
+    --on-gold: #fffaf0;
+    --sage: #3f6a3c;
+    --green: #3d7343;
+    --wood: #8a6440;
+    --stone: #7a746a;
+    --danger: #a14f37;
+
+    --ivory-rgb: 31 42 58;
+    --gold-rgb: 134 102 31;
+    --sage-rgb: 63 106 60;
+    --green-rgb: 61 115 67;
+    --danger-rgb: 161 79 55;
+
+    color-scheme: light;
+}
+
 *,
 *::before,
 *::after {
@@ -56,7 +102,7 @@ html {
 body {
     margin: 0;
     min-height: 100vh;
-    background: radial-gradient(circle at 50% 0%, #1a2c48, var(--bg) 55%, var(--bg-deep)) no-repeat;
+    background: radial-gradient(circle at 50% 0%, var(--bg-glow), var(--bg) 55%, var(--bg-deep)) no-repeat;
     background-color: var(--bg-deep);
     color: var(--text);
     font-family: var(--font-sans);

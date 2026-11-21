@@ -79,7 +79,7 @@
 
 .cell[data-found] {
     border-color: rgb(var(--gold-rgb) / 0.6);
-    background: #172a40;
+    background: var(--raised);
 }
 
 .cell[data-wrong] {
@@ -109,13 +109,13 @@
     padding: 0;
     border: 1px solid rgb(var(--ivory-rgb) / 0.12);
     border-radius: 10px;
-    background: #102035;
+    background: var(--well);
     cursor: pointer;
     --pipe: var(--faint);
 }
 
 .tile[data-fixed] {
-    background: #16283c;
+    background: var(--raised);
     border-color: rgb(var(--gold-rgb) / 0.5);
     box-shadow: inset 0 0 0 2px rgb(var(--gold-rgb) / 0.2);
     cursor: default;

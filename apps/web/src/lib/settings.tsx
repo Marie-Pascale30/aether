@@ -4,6 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 export type MotionPreference = "system" | "reduce" | "full";
 export type SymbolSize = "normal" | "large";
+/** Apparence : « nuit » (bleu nuit), « ivoire » (parchemin, pour le plein jour), ou celle de l'appareil. */
+export type ThemePreference = "nuit" | "ivoire" | "systeme";
 
 export interface Settings {
     /** Coupe tout le son (bouton de l'en-tête). */
@@ -21,6 +23,9 @@ export interface Settings {
     equilibre: boolean;
     /** Loupe : plateaux et symboles agrandis. */
     loupe: boolean;
+    theme: ThemePreference;
+    /** Légères vibrations aux moments clés (téléphones, applications). */
+    vibrations: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -33,6 +38,8 @@ export const DEFAULT_SETTINGS: Settings = {
     showTimer: false,
     equilibre: true,
     loupe: false,
+    theme: "nuit",
+    vibrations: true,
 };
 
 const STORAGE_KEY = "aether:settings";
@@ -77,6 +84,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         root.dataset.motion = settings.motion;
         root.dataset.symbols = settings.symbols;
     }, [settings.motion, settings.symbols]);
+
+    // Apparence : « systeme » suit le réglage clair / sombre de l'appareil, et ses changements.
+    useEffect(() => {
+        const root = document.documentElement;
+        const light = window.matchMedia("(prefers-color-scheme: light)");
+        const apply = () => {
+            root.dataset.theme = settings.theme === "systeme" ? (light.matches ? "ivoire" : "nuit") : settings.theme;
+        };
+        apply();
+        light.addEventListener("change", apply);
+        return () => light.removeEventListener("change", apply);
+    }, [settings.theme]);
 
     const persist = useCallback((next: Settings) => {
         try {

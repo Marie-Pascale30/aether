@@ -46,7 +46,7 @@
 }
 
 .ghost:hover:not(:disabled) {
-    background: #ffffff0d;
+    background: rgb(var(--ivory-rgb) / 0.05);
     color: var(--text);
 }
 
@@ -59,7 +59,7 @@
 /* ─── Panneaux ────────────────────────────────────────────────────────────── */
 
 .panel {
-    background: linear-gradient(145deg, #15263eee, #0b1729ee);
+    background: linear-gradient(145deg, var(--card-a), var(--card-b));
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     padding: 34px;
@@ -145,7 +145,7 @@
 .field textarea {
     width: 100%;
     padding: 11px 14px;
-    background: #0d1a2c;
+    background: var(--well);
     border: 1px solid var(--line-strong);
     border-radius: 12px;
     transition: border-color .2s;
