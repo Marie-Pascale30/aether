@@ -25,9 +25,10 @@ COPY packages/shared packages/shared
 COPY apps/api apps/api
 RUN npm run build -w @aether/shared \
  && npm run prisma:generate -w @aether/api \
- && npm run build -w @aether/api
+ && npm run build -w @aether/api \
+ && npm run build:seed -w @aether/api
 
-# ─── Migrations et seed (Prisma CLI et tsx viennent des dépendances de dev) ──
+# ─── Migrations et seed (tâche ponctuelle de docker-compose.prod.yml) ───────
 FROM build AS migrate
 ENV NODE_ENV=production
 WORKDIR /app/apps/api
@@ -40,7 +41,11 @@ COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+# Schéma et migrations : l'image sait aussi migrer (`npm run deploy:db`, pré-déploiement Railway).
+COPY apps/api/prisma apps/api/prisma
+# Prisma CLI est une dépendance de production ; ses moteurs sont téléchargés ici, au build.
 RUN npm ci --omit=dev --ignore-scripts --workspace @aether/api --workspace @aether/shared \
+ && cd apps/api && npx prisma version > /dev/null \
  && npm cache clean --force
 # Client Prisma généré (avec le moteur Alpine) et code compilé.
 COPY --from=build /app/node_modules/.prisma node_modules/.prisma

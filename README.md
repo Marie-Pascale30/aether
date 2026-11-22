@@ -187,6 +187,48 @@ La composition enchaîne `db` → `migrate` (migrations + seed, tâche ponctuell
 session est `Secure`. L'API n'est pas exposée hors du réseau Docker ; ne l'exposez pas directement avec
 `TRUST_PROXY=loopback,uniquelocal`, sinon l'IP transmise pourrait être falsifiée.
 
+## Mettre en ligne (Railway)
+
+Un projet Railway, trois services, tous depuis ce dépôt GitHub (contexte de build : la racine) :
+
+| Service    | Config-as-code (réglages du service) | Réseau                    |
+| ---------- | ------------------------------------ | ------------------------- |
+| `Postgres` | base gérée par Railway               | privé                     |
+| `api`      | `/apps/api/railway.json`             | privé seulement           |
+| `web`      | `/apps/web/railway.json`             | public (domaine généré)   |
+
+Avant chaque déploiement de `api`, la commande de pré-déploiement `npm run deploy:db` applique les
+migrations et le seed (idempotent) ; un échec bloque le déploiement. Le site relaie `/api` vers l'API par
+le réseau privé : l'API n'a pas d'adresse publique.
+
+Variables de `api` (les secrets ne quittent jamais Railway) :
+
+```ini
+NODE_ENV=production
+PORT=4100
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+JWT_SECRET=<64 caractères hexadécimaux aléatoires>
+APP_URL=https://${{web.RAILWAY_PUBLIC_DOMAIN}}
+WEB_ORIGIN=https://${{web.RAILWAY_PUBLIC_DOMAIN}}
+TRUST_PROXY=loopback,uniquelocal
+MAIL_TRANSPORT=smtp
+SMTP_URL=smtp://<identifiant Brevo>:<clé SMTP Brevo>@smtp-relay.brevo.com:587
+MAIL_FROM=AETHER <adresse validée chez Brevo>
+ADMIN_EMAIL=<adresse de l'administrateur>
+ADMIN_PASSWORD=<12 caractères minimum>
+DAILY_TIMEZONE=Europe/Paris
+```
+
+Variables de `web` (`API_URL` est lue au build) :
+
+```ini
+PORT=3100
+API_URL=http://${{api.RAILWAY_PRIVATE_DOMAIN}}:4100
+```
+
+Les applications visent l'adresse publique du site (`NEXT_PUBLIC_API_URL=https://<domaine du site>`),
+qui relaie `/api` : l'API reste privée.
+
 ## Applications (Android, iOS, Windows, macOS, Linux)
 
 Les applications embarquent un **export statique** du site (`apps/web/out`) et appellent l'API à
