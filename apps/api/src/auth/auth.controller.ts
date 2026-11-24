@@ -1,8 +1,9 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Res } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Patch, Post, Res } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import {
     changePasswordSchema,
+    deleteAccountSchema,
     forgotPasswordSchema,
     loginSchema,
     registerSchema,
@@ -10,6 +11,7 @@ import {
     updateProfileSchema,
     verifyEmailSchema,
     type ChangePasswordInput,
+    type DeleteAccountInput,
     type ForgotPasswordInput,
     type LoginInput,
     type Me,
@@ -26,6 +28,11 @@ import { AuthService, toMe } from "./auth.service";
 const STRICT = { default: { limit: 10, ttl: 60_000 } };
 /** Routes qui envoient un e-mail : pas plus de quelques envois par minute. */
 const MAILING = { default: { limit: 3, ttl: 60_000 } };
+/**
+ * Inscription : le refus « adresse déjà utilisée » est nécessaire à l'expérience (la session s'ouvre
+ * aussitôt), il révèle donc qu'un compte existe. On le borne : 10 par minute et 20 par heure par IP.
+ */
+const REGISTER = { default: { limit: 10, ttl: 60_000 }, hourly: { limit: 20, ttl: 60 * 60_000 } };
 
 @Controller("auth")
 export class AuthController {
@@ -43,7 +50,7 @@ export class AuthController {
     }
 
     @Public()
-    @Throttle(STRICT)
+    @Throttle(REGISTER)
     @Post("register")
     async register(
         @Body(new ZodPipe(registerSchema)) body: RegisterInput,
@@ -69,11 +76,12 @@ export class AuthController {
         return toMe(user);
     }
 
+    /** Ferme la session et révoque le jeton (sur tous les appareils du compte). */
     @Public()
     @Post("logout")
     @HttpCode(204)
-    logout(@Res({ passthrough: true }) res: Response): void {
-        this.auth.closeSession(res);
+    logout(@CurrentUser() user: AuthUser | undefined, @Res({ passthrough: true }) res: Response): Promise<void> {
+        return this.auth.closeSession(res, user);
     }
 
     @Public()
@@ -131,6 +139,19 @@ export class AuthController {
     @Get("me")
     me(@CurrentUser() user: AuthUser | undefined): { me: Me | null } {
         return { me: user ? toMe(user) : null };
+    }
+
+    /** Droit à l'effacement (RGPD, art. 17) : le compte et toutes ses données, puis la session. */
+    @Throttle(STRICT)
+    @Delete("me")
+    @HttpCode(204)
+    async deleteMe(
+        @CurrentUser() user: AuthUser,
+        @Body(new ZodPipe(deleteAccountSchema)) body: DeleteAccountInput,
+        @Res({ passthrough: true }) res: Response,
+    ): Promise<void> {
+        await this.auth.deleteAccount(user, body.password);
+        await this.auth.closeSession(res);
     }
 
     @Patch("me")

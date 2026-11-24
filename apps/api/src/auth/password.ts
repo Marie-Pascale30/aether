@@ -24,3 +24,9 @@ export async function verifyPassword(password: string, stored: string): Promise<
     const actual = await derive(password, Buffer.from(saltHex, "hex"));
     return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
+
+/**
+ * Empreinte factice (sel et clé arbitraires), comparée quand le compte n'existe pas : la connexion
+ * coûte alors le même calcul scrypt qu'avec un vrai compte.
+ */
+export const DUMMY_PASSWORD_HASH = ["scrypt", "0".repeat(32), "0".repeat(KEY_LENGTH * 2)].join("$");

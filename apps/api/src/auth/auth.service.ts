@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, HttpException, HttpStatus, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { User } from "@prisma/client";
 import type { CookieOptions, Request, Response } from "express";
@@ -10,7 +10,8 @@ import { MailService } from "../mail/mail.service";
 import { resetPasswordMail, verifyEmailMail } from "../mail/templates";
 import { PrismaService } from "../prisma/prisma.service";
 import { AccountTokensService } from "./account-tokens.service";
-import { hashPassword, verifyPassword } from "./password";
+import { AttemptLimiter } from "./attempt-limiter";
+import { DUMMY_PASSWORD_HASH, hashPassword, verifyPassword } from "./password";
 
 export const SESSION_COOKIE = "aether_session";
 /**
@@ -24,6 +25,13 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** `lastSeenAt` n'est réécrit qu'au-delà de ce délai : pas d'écriture en base à chaque requête. */
 const LAST_SEEN_PRECISION_MS = 60 * 60 * 1000;
 
+/**
+ * Limites par adresse e-mail, indépendantes de l'IP (qui peut changer, ou être celle d'un proxy) :
+ * 10 échecs de connexion par quart d'heure, 3 demandes de lien de réinitialisation par heure.
+ */
+const LOGIN_FAILURES = { limit: 10, windowMs: 15 * 60 * 1000 };
+const RESET_REQUESTS = { limit: 3, windowMs: 60 * 60 * 1000 };
+
 interface SessionPayload {
     sub: string;
     /** Version de session du compte à l'émission : un changement de mot de passe la périme. */
@@ -32,6 +40,9 @@ interface SessionPayload {
 
 @Injectable()
 export class AuthService {
+    private readonly loginFailures = new AttemptLimiter(LOGIN_FAILURES.limit, LOGIN_FAILURES.windowMs);
+    private readonly resetRequests = new AttemptLimiter(RESET_REQUESTS.limit, RESET_REQUESTS.windowMs);
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwt: JwtService,
@@ -74,7 +85,13 @@ export class AuthService {
         if (res.req.get(APP_CLIENT_HEADER) === "app") res.setHeader(SESSION_TOKEN_HEADER, token);
     }
 
-    closeSession(res: Response): void {
+    /**
+     * Déconnexion : le cookie est effacé et, si la session était valide, la version de session du
+     * compte est incrémentée. Le jeton (valable 30 jours) ne peut donc plus servir, même copié :
+     * les autres appareils du compte sont déconnectés eux aussi.
+     */
+    async closeSession(res: Response, user?: Pick<AuthUser, "id">): Promise<void> {
+        if (user) await this.prisma.user.updateMany({ where: { id: user.id }, data: { sessionVersion: { increment: 1 } } });
         res.clearCookie(SESSION_COOKIE, this.cookieOptions());
     }
 
@@ -115,12 +132,41 @@ export class AuthService {
 
     /** Connecte un compte existant. Un invité qui se connecte y rapporte sa progression. */
     async login(input: LoginInput, current?: AuthUser): Promise<User> {
+        if (this.loginFailures.isBlocked(input.email)) {
+            throw new HttpException("Trop de tentatives pour ce compte. Réessaie dans quelques minutes.", HttpStatus.TOO_MANY_REQUESTS);
+        }
         const user = await this.prisma.user.findUnique({ where: { email: input.email } });
-        const valid = user?.passwordHash ? await verifyPassword(input.password, user.passwordHash) : false;
-        if (!user || !valid) throw new UnauthorizedException("E-mail ou mot de passe incorrect.");
+        // Sans compte (ou sans mot de passe), on calcule quand même un scrypt : même durée de réponse,
+        // le temps ne révèle pas si l'adresse est inscrite.
+        const valid = await verifyPassword(input.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+        if (!user?.passwordHash || !valid) {
+            this.loginFailures.hit(input.email);
+            throw new UnauthorizedException("E-mail ou mot de passe incorrect.");
+        }
+        this.loginFailures.reset(input.email);
 
         if (current?.isGuest && current.id !== user.id) await this.mergeGuestInto(current.id, user.id);
         return user;
+    }
+
+    /**
+     * Supprime définitivement le compte et tout ce qui s'y rattache (progression, parties, résultats
+     * du jour, repères, jetons : suppression en cascade). Le mot de passe est redemandé s'il existe.
+     */
+    async deleteAccount(user: AuthUser, password: string | undefined): Promise<void> {
+        if (user.role === "ADMIN") {
+            throw new ForbiddenException("Un compte administrateur ne se supprime pas depuis le jeu.");
+        }
+        const record = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+        if (record.passwordHash && !(password && (await verifyPassword(password, record.passwordHash)))) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: ["Mot de passe incorrect."],
+                issues: [{ path: ["password"], message: "Mot de passe incorrect." }],
+            });
+        }
+        await this.prisma.user.delete({ where: { id: user.id } });
+        this.logger.info({ userId: user.id, guest: record.isGuest }, "Compte supprimé à la demande du joueur");
     }
 
     async updateDisplayName(userId: string, displayName: string): Promise<User> {
@@ -156,6 +202,9 @@ export class AuthService {
 
     /** Toujours silencieux : la réponse ne révèle pas si un compte existe pour cette adresse. */
     async forgotPassword(email: string): Promise<void> {
+        // Au-delà de la limite par adresse, on ne renvoie plus rien (et toujours sans le dire).
+        if (this.resetRequests.isBlocked(email)) return;
+        this.resetRequests.hit(email);
         const user = await this.prisma.user.findUnique({ where: { email } });
         if (!user?.passwordHash || !user.email) return;
         try {

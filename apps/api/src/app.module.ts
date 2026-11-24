@@ -20,7 +20,11 @@ import { ProgressModule } from "./progress/progress.module";
         ObservabilityModule,
         PrismaModule,
         MailModule,
-        ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 240 }]),
+        // « hourly » ne sert qu'aux routes qui le resserrent (inscription) : ailleurs, sa limite est hors d'atteinte.
+        ThrottlerModule.forRoot([
+            { name: "default", ttl: 60_000, limit: 240 },
+            { name: "hourly", ttl: 60 * 60_000, limit: 100_000 },
+        ]),
         AuthModule,
         LevelsModule,
         PlayModule,

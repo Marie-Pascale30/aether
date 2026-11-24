@@ -27,7 +27,15 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
     email: emailSchema,
-    password: z.string().min(1, "Mot de passe requis."),
+    password: z.string().min(1, "Mot de passe requis.").max(ACCOUNT_LIMITS.passwordMax, "Mot de passe trop long."),
+});
+
+/**
+ * Suppression du compte : le mot de passe est redemandé pour un compte qui en a un
+ * (un invité n'en a pas et peut supprimer sa progression directement).
+ */
+export const deleteAccountSchema = z.object({
+    password: z.string().max(ACCOUNT_LIMITS.passwordMax, "Mot de passe trop long.").optional(),
 });
 
 export const updateProfileSchema = z.object({
@@ -45,7 +53,7 @@ export const resetPasswordSchema = z.object({ token: tokenSchema, password: pass
 
 export const changePasswordSchema = z
     .object({
-        currentPassword: z.string().min(1, "Mot de passe actuel requis."),
+        currentPassword: z.string().min(1, "Mot de passe actuel requis.").max(ACCOUNT_LIMITS.passwordMax, "Mot de passe trop long."),
         newPassword: passwordSchema,
     })
     .refine((input) => input.currentPassword !== input.newPassword, {
@@ -165,6 +173,7 @@ export const clientErrorSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
