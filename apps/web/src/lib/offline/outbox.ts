@@ -46,6 +46,8 @@ export const outbox = {
     forUser: (userId: string | undefined) => outbox.all().filter((entry) => entry.userId === userId),
     add: (entry: PendingResult) => save([...load(), entry]),
     remove: (resultId: string) => save(load().filter((entry) => entry.resultId !== resultId)),
+    /** Oublie les victoires en attente d'un joueur (compte supprimé). */
+    discard: (userId: string) => save(load().filter((entry) => entry.userId !== userId)),
     /** Les victoires d'un invité suivent le compte auquel il se connecte. */
     reassign: (fromUserId: string, toUserId: string) =>
         save(load().map((entry) => (entry.userId === fromUserId ? { ...entry, userId: toUserId } : entry))),

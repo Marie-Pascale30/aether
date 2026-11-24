@@ -34,6 +34,41 @@ export interface Me {
     isGuest: boolean;
 }
 
+/**
+ * Copie des données personnelles d'un joueur (RGPD, art. 15 et 20), au format JSON.
+ * Sans empreinte de mot de passe ni jeton : rien qui permette d'ouvrir une session.
+ */
+export interface AccountExport {
+    format: "aether-export";
+    version: 1;
+    exportedAt: string;
+    profile: {
+        id: string;
+        displayName: string;
+        email: string | null;
+        emailVerifiedAt: string | null;
+        role: Role;
+        isGuest: boolean;
+        createdAt: string;
+        updatedAt: string;
+        lastSeenAt: string;
+    };
+    progress: { levelId: string; levelTitle: string; petals: number; bestTimeMs: number; completions: number; firstCompletedAt: string; updatedAt: string }[];
+    dailyResults: { date: string; petals: number; durationMs: number; mistakes: number; hintsUsed: number; createdAt: string }[];
+    milestones: { key: string; reachedAt: string }[];
+    sessions: {
+        id: string;
+        levelId: string;
+        startedAt: string;
+        completedAt: string | null;
+        mistakes: number;
+        hintsUsed: number;
+        petals: number | null;
+        durationMs: number | null;
+        attempts: { cells: number[]; correct: boolean; createdAt: string }[];
+    }[];
+}
+
 // ─── Mondes et niveaux ──────────────────────────────────────────────────────
 
 export type LevelStatus = "locked" | "available" | "completed";

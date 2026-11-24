@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { useSettings, type MotionPreference, type SymbolSize, type ThemePreference } from "@/lib/settings";
 import { useSound } from "@/lib/sound/SoundProvider";
+import { AccountData } from "./AccountData";
 import styles from "./reglages.module.css";
 
 const MOTION_OPTIONS: { value: MotionPreference; label: string; hint: string }[] = [
@@ -112,6 +113,8 @@ export function SettingsView() {
             <Button variant="ghost" onClick={reset}>
                 Rétablir les réglages par défaut
             </Button>
+
+            <AccountData />
         </Panel>
     );
 }

@@ -1,4 +1,5 @@
 import type {
+    AccountExport,
     AdminLevel,
     AdminWorld,
     ApiErrorBody,
@@ -90,6 +91,11 @@ export const api = {
         resetPassword: (token: string, password: string) => request<Me>("POST", "/auth/password/reset", { token, password }),
         changePassword: (currentPassword: string, newPassword: string) =>
             request<Me>("PATCH", "/auth/password", { currentPassword, newPassword }),
+        /** Suppression définitive du compte (mot de passe requis s'il en a un). */
+        deleteMe: async (password?: string) => {
+            await request<void>("DELETE", "/auth/me", password ? { password } : {});
+            if (IS_APP) appSession.set(null);
+        },
     },
     levels: {
         get: (id: string) => request<LevelDetail>("GET", `/levels/${id}`),
@@ -104,6 +110,8 @@ export const api = {
         sync: () => request<SyncState>("GET", "/me/sync"),
         stats: () => request<PlayerStats>("GET", "/me/stats"),
         milestones: () => request<MilestonesView>("GET", "/me/milestones"),
+        /** Copie de toutes les données du joueur (RGPD). */
+        export: () => request<AccountExport>("GET", "/me/export"),
     },
     daily: () => request<DailyState>("GET", "/daily"),
     admin: {

@@ -74,6 +74,21 @@ export function useLogout() {
     return useMutation({ mutationFn: api.auth.logout, onSuccess: () => switchIdentity(null) });
 }
 
+/** Suppression du compte : plus de session, et les victoires en attente de ce joueur sont oubliées. */
+export function useDeleteAccount() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (password?: string) => api.auth.deleteMe(password),
+        onSuccess: () => {
+            const previous = qc.getQueryData<Me | null>(keys.me);
+            if (previous) outbox.discard(previous.id);
+            signedOut.set(true);
+            qc.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] });
+            qc.setQueryData(keys.me, null);
+        },
+    });
+}
+
 export function useUpdateDisplayName() {
     const qc = useQueryClient();
     return useMutation({
