@@ -23,3 +23,9 @@
     margin-top: -8px;
     font-size: 13px;
 }
+
+.consent {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+}

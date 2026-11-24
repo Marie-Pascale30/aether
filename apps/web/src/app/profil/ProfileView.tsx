@@ -156,7 +156,7 @@ function AccountCard() {
                     name="displayName"
                     defaultValue={me.displayName}
                     error={error}
-                    hint={saved ? "Enregistré ✓" : "Le nom que te donnera le Gardien."}
+                    hint={saved ? "Enregistré ✓" : "Le nom que te donnera le Gardien. N'utilise pas ton vrai nom."}
                 />
                 <Button type="submit" disabled={update.isPending}>
                     Enregistrer

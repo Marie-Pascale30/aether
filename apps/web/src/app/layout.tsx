@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import type { ReactNode } from "react";
 import { AppHeader } from "@/components/shell/AppHeader";
@@ -45,7 +46,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                         <main id="contenu" tabIndex={-1} className={styles.main}>
                             {children}
                         </main>
-                        <footer className={styles.footer}>L&apos;Atlas des Esprits · Prototype 0.5</footer>
+                        <footer className={styles.footer}>
+                            <p>L&apos;Atlas des Esprits · Prototype 0.5</p>
+                            <nav aria-label="Informations légales" className={styles.legal}>
+                                <Link href="/mentions-legales">Mentions légales</Link>
+                                <span aria-hidden> · </span>
+                                <Link href="/confidentialite">Confidentialité</Link>
+                            </nav>
+                        </footer>
                     </div>
                 </Providers>
             </body>

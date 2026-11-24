@@ -18,6 +18,14 @@
     margin-top: 40px;
 }
 
+.footer p {
+    margin: 0 auto 6px;
+}
+
+.legal a {
+    color: var(--muted);
+}
+
 .main:focus {
     outline: none;
 }

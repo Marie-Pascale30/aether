@@ -1,0 +1,61 @@
+.page {
+    max-width: 760px;
+    margin: 20px auto 0;
+}
+
+.updated {
+    margin: 0 0 8px;
+    color: var(--faint);
+    font-size: 14px;
+}
+
+.body section {
+    padding: 18px 0;
+    border-top: 1px solid var(--line);
+}
+
+.body h3 {
+    margin: 0 0 10px;
+}
+
+.body p,
+.body li {
+    max-width: none;
+    line-height: 1.6;
+}
+
+.body ul {
+    margin: 8px 0;
+    padding-left: 22px;
+}
+
+.body li + li {
+    margin-top: 6px;
+}
+
+.body address {
+    font-style: normal;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+}
+
+.table th,
+.table td {
+    padding: 8px 10px 8px 0;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+}
+
+.table th {
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.tableWrap {
+    overflow-x: auto;
+}

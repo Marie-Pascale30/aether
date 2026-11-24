@@ -89,7 +89,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
             <form className="stack" onSubmit={onSubmit} noValidate>
                 {isRegister && (
-                    <Field label="Pseudo" name="displayName" autoComplete="nickname" error={errors.displayName} hint="Le nom que te donnera le Gardien." />
+                    <Field
+                        label="Pseudo"
+                        name="displayName"
+                        autoComplete="nickname"
+                        error={errors.displayName}
+                        hint="Le nom que te donnera le Gardien. N'utilise pas ton vrai nom : invente un pseudo."
+                    />
                 )}
                 <Field label="Adresse e-mail" name="email" type="email" autoComplete="email" error={errors.email} />
                 <Field
@@ -104,6 +110,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
                     <Link href="/mot-de-passe-oublie" className={styles.forgot}>
                         Mot de passe oublié ?
                     </Link>
+                )}
+
+                {isRegister && (
+                    <p className={styles.consent}>
+                        En créant un compte, tu confirmes avoir 15 ans ou plus, ou avoir l&apos;accord d&apos;un parent. Tu peux
+                        aussi jouer en invité, sans e-mail. Ce que deviennent tes données :{" "}
+                        <Link href="/confidentialite">politique de confidentialité</Link>.
+                    </p>
                 )}
 
                 {errors.form && (
