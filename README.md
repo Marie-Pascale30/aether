@@ -168,7 +168,7 @@ sont jamais supprimés. À la demande : `POST /api/admin/maintenance/cleanup?dry
 | `DATABASE_URL` | — | Connexion PostgreSQL |
 | `JWT_SECRET` | — | Signature des sessions (32+ car. ; la valeur d'exemple est refusée en production) |
 | `PORT` · `WEB_ORIGIN` · `APP_URL` | 4100 · :3100 · :3100 | Port, origine CORS, adresse des liens e-mail |
-| `TRUST_PROXY` | `loopback` | Proxys autorisés à transmettre l'IP des joueurs (limitation de débit) |
+| `TRUST_PROXY` | `loopback` | Proxys autorisés à transmettre l'IP des joueurs : liste (`loopback,uniquelocal`) ou nombre de sauts (`2`) |
 | `LOG_LEVEL` | `info` | Niveau des journaux |
 | `DAILY_TIMEZONE` | `Europe/Paris` | Minuit de l'énigme du jour et heure du nettoyage |
 | `MAIL_TRANSPORT` · `SMTP_URL` · `MAIL_FROM` | `log` | `log` (boîte d'envoi locale) ou `smtp` |
@@ -187,47 +187,58 @@ La composition enchaîne `db` → `migrate` (migrations + seed, tâche ponctuell
 session est `Secure`. L'API n'est pas exposée hors du réseau Docker ; ne l'exposez pas directement avec
 `TRUST_PROXY=loopback,uniquelocal`, sinon l'IP transmise pourrait être falsifiée.
 
-## Mettre en ligne (Railway)
+## Mettre en ligne (Vercel + Render + Neon)
 
-Un projet Railway, trois services, tous depuis ce dépôt GitHub (contexte de build : la racine) :
+| Élément | Hébergeur | Déclenchement |
+| ------- | --------- | ------------- |
+| Site (`apps/web`) | Vercel, branche de production `feat/evolutions` | push sur la branche |
+| API (`apps/api`, image `apps/api/Dockerfile`) | Render (service web Docker) | push sur la branche |
+| Base PostgreSQL | Neon | — |
 
-| Service    | Config-as-code (réglages du service) | Réseau                    |
-| ---------- | ------------------------------------ | ------------------------- |
-| `Postgres` | base gérée par Railway               | privé                     |
-| `api`      | `/apps/api/railway.json`             | privé seulement           |
-| `web`      | `/apps/web/railway.json`             | public (domaine généré)   |
+Vercel : commande d'installation `cd ../.. && npm ci --ignore-scripts`, de build
+`cd ../.. && npm run build -w @aether/shared && npm run build -w @aether/web`, variable `API_URL`
+(adresse publique de l'API Render, lue au build pour le relais `/api`).
 
-Avant chaque déploiement de `api`, la commande de pré-déploiement `npm run deploy:db` applique les
-migrations et le seed (idempotent) ; un échec bloque le déploiement. Le site relaie `/api` vers l'API par
-le réseau privé : l'API n'a pas d'adresse publique.
+Render : les migrations ne sont pas jouées au déploiement (pas de pré-déploiement sur l'offre
+gratuite) ; les appliquer à part (`npx prisma migrate deploy` avec la `DATABASE_URL` de Neon) avant de
+pousser un changement de schéma.
 
-Variables de `api` (les secrets ne quittent jamais Railway) :
+Variables de l'API (les secrets ne quittent jamais Render) :
 
 ```ini
 NODE_ENV=production
 PORT=4100
-DATABASE_URL=${{Postgres.DATABASE_URL}}
+DATABASE_URL=<chaîne de connexion Neon>
 JWT_SECRET=<64 caractères hexadécimaux aléatoires>
-APP_URL=https://${{web.RAILWAY_PUBLIC_DOMAIN}}
-WEB_ORIGIN=https://${{web.RAILWAY_PUBLIC_DOMAIN}}
-TRUST_PROXY=loopback,uniquelocal
-MAIL_TRANSPORT=smtp
-SMTP_URL=smtp://<identifiant Brevo>:<clé SMTP Brevo>@smtp-relay.brevo.com:587
-MAIL_FROM=AETHER <adresse validée chez Brevo>
-ADMIN_EMAIL=<adresse de l'administrateur>
-ADMIN_PASSWORD=<12 caractères minimum>
+APP_URL=https://<domaine du site>
+WEB_ORIGIN=https://<domaine du site>
+# Sauts de proxy entre le joueur et l'API (voir ci-dessous)
+TRUST_PROXY=<nombre de sauts>
+MAIL_TRANSPORT=log
 DAILY_TIMEZONE=Europe/Paris
 ```
 
-Variables de `web` (`API_URL` est lue au build) :
+**`TRUST_PROXY` derrière Vercel puis Render.** Le site relaie `/api` : la requête passe par Vercel,
+puis par le proxy de Render, chacun ajoutant une entrée à `X-Forwarded-For`. `TRUST_PROXY` est un
+**nombre de sauts** (Express) réglé pour ce chemin : l'IP retenue est celle du joueur. Un appel direct
+à l'adresse Render (applications, ou un attaquant) peut fausser cette IP ; c'est pourquoi la connexion
+et « mot de passe oublié » sont aussi limités **par adresse e-mail**, indépendamment de l'IP.
 
-```ini
-PORT=3100
-API_URL=http://${{api.RAILWAY_PRIVATE_DOMAIN}}:4100
-```
+**E-mails.** `MAIL_TRANSPORT=log` : aucun e-mail ne part (messages écrits sur le disque éphémère du
+conteneur). Pour un envoi réel, `MAIL_TRANSPORT=smtp` et `SMTP_URL` ; mettre alors à jour la page
+`/confidentialite` (prestataire d'envoi).
 
-Les applications visent l'adresse publique du site (`NEXT_PUBLIC_API_URL=https://<domaine du site>`),
-qui relaie `/api` : l'API reste privée.
+**Pages légales.** `/mentions-legales` et `/confidentialite` décrivent ce que fait le code (durées de
+conservation, cookie unique de session, hébergeurs) : les tenir à jour à chaque changement.
+
+### Dépendances : avis de sécurité connus
+
+- **Prisma 6 → 7** : `npm audit` signale `deepmerge-ts` et `effect`, dépendances de la configuration
+  de la CLI Prisma (pas du client utilisé à l'exécution). La correction impose Prisma 7, changement
+  majeur (adaptateur de pilote obligatoire, `prisma.config.ts`, nouveau générateur, seed déplacé) :
+  reportée à une migration dédiée, testée sur une branche Neon avant la production.
+- vitest, `@nestjs/cli`, `@capacitor/assets` : outils de développement seulement ; leur correction
+  passe par des versions majeures.
 
 ## Applications (Android, iOS, Windows, macOS, Linux)
 

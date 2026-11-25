@@ -41,7 +41,7 @@ COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-# Schéma et migrations : l'image sait aussi migrer (`npm run deploy:db`, pré-déploiement Railway).
+# Schéma et migrations : l'image sait aussi migrer (`npm run deploy:db`).
 COPY apps/api/prisma apps/api/prisma
 # Prisma CLI est une dépendance de production ; ses moteurs sont téléchargés ici, au build.
 RUN npm ci --omit=dev --ignore-scripts --workspace @aether/api --workspace @aether/shared \
