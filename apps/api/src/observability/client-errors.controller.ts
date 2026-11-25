@@ -15,6 +15,11 @@ export class ClientErrorsController {
     @Post()
     @HttpCode(204)
     report(@Body(new ZodPipe(clientErrorSchema)) body: ClientErrorInput, @CurrentUser() user: AuthUser | undefined): void {
-        this.logger.error({ source: "client", userId: user?.id, ...body }, `Erreur navigateur : ${body.message}`);
+        this.logger.error({ source: "client", userId: user?.id, ...body, url: withoutQuery(body.url) }, `Erreur navigateur : ${body.message}`);
     }
+}
+
+/** Adresse sans paramètres ni fragment : les liens reçus par e-mail y portent des jetons (?token=…). */
+export function withoutQuery(url: string): string {
+    return url.split(/[?#]/, 1)[0] ?? "";
 }
