@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import { Prisma, type PlaySession } from "@prisma/client";
 import { petalsFor, type CompletionResult, type LevelResultInput } from "@aether/shared";
 import type { AuthUser } from "../common/auth.decorators";
@@ -9,8 +9,10 @@ import { LevelsService, type Playable } from "../levels/levels.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { MilestonesService } from "../progress/milestones.service";
 
-/** Une victoire datée de plus de 5 min dans le futur vient d'une horloge déréglée : on la ramène à maintenant. */
+/** Tolérance pour une horloge d'appareil un peu en avance. Au-delà, la date est refusée. */
 const CLOCK_SKEW_MS = 5 * 60 * 1000;
+/** Une victoire jouée hors ligne doit être envoyée dans la semaine : au-delà, elle est refusée. */
+const MAX_RESULT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface Recorded {
     session: PlaySession;
@@ -35,10 +37,27 @@ export class PlayService {
     ) {}
 
     async submitResult(user: AuthUser, levelId: string, input: LevelResultInput): Promise<CompletionResult> {
-        const playedAt = new Date(Math.min(Date.parse(input.playedAt), Date.now() + CLOCK_SKEW_MS));
+        const playedAt = await this.checkPlayedAt(user, input.playedAt);
         const playable = await this.levels.playable(user, levelId, playedAt);
         const recorded = (await this.findDuplicate(user, levelId, input.resultId)) ?? (await this.record(user, playable, input, playedAt));
         return this.describe(user, playable, recorded);
+    }
+
+    /**
+     * `playedAt` vient de l'appareil : ni dans le futur, ni vieux de plus de 7 jours, ni antérieur à
+     * la création du joueur (on ne rattrape pas une énigme du jour passée avec un compte tout neuf).
+     * Pour l'énigme du jour, la fenêtre de retard reste celle de `DailyService.dateForLevel`.
+     */
+    private async checkPlayedAt(user: AuthUser, value: string): Promise<Date> {
+        const playedAt = new Date(value);
+        const now = Date.now();
+        const invalid = (message: string) =>
+            new BadRequestException({ statusCode: 400, message: [message], issues: [{ path: ["playedAt"], message }] });
+        if (playedAt.getTime() > now + CLOCK_SKEW_MS) throw invalid("La date de la partie est dans le futur.");
+        if (playedAt.getTime() < now - MAX_RESULT_AGE_MS) throw invalid("Cette partie est trop ancienne pour être enregistrée.");
+        const { createdAt } = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { createdAt: true } });
+        if (playedAt.getTime() < createdAt.getTime() - CLOCK_SKEW_MS) throw invalid("Cette partie est antérieure à ton arrivée dans le jardin.");
+        return playedAt;
     }
 
     /** Résultat déjà reçu (renvoi après une coupure réseau) : décrit à nouveau, sans rien compter. */

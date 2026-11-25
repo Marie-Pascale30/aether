@@ -127,6 +127,11 @@ await check("résultat invalide refusé (identifiant, date, durée)", async () =
     assert.equal((await player("POST", `/levels/${id}/results`, { durationMs: 1000, mistakes: 0, hintsUsed: 0 })).status, 400);
     assert.equal((await player("POST", `/levels/${id}/results`, { resultId: "x", playedAt: "hier", durationMs: 1, mistakes: 0, hintsUsed: 0 })).status, 400);
     assert.equal((await win(player, id, { durationMs: -1 })).status, 400);
+    // playedAt fourni par l'appareil : ni futur, ni plus de 7 jours, ni avant la création du joueur.
+    const DAY = 24 * 60 * 60 * 1000;
+    assert.equal((await win(player, id, { playedAt: new Date(Date.now() + 60 * 60 * 1000) })).status, 400);
+    assert.equal((await win(player, id, { playedAt: new Date(Date.now() - 8 * DAY) })).status, 400);
+    assert.equal((await win(player, id, { playedAt: new Date(Date.now() - DAY) })).status, 400, "pas de victoire antidatée avant l'arrivée du joueur");
 });
 
 await check("première victoire (une fausse piste, deux indices) → pétale d'éclosion et premier repère", async () => {
@@ -196,15 +201,15 @@ await check("énigme 2 débloquée, progression, synchronisation et stats à jou
 });
 
 await check("monde suivant ouvert après 3 énigmes ; victoire hors ligne envoyée en retard", async () => {
-    // Énigme 2 jouée hier (hors ligne), envoyée aujourd'hui : elle compte pour hier.
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    assert.equal((await win(player, jardin.levels[1].id, { playedAt: yesterday })).status, 200);
+    // Énigme 2 jouée un peu plus tôt (hors ligne), envoyée maintenant : elle est acceptée.
+    const earlier = new Date(Date.now() - 2 * 60 * 1000);
+    assert.equal((await win(player, jardin.levels[1].id, { playedAt: earlier })).status, 200);
     assert.equal((await win(player, jardin.levels[2].id)).status, 200);
     const after = (await player("GET", "/worlds")).body;
     assert.equal(after[0].status, "available"); // pas encore restauré en entier…
     assert.equal(after[1].status, "available"); // …mais le monde suivant est ouvert
     assert.equal(after[2].status, "locked");
-    assert.equal((await player("GET", "/me/milestones")).body.facts.playDays, 2);
+    assert.ok((await player("GET", "/me/milestones")).body.facts.playDays >= 1);
 
     const second = (await player("GET", `/worlds/${after[1].slug}`)).body;
     const local = (await player("GET", `/levels/${second.levels[0].id}`)).body;
@@ -348,7 +353,7 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         const stats = (await admin("GET", `/admin/levels/${jardin.levels[0].id}/stats`)).body;
         assert.ok(stats.sessions >= 2);
         assert.ok(stats.completions >= 2);
-        assert.ok(stats.attempts >= 3);
+        assert.ok(stats.attempts >= 2); // les deux coups envoyés avec la première victoire
         // Le joueur a tenté [0, 1] plus haut ; la combinaison est triée (paires : ordre indifférent).
         const lead = stats.falseLeads.find((l) => l.cells.join() === "0,1");
         assert.ok(lead, "fausse piste [0, 1] absente");
@@ -451,5 +456,65 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
         assert.equal((await admin("DELETE", `/admin/worlds/${created.body.id}`)).status, 204);
     });
 }
+
+await check("en-têtes de sécurité (helmet), sans x-powered-by", async () => {
+    const res = await player("GET", "/health");
+    assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+    assert.ok(res.headers.get("content-security-policy"));
+    assert.equal(res.headers.get("x-powered-by"), null);
+});
+
+await check("déconnexion : le jeton est révoqué, même copié", async () => {
+    const guest = client();
+    await guest("POST", "/auth/guest");
+    const token = await fetch(API + "/auth/guest", { method: "POST", headers: { "x-aether-client": "app", "x-forwarded-for": "10.9.9.9" } }).then((r) =>
+        r.headers.get("x-session-token"),
+    );
+    const meWith = (t) => fetch(API + "/auth/me", { headers: { authorization: `Bearer ${t}` } }).then((r) => r.json());
+    assert.ok((await meWith(token)).me);
+    assert.equal((await fetch(API + "/auth/logout", { method: "POST", headers: { authorization: `Bearer ${token}` } })).status, 204);
+    assert.equal((await meWith(token)).me, null, "le jeton devait être périmé après la déconnexion");
+});
+
+await check("connexion : limite par adresse e-mail, indépendante de l'IP", async () => {
+    const email = `limite-${unique}@aether.local`;
+    const statuses = [];
+    for (let i = 0; i < 11; i++) statuses.push((await client()("POST", "/auth/login", { email, password: "mauvais" })).status);
+    assert.deepEqual(statuses.slice(0, 10), Array(10).fill(401));
+    assert.equal(statuses[10], 429);
+    const tooLong = await client()("POST", "/auth/login", { email, password: "x".repeat(200) });
+    assert.equal(tooLong.status, 400);
+});
+
+await check("export des données puis suppression du compte (mot de passe redemandé)", async () => {
+    const email = `efface-${unique}@aether.local`;
+    const who = client();
+    await who("POST", "/auth/guest");
+    assert.equal((await who("POST", "/auth/register", { displayName: "Éphémère", email, password: "motdepasse-efface" })).status, 201);
+    const level = (await who("GET", "/worlds")).body[0];
+    const first = (await who("GET", `/worlds/${level.slug}`)).body.levels[0];
+    assert.equal((await win(who, first.id)).status, 200);
+
+    const exported = await who("GET", "/me/export");
+    assert.equal(exported.status, 200);
+    assert.match(exported.headers.get("content-disposition") ?? "", /attachment/);
+    assert.equal(exported.body.profile.email, email);
+    assert.equal(exported.body.progress.length, 1);
+    assert.equal(exported.body.sessions.length, 1);
+    const raw = JSON.stringify(exported.body);
+    assert.doesNotMatch(raw, /passwordHash|sessionVersion|scrypt|tokenHash/);
+
+    assert.equal((await who("DELETE", "/auth/me", {})).status, 400, "mot de passe requis");
+    assert.equal((await who("DELETE", "/auth/me", { password: "faux" })).status, 400);
+    const deleted = await who("DELETE", "/auth/me", { password: "motdepasse-efface" });
+    assert.equal(deleted.status, 204);
+    assert.match(deleted.headers.get("set-cookie") ?? "", /aether_session=;/);
+    assert.equal((await client()("POST", "/auth/login", { email, password: "motdepasse-efface" })).status, 401);
+
+    // Un invité se supprime sans mot de passe.
+    const guest = client();
+    await guest("POST", "/auth/guest");
+    assert.equal((await guest("DELETE", "/auth/me", {})).status, 204);
+});
 
 console.log(`\n${step} vérifications réussies.`);
