@@ -22,7 +22,8 @@ const envSchema = z
             .transform((value) => value.split(",").map((origin) => origin.trim()).filter(Boolean)),
         /**
          * Proxys autorisés à transmettre l'IP du joueur (X-Forwarded-For), au format Express :
-         * « loopback » en local, « loopback,uniquelocal » quand le front tourne dans un autre conteneur.
+         * « loopback » en local, « loopback,uniquelocal » quand le front tourne dans un autre conteneur,
+         * ou un nombre de sauts : « 4 » en production (Vercel puis Render, voir le README).
          * Ne jamais exposer l'API directement sur Internet avec une valeur trop large.
          */
         TRUST_PROXY: z.string().default("loopback"),

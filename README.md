@@ -213,14 +213,17 @@ JWT_SECRET=<64 caractères hexadécimaux aléatoires>
 APP_URL=https://<domaine du site>
 WEB_ORIGIN=https://<domaine du site>
 # Sauts de proxy entre le joueur et l'API (voir ci-dessous)
-TRUST_PROXY=<nombre de sauts>
+TRUST_PROXY=4
 MAIL_TRANSPORT=log
 DAILY_TIMEZONE=Europe/Paris
 ```
 
 **`TRUST_PROXY` derrière Vercel puis Render.** Le site relaie `/api` : la requête passe par Vercel,
 puis par le proxy de Render, chacun ajoutant une entrée à `X-Forwarded-For`. `TRUST_PROXY` est un
-**nombre de sauts** (Express) réglé pour ce chemin : l'IP retenue est celle du joueur. Un appel direct
+**nombre de sauts** (Express) réglé pour ce chemin : l'IP retenue est celle du joueur. Mesuré en
+production (novembre 2026, sans journaliser d'adresse) : la socket arrive du proxy local de Render
+(loopback) et `X-Forwarded-For` compte 4 entrées (joueur, sortie Vercel, frontal Render, adresse privée
+interne), d'où `TRUST_PROXY=4`. À re-mesurer si l'hébergement change. Un appel direct
 à l'adresse Render (applications, ou un attaquant) peut fausser cette IP ; c'est pourquoi la connexion
 et « mot de passe oublié » sont aussi limités **par adresse e-mail**, indépendamment de l'IP.
 
